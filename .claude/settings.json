@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "blockReadsOutsideWorkingDirectories": true,
+    "deny": [
+      "Read(~/onus-heldout/**)",
+      "Edit(~/onus-heldout/**)",
+      "Read(~/onus-heldout.zip)",
+      "Read(~/onus-runs/**)",
+      "Edit(~/onus-runs/**)",
+      "Read(~/Dropbox/AI4Metascience_Hackathon/AI4MetaScience_Hackathon-OpenReview_data/**)",
+      "Edit(~/Dropbox/AI4Metascience_Hackathon/AI4MetaScience_Hackathon-OpenReview_data/**)",
+      "Read(~/Dropbox/AI4Metascience_Hackathon/scripts/**)",
+      "Edit(~/Dropbox/AI4Metascience_Hackathon/scripts/**)",
+      "Read(~/Dropbox/AI4Metascience_Hackathon/code/**)",
+      "Edit(~/Dropbox/AI4Metascience_Hackathon/code/**)",
+      "Read(~/.claude-personal/projects/-home-nash-Dropbox-AI4Metascience-Hackathon/**)",
+      "Read(//tmp/claude-1000/-home-nash-Dropbox-AI4Metascience-Hackathon/**)",
+      "Edit(./.env)",
+      "Write(./.env)",
+      "Read(./deploy_data/**)",
+      "WebFetch(domain:openreview.net)",
+      "WebFetch(domain:api2.openreview.net)",
+      "WebFetch(domain:agents4science.stanford.edu)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(railway *)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyWrite": ["./.env"],
+      "denyRead": [
+        "~/onus-heldout",
+        "~/onus-heldout.zip",
+        "~/onus-runs",
+        "~/Dropbox/AI4Metascience_Hackathon/AI4MetaScience_Hackathon-OpenReview_data",
+        "~/Dropbox/AI4Metascience_Hackathon/scripts",
+        "~/Dropbox/AI4Metascience_Hackathon/code",
+        "~/.claude-personal/projects/-home-nash-Dropbox-AI4Metascience-Hackathon",
+        "/tmp/claude-1000/-home-nash-Dropbox-AI4Metascience-Hackathon"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "api.berget.ai",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "registry.npmjs.org",
+        "github.com",
+        "*.githubusercontent.com",
+        "*.modal.com",
+        "arxiv.org",
+        "export.arxiv.org"
+      ]
+    }
+  }
+}
