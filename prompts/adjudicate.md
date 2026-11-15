@@ -1,6 +1,6 @@
 ---
 id: adjudicate
-version: 1
+version: 2
 role: judge
 temperature: 0.0
 max_tokens: 8000
@@ -16,6 +16,10 @@ Your decision is one of:
 - "not_checkable": the flag rests on a parsing problem, for example a misread table (merged or shifted columns, numbers split apart) or a cell matched to the wrong row. Describe it in "parse_problem".
 
 You can never make a verdict more severe, and you cannot flag something the checks did not flag. Judge only from what is given; do not use outside knowledge.
+
+Limits that code enforces (a decision outside them is ignored):
+- A failed number or comparison check was computed by code from the table cells: you cannot clear it as "supported", and you can mark it "not_checkable" only when the table itself was misread.
+- Clearing an "overstated" verdict needs at least one cited item whose relation is "supports"; clearing a verdict that rests on partial evidence only needs at least two cited items that together cover the claim.
 
 "reason": one or two plain sentences a reader can check, saying what was found and where (cite tables, figures or page locations, not evidence ids). "caveat": an optional short sentence on what the check could not see; empty if none.
 

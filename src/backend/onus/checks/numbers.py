@@ -231,7 +231,27 @@ def check_mention(m: Mention, nm: NumberMap, views: list[TableView], tol: Tolera
             if _matches(m, c.value, sc, tol) is not None and v.where(i, j) not in res["cells"]:
                 return res | {"status": "inconclusive",
                               "why": f"recomputed {expr}, but {m.text} appears in {v.where(i, j)}: mapping suspect"}
-    return res | {"status": "fail"}
+    return res | {"status": "fail", "parse_flags": parse_flags(m, cells)}
+
+
+_NUM_TOKEN = re.compile(r"-?\d+(?:[.,]\d+)*")
+_UNIT_WORDS = {"percent": ("%", "percent", "pct"), "pp": ("%", "percent", "pp", "point"), "fold": ("×", "x", "fold",
+                                                                                                  "times", "ratio")}
+
+
+def parse_flags(m: Mention, cells: list[Resolved]) -> list[str]:
+    """Code-confirmed reasons a failed comparison may rest on a parsing problem (used by adjudication)."""
+    out = []
+    for c in cells:
+        n = len(_NUM_TOKEN.findall(c.cell.raw))
+        if n > (3 if c.cell.spread is not None else 1):
+            out.append(f"{c.where}: cell {c.cell.raw!r} holds {n} numbers")
+    if m.unit in _UNIT_WORDS:
+        ctx = " ".join([*(c.cell.raw for c in cells), *(c.where for c in cells),
+                        *(c.table.table.caption for c in cells)]).lower()
+        if not any(w in ctx for w in _UNIT_WORDS[m.unit]) and not any(c.cell.percent for c in cells):
+            out.append(f"the claim's unit ({m.unit}) is not shown in the cell, column or caption")
+    return out
 
 
 def _detail(r: dict) -> str:

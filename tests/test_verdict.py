@@ -93,12 +93,12 @@ def test_checklist_mapping():
 RV = RuleVerdict("contradicted", 1, "Claimed 91%; recomputed 85.2%.")
 
 
-async def _adj(response, rv=RV, evidence=None):
+async def _adj(response, rv=RV, evidence=None, checks=None):
     fake = FakeLLM({"adjudicate": response}, prompts=PromptRegistry())
     return await adjudicate(quote="Ours reaches 91% accuracy.", section="Abstract", wording=W,
                             evidence=evidence if evidence is not None else [ev("ev1", "supports")],
-                            checks=[LINK_PASS, ck("number", "fail", "contradicts")], rule=rv, llm=fake, run_index=0,
-                            paper_id="p", metas=[])
+                            checks=checks or [LINK_PASS, ck("number", "fail", "contradicts")], rule=rv, llm=fake,
+                            run_index=0, paper_id="p", metas=[])
 
 
 async def test_adjudicate_confirm_uses_the_judges_reason():
@@ -107,24 +107,56 @@ async def test_adjudicate_confirm_uses_the_judges_reason():
     assert v == "contradicted" and reason == "Table 1 gives 85.2, not 91." and caveat and rec["applied"]
 
 
-async def test_adjudicate_supported_needs_a_valid_evidence_id():
-    v, _, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev1"], "reason": "Row 2 shows 91."})
+OV = RuleVerdict("overstated", 3, "Universal wording on one dataset.")
+STRENGTH_FAIL = [LINK_PASS, ck("strength", "fail", "overstates")]
+
+
+async def test_adjudicate_supported_needs_a_valid_supporting_evidence_id():
+    v, _, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev1"], "reason": "Row 2 shows it."},
+                              rv=OV, checks=STRENGTH_FAIL)
     assert v == "supported" and rec["evidence_ids"] == ["ev1"]
-    v, reason, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev9"], "reason": "trust me"})
-    assert v == "contradicted" and reason == RV.reason and not rec["applied"]
-    v, _, _, _ = await _adj({"decision": "supported", "evidence_ids": ["ev1"]}, evidence=[])
-    assert v == "contradicted"
+    v, reason, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev9"], "reason": "trust me"},
+                                   rv=OV, checks=STRENGTH_FAIL)
+    assert v == "overstated" and reason == OV.reason and not rec["applied"]
+    v, _, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev1"]}, rv=OV, checks=STRENGTH_FAIL,
+                              evidence=[ev("ev1", "partial")])  # overstated needs a *supporting* item
+    assert v == "overstated" and "supporting item" in rec["note"]
+
+
+async def test_adjudicate_partial_only_needs_two_cited_items():
+    nc = RuleVerdict("not_checkable", 4, "Only partial.")
+    evs = [ev("ev1", "partial"), ev("ev2", "partial", "p. 2, ¶ 1", "text")]
+    v, _, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev1"]}, rv=nc, evidence=evs,
+                              checks=[LINK_PASS])
+    assert v == "not_checkable" and ">= 2" in rec["note"]
+    v, _, _, _ = await _adj({"decision": "supported", "evidence_ids": ["ev1", "ev2"]}, rv=nc, evidence=evs,
+                            checks=[LINK_PASS])
+    assert v == "supported"
+
+
+async def test_adjudicate_cannot_clear_a_failed_number_check():
+    v, _, _, rec = await _adj({"decision": "supported", "evidence_ids": ["ev1"], "reason": "Row 2 shows 91."})
+    assert v == "contradicted" and "computed by code" in rec["note"]
+    v, _, _, rec = await _adj({"decision": "not_checkable", "parse_problem": "columns shifted", "reason": "x"})
+    assert v == "contradicted" and "confirmed by code" in rec["note"]
+    flagged = ck("number", "fail", "contradicts")
+    flagged.data = {"numbers": [{"status": "fail", "parse_flags": [("Table 1, row 'Ours', col 'Acc': cell '85 2' "
+                                                                   "holds 2 numbers")]}]}
+    v, _, _, _ = await _adj({"decision": "not_checkable", "parse_problem": "columns shifted", "reason": "x"},
+                            checks=[LINK_PASS, flagged])
+    assert v == "not_checkable"
 
 
 async def test_adjudicate_not_checkable_needs_a_parse_problem_and_never_upgrades():
-    v, _, _, rec = await _adj({"decision": "not_checkable", "reason": "x"})
-    assert v == "contradicted" and "parse problem" in rec["note"]
-    v, _, _, _ = await _adj({"decision": "not_checkable", "parse_problem": "columns shifted", "reason": "x"})
+    v, _, _, rec = await _adj({"decision": "not_checkable", "reason": "x"}, rv=OV, checks=STRENGTH_FAIL)
+    assert v == "overstated" and "parse problem" in rec["note"]
+    v, _, _, _ = await _adj({"decision": "not_checkable", "parse_problem": "columns shifted", "reason": "x"},
+                            rv=OV, checks=STRENGTH_FAIL)
     assert v == "not_checkable"
     nc = RuleVerdict("not_checkable", 4, "Only partial.")
-    v, _, _, rec = await _adj({"decision": "not_checkable", "parse_problem": "p"}, rv=nc)
+    v, _, _, rec = await _adj({"decision": "not_checkable", "parse_problem": "p"}, rv=nc, checks=[LINK_PASS])
     assert v == "not_checkable" and not rec["applied"]
-    v, _, _, rec = await _adj({"decision": "contradicted"}, rv=nc)  # unknown decision: no upgrade possible
+    v, _, _, rec = await _adj({"decision": "contradicted"}, rv=nc, checks=[LINK_PASS])  # no upgrade possible
     assert v == "not_checkable" and not rec["applied"]
 
 
@@ -315,3 +347,18 @@ def test_results_report_counts():
                   summary=summarise([c], []), cost={"eur": 0.1}, timings={"wall_s": 60})
     text = render_results_report([r])
     assert "| p1 | 1 | 1 | 0 | 0 | 0 | 0 | 100% |" in text and "Highest-risk" in text
+
+
+def test_cluster_by_overlapping_spans():
+    from onus.verdict.stability import merge_runs
+
+    one = "Strikingly, for each condition the vectors form a 3-dimensional manifold."
+    two = one + " This structure persists across all twenty-five conditions we analysed in the study."
+    a = claim(one, "supported", "a").model_copy(update={"location": Location(page=1, paragraph=1, sentence=1,
+                                                                             start=100, end=100 + len(one))})
+    b = claim(two, "supported", "b").model_copy(update={"location": Location(page=1, paragraph=1, sentence=1,
+                                                                             start=100, end=100 + len(two))})
+    other = claim("A different finding about latency on phones.", "supported", "c").model_copy(
+        update={"location": Location(page=2, paragraph=1, sentence=1, start=900, end=940)})
+    merged, dropped = merge_runs([[a, other], [b], [a]])
+    assert dropped == 1 and len(merged) == 1 and merged[0].stability.agree == 3

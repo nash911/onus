@@ -9,7 +9,7 @@
 # scope: deterministic markers win over the classify_scope model when they disagree. Precedence among
 # them: specific, then universal, then general (the less severe reading first).
 
-version: 1
+version: 2
 
 strength:
   absolute:
@@ -90,6 +90,8 @@ scope:
     - in every case
     - "re:without (?:any )?exception"
     - "re:(?:any|every|all) (?:possible |real-world )?(?:domains?|tasks?|settings?|problems?|scenarios?|applications?|languages?|architectures?)"
+    - across the board
+    - "re:(?:for|in|on|across) (?:any|every|all(?: the)?) (?:\\w+ )?(?:datasets?|benchmarks?|models?|conditions?|cases?|baselines?|configurations?|experiments?|instances?|inputs?|regimes?|environments?|initial conditions?|runs?|seeds?)"
   general:
     - generalizes
     - generalises

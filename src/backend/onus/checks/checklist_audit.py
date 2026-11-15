@@ -145,14 +145,7 @@ class Auditor:
         if rule.check == "derived":
             return ChecklistAudit(**base, status="not_checkable", reason=rule.messages.get("note", "Derived later."))
         ok, ev, why = self.condition(item.key)
-        if not ok and rule.also_justification and rule.pattern is not None:
-            m = rule.pattern.search(item.justification)
-            if m:
-                loc = self.pc.v.locate(item.start, item.end)
-                ev = [Evidence(id=self._ev_id(item.key), kind="checklist", label=f"Checklist: {item.title}",
-                               snippet=_clip(item.justification), location=loc, link_method="retrieval",
-                               relation="supports")]
-                ok, why = True, f"The justification itself states it (\"{m.group(0).strip()}\")."
+        # backing comes from the paper body only; the checklist justification never backs itself
         if ok:
             return ChecklistAudit(**base, status="backed", reason=why, evidence=ev)
         if "contradicted" in rule.messages:

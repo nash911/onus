@@ -266,7 +266,7 @@ def render_aggregate(m: dict) -> str:
     """Markdown table of aggregates only: no paper ids, titles, quotes or per-paper rows."""
     d = m["distributions"]
     rows: list[tuple[str, str]] = [
-        ("Version fingerprint", f"`{m['fingerprint']}`"),
+        ("Pipeline fingerprint / harness fingerprint", f"`{m['fingerprint']}` / `{m.get('harness_fingerprint', '-')}`"),
         ("Papers (results / labelled)", f"{d['papers']} / {m['labels']['papers_labelled']}"),
         ("Runs per paper", ", ".join(str(x) for x in m["runs"])),
         ("Claims (all / non-checklist)", f"{d['claims']} / {d['non_checklist_claims']}"),
@@ -285,23 +285,8 @@ def render_aggregate(m: dict) -> str:
     mu = m.get("mutations")
     if mu:
         rows.append(("Mutations: seed / plan", f"{m['seed']} / {m['mutation_plan']}"))
-        for t in (*TYPES, "all"):
-            x = mu["recall"][t]
-            if not x["attempted"]:
-                continue
-            label = "all types" if t == "all" else t
-            rows.append((f"Recall {label}: Onus", _cell(x["onus"])))
-            if x.get("baseline") is not None:
-                rows.append((f"Recall {label}: baseline", _cell(x["baseline"])))
-            rows.append((f"  {label}: attempted / applied / target not extracted",
-                         f"{x['attempted']} / {_n(x['applied'], x['papers'])} / {_n(x['target_missing'], x['papers'])}"))
-        rows.append(("Collateral flag rate: Onus", _cell(mu["collateral"]["onus"])))
-        if mu["collateral"].get("baseline"):
-            rows.append(("Collateral flag rate: baseline", _cell(mu["collateral"]["baseline"])))
         if mu.get("failed"):
             rows.append(("Mutation runs failed", str(mu["failed"])))
-    if d.get("baseline"):
-        rows.append(("Baseline not_supported share (original claims)", _cell(d["baseline"]["not_supported"])))
     ca = m["code_agreement"]
     if ca.get("na"):
         rows.append(("Code agreement (vs audit)", f"{ca['na']}; {ca['labelled']} labelled, {ca['excluded']} excluded"))
@@ -319,6 +304,38 @@ def render_aggregate(m: dict) -> str:
     w = max(len(a) for a, _ in rows)
     out = [f"| {'Metric'.ljust(w)} | Value |", f"| {'-' * w} | --- |"]
     out += [f"| {a.ljust(w)} | {b} |" for a, b in rows]
+    if mu:
+        out += ["", render_recall(m)]
+    return "\n".join(out)
+
+
+def render_recall(m: dict) -> str:
+    """Recall per type for both systems (Wilson 95% CIs), with each system's flag rate on the unmutated papers and
+    its collateral flag rate beside it: recall alone flatters a system that flags a lot."""
+    mu, d = m["mutations"], m["distributions"]
+    has_base = d.get("baseline") is not None or any((mu["recall"][t].get("baseline") is not None)
+                                                    for t in (*TYPES, "all"))
+    head = ["Mutation type", "Attempted / applied / target not extracted", "Onus recall"]
+    head += ["Baseline recall"] if has_base else []
+    rows = []
+    for t in (*TYPES, "all"):
+        x = mu["recall"][t]
+        if not x["attempted"]:
+            continue
+        r = ["**all types**" if t == "all" else t,
+             f"{x['attempted']} / {_n(x['applied'], x['papers'])} / {_n(x['target_missing'], x['papers'])}",
+             _cell(x["onus"])]
+        if has_base:
+            r.append(_cell(x.get("baseline")))
+        rows.append(r)
+    flag = ["Flag rate on unmutated papers", "claims flagged (Onus) / not_supported (baseline)", _cell(d["flagged"])]
+    col = ["Collateral flag rate", "new flags away from the target", _cell(mu["collateral"]["onus"])]
+    if has_base:
+        flag.append(_cell((d.get("baseline") or {}).get("not_supported")))
+        col.append(_cell(mu["collateral"].get("baseline")))
+    rows += [flag, col]
+    out = ["| " + " | ".join(head) + " |", "| " + " | ".join("---" for _ in head) + " |"]
+    out += ["| " + " | ".join(r) + " |" for r in rows]
     return "\n".join(out)
 
 

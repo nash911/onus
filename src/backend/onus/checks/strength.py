@@ -80,6 +80,39 @@ class PaperFeatures:
         self.spread = any(v.has_spread() for v in pc.views.values())
 
 
+_WORDNUM = {w: i for i, w in enumerate(["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"])}
+_NUM = r"(\d+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)"
+_PARTIAL = re.compile(
+    r"\bmost\s+(?:of\s+(?:the\s+|our\s+|these\s+)?)?[a-z]+s\b|\b(?:the\s+)?majority\s+of\b|\bmostly\b|"
+    r"\bexcept(?:\s+for)?\b|\ball\s+but\b|\bwith\s+the\s+exceptions?\b|\b(?:almost|nearly)\s+(?:all|every|always)\b|"
+    r"\bnot\s+(?:all|always)\b|\bin\s+(?:many|several|some)\s+(?:cases|settings|instances|runs|tasks)\b", re.IGNORECASE)
+_N_OF_M = re.compile(_NUM + r"\s+(?:out\s+)?of\s+(?:the\s+|our\s+)?" + _NUM + r"\b", re.IGNORECASE)
+
+
+def _n(x: str) -> int:
+    return int(x) if x.isdigit() else _WORDNUM[x.lower()]
+
+
+UNIVERSAL_MARKERS = {"always", "never", "every", "universally", "without exception", "in all cases", "in every case"}
+
+
+def partial_quantifier(texts: list[str]) -> str | None:
+    """The first partial quantifier ("most ...", "the majority of", "7 of 10", "except", ...) in the texts, with
+    a little context; None if there is none. Used against absolute or universal claims."""
+    for t in texts:
+        m = _PARTIAL.search(t)
+        hit = (m.start(), m.end()) if m else None
+        for nm in _N_OF_M.finditer(t):
+            a, b = _n(nm.group(1)), _n(nm.group(2))
+            if 0 < a < b and (hit is None or nm.start() < hit[0]):
+                hit = (nm.start(), nm.end())
+                break
+        if hit:
+            s, e = max(0, hit[0] - 40), min(len(t), hit[1] + 40)
+            return " ".join(t[s:e].split())
+    return None
+
+
 def rubric_fields(ctx: ClaimContext, pf: PaperFeatures) -> dict:
     """Code-only rubric fields with their source ("claim", "evidence", "paper" or None)."""
     claim_f = text_features(ctx.claim.quote, claim=True)
@@ -99,6 +132,11 @@ def rubric_fields(ctx: ClaimContext, pf: PaperFeatures) -> dict:
                 ("paper", pf.features[k] or (k == "variance" and pf.spread))]
         src = next((s for s, v in srcs if v), None)
         out[k], out[f"{k}_source"] = src is not None, src
+    w = ctx.claim.wording
+    out["universal_wording"] = w.scope in ("universal", "general") or any(
+        m.lower() in UNIVERSAL_MARKERS for m in w.markers)
+    out["partial_quantifier"] = partial_quantifier(
+        [t for e, t in ctx.linked if e.relation in ("supports", "partial") and e.kind not in ("table", "table_cell")])
     return out
 
 
@@ -207,6 +245,9 @@ def _requirement(name: str, rub: dict, counts: dict | None, dom: CheckResult) ->
         if rub["variance"] or (rub["seeds"] or 0) >= 3:
             return "ok", ""
         return "unmet", f"no variance reported and {rub['seeds'] or 'no'} seed(s) or run(s) (needs 3)"
+    if name == "no_partial_quantifier":
+        q = rub.get("partial_quantifier") if rub.get("universal_wording", True) else None  # not for "of all X"
+        return ("ok", "") if not q else ("unmet", f"the supporting evidence is partial: \"…{q}…\"")
     raise ValueError(name)
 
 

@@ -25,7 +25,6 @@ from bisect import bisect_right
 from collections.abc import Callable
 
 from pydantic import BaseModel, Field
-from rapidfuzz import fuzz
 
 from onus.checks.numbers import extract_numbers
 from onus.claims.quotes import match_key
@@ -162,6 +161,17 @@ def _in_table(value: float, cells: list[tuple[str, Cell]]) -> tuple[str, Cell] |
     return None
 
 
+def _near_table(value: float, decimals: int, cells: list[tuple[str, Cell]]) -> bool:
+    """A cell that the number check would accept for `value` at the claim's precision (half a unit in the last
+    printed digit, also on the x100 scale), so the planted number would not be an unambiguous error."""
+    half = 0.5 * 10 ** -decimals + 1e-9
+    for _, c in cells:
+        v = c.value
+        if v is not None and (abs(v - value) <= half or abs(v * 100 - value) <= half):
+            return True
+    return False
+
+
 def _covering(result: RunResult, start: int, end: int) -> list:
     return [c for c in result.claims if c.location.start < end and start < c.location.end]
 
@@ -172,7 +182,7 @@ def _fmt(value: float, decimals: int) -> str:
 
 def _changed_number(raw: str, value: float, decimals: int, percentish: bool,
                     cells: list[tuple[str, Cell]] = ()) -> str:
-    """x1.15 (or +3 points for percentages), moving further if the new value is printed in some table cell."""
+    """x1.15 (or +3 points for percentages), moving further if a table cell matches the new value at its precision."""
     steps = ((3, -3, 4, -4, 5, -5, 6) if percentish else (1.15, 1.2, 0.85, 1.25, 0.8, 1.3))
     out = raw
     for st in steps:
@@ -182,7 +192,7 @@ def _changed_number(raw: str, value: float, decimals: int, percentish: bool,
         out = _fmt(new, decimals)
         if float(out) == value:  # too few decimals to show the change
             out = _fmt(value + 10 ** -decimals * max(1, round(abs(new - value) * 10 ** decimals)), decimals)
-        if _in_table(float(out), list(cells)) is None:
+        if not _near_table(float(out), decimals, list(cells)):
             break
     if "," in raw and decimals == 0:
         out = f"{int(float(out)):,}"
@@ -212,16 +222,14 @@ def _clean_caption(caption: str) -> str:
     return _strip_inline(" ".join(keep))
 
 
-def match_claims(result: RunResult, span: tuple[int, int] | None, quote: str | None = None,
-                 min_ratio: float = 85.0) -> list:
-    """Claims of a (mutated) result at a target: overlapping the span, else matching the quote."""
-    out = []
-    if span is not None:
-        out = [c for c in result.claims if c.location.start < span[1] and span[0] < c.location.end]
-    if not out and quote:
-        k = match_key(quote)
-        out = [c for c in result.claims if fuzz.ratio(match_key(c.quote), k) >= min_ratio]
-    return out
+def match_claims(result: RunResult, span: tuple[int, int] | None, quote: str | None = None) -> list:
+    """Claims of a (mutated) result at a target: those whose span overlaps the target span. Spans are exact
+    (every offset is remapped by `apply_edits`), so there is no fallback to quote similarity: a restatement of
+    the same finding elsewhere in the paper is not the target. `quote` is kept for callers' records only."""
+    del quote
+    if span is None:
+        return []
+    return [c for c in result.claims if c.location.start < span[1] and span[0] < c.location.end]
 
 
 # ---------------------------------------------------------------- the five types

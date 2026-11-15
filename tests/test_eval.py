@@ -203,7 +203,9 @@ def test_aggregate_table_has_no_ids_and_marks_single_paper_cells():
     assert "`abc123`" in t and "n/a (1 run)" in t and "n/a (no code-check results yet)" in t
     import re
 
-    assert re.search(r"Recall abstract_number: Onus\s*\| n<2 \|", t)
+    assert re.search(r"\| abstract_number \| 1 / n<2 / n<2 \| n<2 \|", t)
+    assert "Flag rate on unmutated papers" in t and "Collateral flag rate" in t
+    assert "1/4 = 25% [5%–70%]" in t  # Onus flag rate on the unmutated papers, beside recall
     assert "p1" not in t
 
 
@@ -363,3 +365,10 @@ async def test_checklist_flip_needs_the_paper_to_really_lack_it():
                  checklist=[("compute", "No", "Not reported.")])
     mut, _md = await mutate(d, _result(d, []), "checklist_flip", 7)
     assert not mut.applied and "really lacks" in mut.reason
+
+
+async def test_abstract_number_avoids_values_that_round_to_a_cell():
+    d = _doc()
+    d.tables[0].rows.append([parse_cell("Other"), parse_cell("88.24")])  # 88.2 at the claim's precision
+    mut, _ = await mutate(d, _result(d, []), "abstract_number", 7)
+    assert mut.applied and mut.replacement == "82.2"

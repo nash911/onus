@@ -1,17 +1,18 @@
 # Checklist map (BUILD_PLAN Appendix B.4). Used by onus/checks/checklist_audit.py.
 #
 # For a "Yes" answer, each deterministic item is backed when its condition holds in the paper body
-# (sections other than the checklists and references; table renderings and figure captions included).
+# (sections other than the checklists and references; table renderings and figure captions included). The
+# checklist justification itself never counts as backing.
 # "No" and "NA" answers are not_applicable. Items not listed here use the prompt `checklist_item`.
 # Patterns are case-insensitive regular expressions unless the item sets case_sensitive.
 
-version: 1
+version: 2
 
 items:
   error_bars:
     check: spread_or_pattern
     roles: [method, experiments, results, discussion, appendix, other]
-    pattern: "\\b(?:std|s\\.d\\.|stdev|standard deviations?|standard errors?|s\\.e\\.m?\\.|sem|confidence intervals?|\\d{2}\\s?% ci|ci|error bars?|interquartile|iqr|variance|credible intervals?|p-values?|t-tests?|wilcoxon|mann[- ]whitney|bootstrap\\w*|permutation tests?|anova|chi-?squared?|bonferroni|fdr|benjamini|significance tests?|statistically significant)\\b|±|\\+/-|\\bp\\s*[<=≤]\\s*0?\\.\\d"
+    pattern: "\\b(?:std|s\\.d\\.|stdev|standard deviations?|standard errors?|s\\.e\\.m?\\.|sem|confidence intervals?|\\d{2}\\s?% ci|ci|error bars?|interquartile|iqr|variances? (?:across|over|between) (?:runs|seeds|trials|folds|repetitions)|credible intervals?|p-values?|t-tests?|wilcoxon|mann[- ]whitney|bootstrap(?:ped)? (?:confidence|ci|intervals?|resampl\\w*|estimates?)|permutation tests?|anova|chi-?squared?|bonferroni|fdr|benjamini|significance tests?|statistically significant)\\b|±|\\+/-|\\bp\\s*[<=≤]\\s*0?\\.\\d"
     unbacked: "no spread in any table and no std, CI, error-bar or significance-test language in the results text or captions"
   open_access:
     check: code_or_repo
@@ -21,7 +22,6 @@ items:
     unbacked: "no limitations section or limitations paragraph was found"
   compute:
     check: pattern
-    also_justification: true  # a concrete compute statement in the justification itself counts
     pattern: "\\b(?:gpus?|cpus?|tpus?|accelerators?|a100|h100|h200|v100|a6000|a40|l4|t4|rtx\\s?\\d{3,4}|apple m\\d|m\\d (?:pro|max|ultra)|gpu[- ]hours?|wall[- ]clock|run ?times?|ram|vram|\\d+\\s?gb|laptop|cluster|compute nodes?|\\d+(?:\\.\\d+)?\\s?(?:hours?|hrs?|minutes?|mins?)\\b)"
     unbacked: "no compute details (hardware, memory or run time) were found"
   experimental_details:

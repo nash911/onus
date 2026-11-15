@@ -13,7 +13,7 @@ from onus.claims.wording import _compile
 from onus.config import rubrics_dir
 
 REQUIREMENTS = {"stat_test", "baselines>=2", "settings>=2", "dominance", "dominance_if_comparison",
-                "variance_or_3_seeds"}
+                "variance_or_3_seeds", "no_partial_quantifier"}
 CHECKLIST_KINDS = {"spread_or_pattern", "code_or_repo", "limitations_present", "pattern", "any_of", "derived"}
 
 

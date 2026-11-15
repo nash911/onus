@@ -372,7 +372,7 @@ async def test_extract_claims_end_to_end(doc):
     llm = cs.by_origin("llm")
     assert [c.type for c in llm] == ["result", "comparison", "generality"]
     assert llm[0].is_main and llm[0].location.section == "Abstract" and llm[0].section_role == "abstract"
-    assert llm[1].wording.strength == "absolute" and llm[1].wording.scope == "specific"  # model; "every" is strength
+    assert llm[1].wording.strength == "absolute" and llm[1].wording.scope == "universal"  # "on every benchmark"
     assert {"outperforms", "every"} <= set(llm[1].wording.markers)
     assert llm[2].wording.strength == "hedged"
     assert cs.stats["dropped"] == {"unverified": 1, "too_short": 1, "too_long": 0, "unlocatable": 0,

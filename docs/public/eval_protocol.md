@@ -38,7 +38,7 @@ so evaluation has three parts:
 
    | Type | Mutation | Caught when |
    | --- | --- | --- |
-   | abstract_number | An abstract number that also appears in a parsed table is changed to a value no table cell prints | The claim with that number is `contradicted` by the number check |
+   | abstract_number | An abstract number that also appears in a parsed table is changed to a value no table cell matches at that precision | The claim with that number is `contradicted` by the number check |
    | checklist_flip | A checklist "No"/"NA" becomes "Yes" on an item the paper really lacks | That item is `unbacked` or `contradicted` |
    | remove_table | A parsed table that at least one claim relies on is deleted | Each such claim is `untraced` or `not_checkable` with a dangling reference |
    | widen_scope | A specific claim is rewritten with universal wording | That claim is `overstated` or `contradicted` |
@@ -88,10 +88,13 @@ held-out number.
 
 | Change | Why |
 | --- | --- |
-| abstract_number picks a new value that no table cell prints (was: ×1.15, or +3 points for percentages) | The +3 change could land on another row's value, so the "error" matched the table |
+| abstract_number picks a new value that no table cell matches at the claim's precision (was: ×1.15, or +3 points for percentages) | The +3 change could land on another row's value, so the "error" matched the table |
 | checklist_flip requires the paper to lack the item (no spread or significance language for error bars, no compute language for compute, no code or repository for open access) | Otherwise the flipped "Yes" could be true, and flagging it would be wrong |
 | delete_errorbars also removes significance-test language (χ², p-values, FDR, Benjamini–Hochberg, …) | Otherwise the paper still backs its "Yes" and leaving it unflagged would be correct |
 | A rewrite that fails after rate-limit retries counts as a failed run, not as an inapplicable paper | Failed rewrites were silently shrinking the denominator |
+| Mutation targets are matched by span only (was: by span, else by quote similarity) | The quote fallback could match a restatement of the same finding elsewhere in the paper and score it as the target; offsets are remapped exactly, so the span is enough. A target the mutated run did not extract now counts as "target not extracted" (a miss) |
+| The printed table shows each system's flag rate on the unmutated papers and its collateral flag rate beside its recall, with Wilson 95% intervals on every rate | Recall alone flatters a system that flags a lot (Phase 7b) |
+| The harness has its own fingerprint (`eval/` scoring modules and the `baseline_support` and `widen_scope` prompts), printed by `onus version` and `onus eval` and stored in `metrics.json` | So eval, test_1 and test_2 can be shown to use the same harness |
 
 Two pipeline defects found by the dev harness were also fixed then: number mapping could never report a
 mismatch (`map_number` v1), and the number check now tries the paper's other parsed tables when the linked

@@ -72,10 +72,46 @@ def test_freeze_writes_record_and_bumps_version(dirs, tmp_path, monkeypatch):
     on_disk = json.loads(frozen.read_text())
     assert on_disk == rec
     assert rec["fingerprint"] == v.fingerprint("1.0.0", s, dirs[0], dirs[1])
-    assert set(rec) == {"version", "fingerprint", "models", "prompts", "rubrics", "created_at"}
+    assert set(rec) == {"version", "fingerprint", "models", "prompts", "rubrics", "source", "harness_fingerprint",
+                        "harness", "created_at"}
     assert list(rec["prompts"]) == ["a.md"] and list(rec["rubrics"]) == ["lexicon.yaml"]
 
 
 def test_freeze_rejects_bad_versions():
     with pytest.raises(ValueError):
         v.freeze("v1")
+
+
+def _pkg(tmp_path: Path) -> Path:
+    pkg = tmp_path / "onus"
+    for f in ("pipeline.py", "checks/numbers.py", "eval/mutate.py", "eval/labels.py", "api/app.py", "bundle.py",
+              "version.py"):
+        (pkg / f).parent.mkdir(parents=True, exist_ok=True)
+        (pkg / f).write_text("x = 1\n")
+    return pkg
+
+
+def test_pipeline_source_is_in_the_fingerprint_but_not_eval_api_or_bundle(dirs, tmp_path):
+    pkg = _pkg(tmp_path)
+    s = Settings(_env_file=None)
+    base = v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg)
+    assert set(v.source_hashes(pkg)) == {"pipeline.py", "checks/numbers.py"}
+    for f in ("eval/mutate.py", "api/app.py", "bundle.py", "version.py"):
+        (pkg / f).write_text("x = 2\n")
+    assert v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg) == base
+    (pkg / "checks/numbers.py").write_text("x = 2\n")
+    assert v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg) != base
+
+
+def test_harness_fingerprint_covers_scoring_modules_and_harness_prompts_only(dirs, tmp_path):
+    pkg = _pkg(tmp_path)
+    s = Settings(_env_file=None)
+    h0, p0 = v.harness_fingerprint(dirs[0], pkg), v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg)
+    (pkg / "eval/labels.py").write_text("x = 2\n")  # hand labels do not score the eval
+    assert v.harness_fingerprint(dirs[0], pkg) == h0
+    (pkg / "eval/mutate.py").write_text("x = 2\n")
+    h1 = v.harness_fingerprint(dirs[0], pkg)
+    assert h1 != h0
+    write_prompt(dirs[0], "widen_scope", "rewrite {{sentence}}", role="fast")
+    assert v.harness_fingerprint(dirs[0], pkg) != h1
+    assert v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg) == p0  # harness prompts are not pipeline prompts

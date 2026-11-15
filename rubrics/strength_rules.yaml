@@ -10,10 +10,14 @@
 #                     inconclusive; not run -> requirement not met)
 #   dominance_if_comparison   as `dominance`, but only for comparison claims
 #   variance_or_3_seeds       variance reported (cell spreads or std/CI language) or >= 3 seeds/runs
+#   no_partial_quantifier     for claims with universal or general scope (or "always", "never", "every"), the
+#                             supporting text evidence does not itself qualify the result ("most models", "the
+#                             majority of", "7 of 10", "except", "almost all", "not always", ...); a bare "all", as in
+#                             "97% of all predictions", does not trigger it
 # Hedged claims are never flagged by this rubric. The rules apply to result, comparison, generality and causal
 # claims (`claim_types`); method and availability claims describe what was done, not what was found.
 
-version: 1
+version: 2
 
 claim_types: [result, comparison, generality, causal]
 
@@ -71,4 +75,4 @@ rules:
   - id: absolute
     title: absolute strength or universal scope
     when: absolute_or_universal
-    requires: ["settings>=2", variance_or_3_seeds]
+    requires: ["settings>=2", variance_or_3_seeds, no_partial_quantifier]

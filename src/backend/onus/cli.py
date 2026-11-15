@@ -44,13 +44,16 @@ def version() -> None:
     from onus import version as v
 
     s = get_settings()
-    console.print(f"onus {v.ONUS_VERSION}  fingerprint {v.fingerprint()}")
+    console.print(f"onus {v.ONUS_VERSION}  fingerprint {v.fingerprint()}  harness {v.harness_fingerprint()}")
     for role, model in s.models_config.items():
         console.print(f"  {role:16} {model}")
     frozen = v.load_frozen()
     if frozen:
         state = "matches" if frozen["fingerprint"] == v.fingerprint() else "[red]DRIFTED[/red]"
         console.print(f"frozen {frozen['version']} ({frozen['fingerprint']}): {state}")
+        if "harness_fingerprint" in frozen:
+            hs = "matches" if frozen["harness_fingerprint"] == v.harness_fingerprint() else "[red]DRIFTED[/red]"
+            console.print(f"frozen harness ({frozen['harness_fingerprint']}): {hs}")
 
 
 @app.command()

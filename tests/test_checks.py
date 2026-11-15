@@ -376,7 +376,7 @@ async def test_checklist_deterministic_rules():
     assert a["error_bars"].status == "unbacked"
     assert a["open_access"].status == "contradicted" and "no source files" in a["open_access"].reason
     assert a["limitations"].status == "backed" and a["limitations"].evidence
-    assert a["compute"].status == "backed" and a["compute"].evidence[0].kind == "checklist"  # from the justification
+    assert a["compute"].status == "unbacked"  # the justification states compute, but it never backs itself
     assert a["experimental_details"].status == "backed" and "learning rate" in a["experimental_details"].reason
     assert a["reproducibility"].status == "backed"
     assert a["theory"].status == "not_applicable" and a["broader_impacts"].status == "not_applicable"
@@ -613,3 +613,30 @@ async def test_check_numbers_falls_back_to_unlinked_tables():
     pc = PaperContext(doc)
     assert [v.id for v in fallback_tables(pc, "Ours beats Baseline B on Acc and F1 (99.9)", set())] == ["Table 1"]
     assert fallback_tables(pc, "Ours beats Baseline B on Acc and F1", {"Table 1"}) == []
+
+
+def test_parse_flags_on_a_failed_number():
+    from onus.checks.numbers import parse_flags, resolve_operands
+    from onus.schemas.document import Cell
+
+    t = table("Table 9", ["Method", "Score"], [["Ours", "85.2"], ["Base", "0.70"]], caption="Table 9: Scores.")
+    t.rows[1][1] = Cell(raw="85.2 (1.1) 3 4", value=85.2, spread=1.1, percent=False, bold=False)  # merged cells
+    cells, _ = resolve_operands([TableView(t)], [_op("R1", "C2", "Table 9")])
+    assert any("holds 4 numbers" in f for f in parse_flags(_m("reaches 91.0%"), cells))
+    assert any("unit" in f for f in parse_flags(_m("reaches 91.0%"), cells))
+    cells2, _ = resolve_operands([TableView(T1)], [_op("R3", "C2")])  # "85.2 ± 0.4" under "Acc"
+    assert parse_flags(_m("reaches 91.0 accuracy"), cells2) == []
+
+
+def test_partial_quantifier_against_universal_claims():
+    from onus.checks.strength import _requirement, partial_quantifier
+
+    assert partial_quantifier(["Most models achieved below 90% accuracy."])
+    assert partial_quantifier(["Only 4 out of 10 models predicted themselves."])
+    assert partial_quantifier(["It is the most accurate model; at most 5 errors.", "10 of 10 runs passed."]) is None
+    dom = not_run("dominance", "not a comparison claim")
+    st, msg = _requirement("no_partial_quantifier", {"partial_quantifier": "Most models achieved"}, None, dom)
+    assert st == "unmet" and "Most models" in msg
+    assert _requirement("no_partial_quantifier", {"partial_quantifier": None}, None, dom)[0] == "ok"
+    assert _requirement("no_partial_quantifier", {"partial_quantifier": "Most models", "universal_wording": False},
+                        None, dom)[0] == "ok"  # "97% of all predictions" is not a universal claim

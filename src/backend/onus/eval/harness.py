@@ -241,7 +241,10 @@ async def run_eval(inp: EvalInputs, llm, *, fingerprint: str, judge_model: str, 
         for t in types:
             attempted.setdefault(t, 0)
     est = estimate(results, docs, plan, inp.with_baseline, judge_model, inp.concurrency)
-    say(f"fingerprint {fingerprint}; {len(results)} papers with results"
+    from onus.version import harness_fingerprint
+
+    hfp = harness_fingerprint()
+    say(f"pipeline fingerprint {fingerprint}, harness fingerprint {hfp}; {len(results)} papers with results"
         + (f" ({stale} produced by another fingerprint)" if stale else ""))
     if inp.plan:
         say(f"mutation plan {inp.plan[0]}x{inp.plan[1]} (seed {inp.seed}): "
@@ -331,7 +334,7 @@ async def run_eval(inp: EvalInputs, llm, *, fingerprint: str, judge_model: str, 
              "target_found": det.target_found, "collateral": det.collateral, "note": det.note})
     spend = _spend_since(started, llm)
     metrics = {
-        "fingerprint": fingerprint, "created_at": started, "seed": inp.seed,
+        "fingerprint": fingerprint, "harness_fingerprint": hfp, "created_at": started, "seed": inp.seed,
         "mutation_plan": f"{inp.plan[0]}x{inp.plan[1]}" if inp.plan else None,
         "runs": sorted({r.runs for r in results}),
         "results_fingerprints_other": stale,
