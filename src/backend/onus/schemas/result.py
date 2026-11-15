@@ -86,6 +86,7 @@ class Claim(BaseModel):
     caveat: str | None = None
     risk: int  # contradicted 4 · overstated 3 · untraced 2 · not_checkable 1 · supported 0
     stability: Stability | None = None
+    checklist_key: str | None = None  # for type "checklist" (and numbers from a justification): the item key
 
 
 class ChecklistAudit(BaseModel):

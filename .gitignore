@@ -230,3 +230,28 @@ var/
 src/frontend/node_modules/
 src/frontend/dist/
 .DS_Store
+
+# Claude Code sandbox stubs: placeholder dotfiles the Bash sandbox mounts into the repo root while an agent
+# session runs (removed afterwards). Anchored to the root so nothing deeper is affected.
+/.bash_profile
+/.bashrc
+/.profile
+/.zprofile
+/.zshrc
+/.ripgreprc
+/.gitconfig
+/.gitmodules
+/.mcp.json
+/.vscode
+/.idea
+/.claude/agents
+/.claude/commands
+/.claude/hooks
+/.claude/output-styles
+/.claude/routines
+/.claude/skills
+/.claude/workflows
+/.claude/launch.json
+/.claude/loop.md
+/.claude/scheduled_tasks.json
+/.claude/settings.local.json

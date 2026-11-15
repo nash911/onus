@@ -201,6 +201,18 @@
             }
           ],
           "default": null
+        },
+        "checklist_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Checklist Key"
         }
       },
       "required": [

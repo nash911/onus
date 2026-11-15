@@ -1,0 +1,101 @@
+# Wording lexicon (BUILD_PLAN Appendix B.1). Used by onus/claims/wording.py.
+#
+# Entries are matched case-insensitively on word boundaries. A plain entry is a literal word or phrase
+# (spaces match any whitespace, hyphens match a hyphen, a space or nothing). An entry starting with "re:"
+# is a regular expression.
+#
+# strength: hedged wins over everything (conservative: hedged wording is never flagged by the strength
+# rubric), then absolute, then strong; no marker -> plain.
+# scope: deterministic markers win over the classify_scope model when they disagree. Precedence among
+# them: specific, then universal, then general (the less severe reading first).
+
+version: 1
+
+strength:
+  absolute:
+    - always
+    - never
+    - all
+    - every
+    - guarantees
+    - guaranteed
+    - guarantee
+    - proves
+    - proven
+    - prove
+    - eliminates
+    - eliminate
+    - solves
+    - perfectly
+    - "re:without (?:any )?exception"
+  strong:
+    - significantly
+    - substantially
+    - consistently
+    - dramatically
+    - state-of-the-art
+    - SOTA
+    - outperforms
+    - outperform
+    - outperforming
+    - superior
+    - robust
+    - robustly
+    - generalizes
+    - generalises
+    - generalize
+    - generalise
+    - breakthrough
+    - unprecedented
+    - "re:(?:the )?first (?:to|method|approach|framework|system|work|study|demonstration)"
+  hedged:
+    - may
+    - might
+    - could
+    - suggests
+    - suggest
+    - indicates
+    - indicate
+    - preliminary
+    - in our experiments
+    - on this dataset
+    - in this setting
+    - potentially
+    - likely
+    - appears to
+    - appear to
+    - we hypothesize
+    - we hypothesise
+
+scope:
+  specific:
+    - in our experiments
+    - on this dataset
+    - in this setting
+    - in this study
+    - on our dataset
+    - on our benchmark
+    - in our setting
+    - in our simulations
+    - "re:on (?:the|this|our) [\\w-]+ (?:dataset|benchmark|cohort|corpus|task)"
+  # Bare "all"/"every"/"any"/"across" are NOT scope markers: on dev they mostly quantify over the paper's
+  # own tested set ("all baselines", "across 10 models"), which is specific. "all"/"every" stay strength
+  # markers above; "across" is handled by the strength rubric (Appendix B.2, Phase 5).
+  universal:
+    - always
+    - never
+    - universally
+    - regardless of
+    - in all cases
+    - in every case
+    - "re:without (?:any )?exception"
+    - "re:(?:any|every|all) (?:possible |real-world )?(?:domains?|tasks?|settings?|problems?|scenarios?|applications?|languages?|architectures?)"
+  general:
+    - generalizes
+    - generalises
+    - generalize
+    - generalise
+    - in general
+    - broadly applicable
+    - wide range of
+    - "re:(?:other|new|unseen) (?:domains?|tasks?|datasets?|settings?|problems?|applications?)"

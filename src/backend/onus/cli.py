@@ -288,10 +288,75 @@ def ingest_report(
     console.print(f"wrote {target} ({len(stats)} papers, {len(failures)} failed)")
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def claims() -> None:
-    """Extract and verify claims for one paper (Phase 3)."""
-    _todo(3)
+def _load_or_ingest(paper_dir: Path, var_dir: Path, refresh: bool):
+    from onus.ingest.document_builder import doc_path, ingest_paper_dir, load_document, save_document
+
+    p = doc_path(var_dir, paper_dir.name)
+    if p.is_file() and not refresh and p.stat().st_mtime >= (paper_dir / "paper.pdf").stat().st_mtime:
+        return load_document(p)
+    doc = ingest_paper_dir(paper_dir, var_dir)
+    save_document(doc, var_dir)
+    return doc
+
+
+@app.command()
+def claims(
+    paths: Annotated[list[Path], typer.Argument(help="Paper directories, or a split root (all its papers)")],
+    run_index: Annotated[int, typer.Option("--run-index", help="Run index (cache key; 0-2 in batch)")] = 0,
+    refresh: Annotated[bool, typer.Option(help="Re-ingest even if a stored Document exists")] = False,
+    report: Annotated[Path | None, typer.Option(help="Also write a markdown sample (e.g. docs/claims_dev.md)")]
+    = None,
+    sample: Annotated[int, typer.Option(help="Papers listed claim by claim in --report")] = 3,
+    concurrency: Annotated[int, typer.Option(help="Papers processed at once")] = 4,
+) -> None:
+    """Extract, verify and type the claims of one or more papers -> $ONUS_VAR_DIR/claims/<id>.r<N>.json."""
+    from onus.claims.extract import extract_claims, save_claims
+    from onus.claims.report import render_claims_report
+    from onus.ingest.document_builder import paper_dirs
+
+    s = get_settings()
+    dirs: list[Path] = []
+    for p in paths:
+        p = p.resolve()
+        if not p.is_dir():
+            raise typer.BadParameter(f"{p} is not a directory")
+        _guard(_data_root_of(p) if (p / "paper.pdf").is_file() else p, *([report] if report else []))
+        dirs += [p] if (p / "paper.pdf").is_file() else paper_dirs(p)
+    if not dirs:
+        console.print("[red]no papers found[/red]")
+        raise typer.Exit(code=1)
+
+    async def run_all():
+        docs = [_load_or_ingest(d, s.var_dir, refresh) for d in dirs]
+        sem = asyncio.Semaphore(max(1, concurrency))
+
+        async def one(doc):
+            async with sem:
+                return doc, await extract_claims(doc, run_index=run_index)
+
+        return await asyncio.gather(*[one(doc) for doc in docs])
+
+    results = asyncio.run(run_all())
+    t = Table(title=f"Claims (run {run_index})")
+    for col in ("paper", "model items", "kept", "main", "unverified", "dup", "other drops", "checklist",
+                "numbers", "total", "€"):
+        t.add_column(col, justify="right" if col != "paper" else "left")
+    for doc, cs in results:
+        save_claims(cs, s.var_dir)
+        st, dr = cs.stats, cs.stats["dropped"]
+        other = dr["too_short"] + dr["too_long"] + dr["unlocatable"] + dr["over_cap"]
+        t.add_row(doc.paper_id, str(st["llm_items"]), str(st["llm_claims"]), str(st["main_claims"]),
+                  str(dr["unverified"]), str(dr["duplicate"]), str(other), str(st["checklist_claims"]),
+                  str(st["checklist_number_claims"]), str(len(cs.claims)), f"{cs.cost['eur']:.4f}")
+        for w in cs.warnings:
+            console.print(f"  [yellow]{doc.paper_id}[/yellow] {w}")
+    console.print(t)
+    console.print(f"Spend this command: €{sum(cs.cost['eur'] for _, cs in results):.4f} -> "
+                  f"{s.var_dir / 'claims'}")
+    if report:
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(render_claims_report(results, sample=sample))
+        console.print(f"wrote {report}")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
