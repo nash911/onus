@@ -9,7 +9,8 @@ from fastapi import APIRouter, HTTPException
 
 from onus.api.context import AppContext, Ctx
 from onus.api.routes_papers import best_analyses, corpus_rows, resolve_paper
-from onus.api.serialize import paper_base
+from onus.api.serialize import iso, paper_base
+from onus.db import repo
 from onus.db.session import session_scope
 
 router = APIRouter(prefix="/api")
@@ -21,6 +22,22 @@ N_FEATURED = 3
 @router.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+def version_history(s) -> list[dict[str, Any]]:
+    """Distinct (version, fingerprint, mode) behind the finished reports, oldest first."""
+    groups: dict[tuple, dict[str, Any]] = {}
+    for h in repo.analysis_headers(s):
+        key = (h.onus_version, h.fingerprint, h.mode)
+        g = groups.setdefault(key, {"onus_version": h.onus_version, "fingerprint": h.fingerprint, "mode": h.mode,
+                                    "analyses": 0, "first_seen": None, "last_seen": None})
+        g["analyses"] += 1
+        ts = iso(h.created_at)
+        if ts and (g["first_seen"] is None or ts < g["first_seen"]):
+            g["first_seen"] = ts
+        if ts and (g["last_seen"] is None or ts > g["last_seen"]):
+            g["last_seen"] = ts
+    return sorted(groups.values(), key=lambda g: (g["first_seen"] or "", g["mode"]))
 
 
 @router.get("/meta")
@@ -40,6 +57,7 @@ def meta(ctx: Ctx) -> dict[str, Any]:
             rows = sorted(corpus_rows(s), key=lambda r: -((r["summary"] or {}).get("flagged_share") or 0))
             featured = rows[:N_FEATURED]
         n_papers = len(corpus_rows(s))
+        versions = version_history(s)
     lim = ctx.limits
     return {
         "onus_version": ctx.onus_version,
@@ -48,6 +66,7 @@ def meta(ctx: Ctx) -> dict[str, Any]:
         "featured": featured[:N_FEATURED],
         "featured_source": source,
         "corpus_papers": n_papers,
+        "versions": versions,
         "has_findings": ctx.data_file("findings.json") is not None,
         "has_metrics": ctx.data_file("metrics.json") is not None,
         "live": {

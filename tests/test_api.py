@@ -151,6 +151,9 @@ def test_health_meta_and_import(env):
         assert m["has_findings"] is False and m["has_metrics"] is False
         assert m["featured_source"] == "auto" and m["featured"][0]["ref"] == "PaperBBBB02"
         assert m["live"]["enabled"] and m["live"]["runs"] == 1 and m["live"]["code_checks"] is False
+        assert m["versions"] == [{"onus_version": "0.1.0", "fingerprint": FP, "mode": "batch", "analyses": 3,
+                                  "first_seen": m["versions"][0]["first_seen"],
+                                  "last_seen": m["versions"][0]["last_seen"]}]
         assert c.get("/api/findings").status_code == 404
         assert "held-out" in c.get("/api/metrics").json()["detail"]
 
