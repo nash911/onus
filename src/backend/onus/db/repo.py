@@ -116,9 +116,16 @@ def set_analysis_status(
     return analysis
 
 
+def listing_summary(result: dict[str, Any]) -> dict[str, Any]:
+    """`RunResult.summary` plus the few fields the corpus list filters on, so listing never loads results."""
+    code = result.get("code") or {}
+    return {**(result.get("summary") or {}),
+            "code": {"available": bool(code.get("available")), "files": int(code.get("files") or 0)}}
+
+
 def store_result(s: Session, analysis: Analysis, result: dict[str, Any]) -> Analysis:
     analysis.result = result
-    analysis.summary = result.get("summary")
+    analysis.summary = listing_summary(result)
     analysis.cost_eur = (result.get("cost") or {}).get("eur")
     return set_analysis_status(s, analysis, "done")
 
@@ -128,6 +135,44 @@ def fail_stale_running(s: Session, message: str = "server restarted while runnin
     for a in stale:
         set_analysis_status(s, a, "failed", error=message)
     return len(stale)
+
+
+def reset_analysis(s: Session, analysis: Analysis) -> Analysis:
+    """Re-queue a failed analysis (the unique (paper, fingerprint, mode) row is reused)."""
+    analysis.status = "queued"
+    analysis.progress = None
+    analysis.error = None
+    analysis.result = None
+    analysis.summary = None
+    analysis.cost_eur = None
+    analysis.finished_at = None
+    analysis.created_at = utcnow()
+    s.flush()
+    return analysis
+
+
+def done_analysis_for_sha(s: Session, pdf_sha256: str, fingerprint: str) -> Analysis | None:
+    """A finished analysis of any paper with this PDF hash at this fingerprint (batch preferred)."""
+    q = (select(Analysis).join(Paper, Analysis.paper_id == Paper.id)
+         .where(Paper.pdf_sha256 == pdf_sha256, Analysis.fingerprint == fingerprint, Analysis.status == "done")
+         .order_by(Analysis.mode, Analysis.created_at.desc()))
+    return s.scalars(q).first()
+
+
+def analysis_headers(s: Session, *, mode: str | None = None, status: str | None = "done") -> list[tuple]:
+    """(Analysis row columns without the result payload): id, paper_id, mode, runs, fingerprint, onus_version,
+    summary, created_at. For listings; never loads `result`."""
+    q = select(Analysis.id, Analysis.paper_id, Analysis.mode, Analysis.runs, Analysis.fingerprint,
+               Analysis.onus_version, Analysis.summary, Analysis.created_at)
+    if mode is not None:
+        q = q.where(Analysis.mode == mode)
+    if status is not None:
+        q = q.where(Analysis.status == status)
+    return list(s.execute(q))
+
+
+def all_papers(s: Session) -> list[Paper]:
+    return list(s.scalars(select(Paper)))
 
 
 # ---------------------------------------------------------------- disputes

@@ -1,1 +1,195 @@
-"""API module jobs. (Phase 8)"""
+"""Live analysis jobs (BUILD_PLAN Phase 8.3): an in-process asyncio queue with concurrency 1.
+
+Status and progress are persisted on the `analyses` row, so a page reload (or another viewer) sees the same
+state. On startup, rows left `queued` or `running` by a previous process are marked `failed` (the queue is in
+memory, so they can never finish). Live mode is always 1 run and no code checks; the pipeline's ledger and
+not-checked list say so on every live report.
+
+The pipeline itself is injected (`Analyzer`), so tests run the whole lifecycle with a fake pipeline and no
+Berget calls. The default analyzer ingests the PDF and calls `onus.pipeline.analyze_doc_runs(..., mode="live")`
+with a live-mode `LLMClient` (per-paper cap from ONUS_MAX_EUR_PER_PAPER; the daily caps are in `limits.py`).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import contextlib
+import json
+import logging
+import time
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy.orm import Session, sessionmaker
+
+from onus.config import Settings
+from onus.db import repo
+from onus.db.session import session_scope
+
+log = logging.getLogger("onus.jobs")
+
+STAGES = ("fetch", "ingest", "claims", "evidence", "checks", "verdicts")
+ProgressFn = Callable[[str, dict], None]
+# (pdf_path, paper_id, source, progress) -> RunResult as a JSON-ready dict
+Analyzer = Callable[[Path, str, str, ProgressFn], Awaitable[dict[str, Any]]]
+# (source, external_id, max_mb) -> PDF bytes
+Fetcher = Callable[[str, str, int], bytes]
+
+
+@dataclass
+class LiveJob:
+    analysis_id: str
+    paper_db_id: str
+    source: str  # upload | arxiv | openreview
+    external_id: str
+    pdf_path: Path | None = None  # set for uploads; fetched for arxiv / openreview
+
+    @property
+    def pipeline_paper_id(self) -> str:
+        return f"{self.source}:{self.external_id}"
+
+
+def default_fetcher(source: str, external_id: str, max_mb: int) -> bytes:
+    from onus.ingest.fetch import PaperRef, fetch_pdf
+
+    return fetch_pdf(PaperRef(source, external_id), max_mb=max_mb)
+
+
+def make_pipeline_analyzer(settings: Settings, fingerprint: str) -> Analyzer:
+    async def analyze(pdf_path: Path, paper_id: str, source: str, progress: ProgressFn) -> dict[str, Any]:
+        from onus.ingest.document_builder import ingest_pdf
+        from onus.llm.client import LLMClient
+        from onus.pipeline import analyze_doc_runs
+
+        progress("ingest", {})
+        t = time.monotonic()
+        doc = await asyncio.to_thread(ingest_pdf, pdf_path, settings.var_dir, source=source, paper_id=paper_id)
+        llm = LLMClient(settings, mode="live")
+        result = await analyze_doc_runs(doc, 1, "live", llm=llm, fingerprint=fingerprint, progress=progress,
+                                        ingest_s=time.monotonic() - t)
+        return json.loads(result.model_dump_json())
+
+    return analyze
+
+
+def public_error(e: BaseException) -> str:
+    """A plain message for the UI; never a traceback or internal path."""
+    from onus.ingest.fetch import FetchError
+    from onus.llm.costs import BudgetExceeded
+
+    if isinstance(e, FetchError):
+        return f"Could not download the PDF ({e})."
+    if isinstance(e, BudgetExceeded):
+        return "The analysis was stopped because it reached its cost cap."
+    if isinstance(e, FileNotFoundError):
+        return "The PDF could not be found."
+    return f"The analysis failed ({type(e).__name__})."
+
+
+class JobRunner:
+    def __init__(self, factory: sessionmaker[Session], settings: Settings, *, analyzer: Analyzer,
+                 fetcher: Fetcher = default_fetcher):
+        self.factory = factory
+        self.settings = settings
+        self.analyzer = analyzer
+        self.fetcher = fetcher
+        self._queue: asyncio.Queue[LiveJob] | None = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._task: asyncio.Task | None = None
+
+    # ------------------------------------------------------------ lifecycle
+
+    def recover(self) -> int:
+        with session_scope(self.factory) as s:
+            return repo.fail_stale_running(s, "The server restarted before this analysis finished. Please retry.")
+
+    def start(self) -> None:
+        self._loop = asyncio.get_running_loop()
+        self._queue = asyncio.Queue()
+        self._task = asyncio.create_task(self._worker(), name="onus-live-worker")
+
+    async def stop(self) -> None:
+        if self._task:
+            self._task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self._task
+            self._task = None
+
+    def enqueue(self, job: LiveJob) -> None:
+        """Thread-safe: route handlers run in FastAPI's threadpool."""
+        if self._loop is None or self._queue is None:
+            raise RuntimeError("job runner not started")
+        self._loop.call_soon_threadsafe(self._queue.put_nowait, job)
+
+    @property
+    def pending(self) -> int:
+        return self._queue.qsize() if self._queue else 0
+
+    # ------------------------------------------------------------ work
+
+    async def _worker(self) -> None:
+        assert self._queue is not None
+        while True:
+            job = await self._queue.get()
+            try:
+                await self.run(job)
+            except Exception:
+                log.exception("live job %s crashed", job.analysis_id)
+            finally:
+                self._queue.task_done()
+
+    def _progress(self, analysis_id: str, history: list[str]) -> ProgressFn:
+        def emit(stage: str, info: dict) -> None:
+            if stage not in history:
+                history.append(stage)
+            progress = {"stage": stage, "stages": list(STAGES), "history": list(history),
+                        "info": {k: v for k, v in (info or {}).items() if isinstance(v, (int, float, str))}}
+            with session_scope(self.factory) as s:
+                a = repo.get_analysis(s, analysis_id)
+                if a is not None and a.status in ("queued", "running"):
+                    repo.set_analysis_status(s, a, "running", progress=progress)
+
+        return emit
+
+    async def run(self, job: LiveJob) -> None:
+        history: list[str] = []
+        progress = self._progress(job.analysis_id, history)
+        try:
+            pdf_path = job.pdf_path
+            if pdf_path is None:
+                progress("fetch", {"source": job.source})
+                data = await asyncio.to_thread(self.fetcher, job.source, job.external_id,
+                                               self.settings.live_max_pdf_mb)
+                from onus.ingest.fetch import store_upload
+
+                pdf_path, sha = store_upload(data, self.settings.var_dir)
+                with session_scope(self.factory) as s:
+                    p = repo.get_paper(s, job.paper_db_id)
+                    if p is not None:
+                        p.pdf_sha256 = sha
+            result = await self.analyzer(pdf_path, job.pipeline_paper_id, job.source, progress)
+            paper = result.setdefault("paper", {})
+            if not paper.get("external_id"):
+                paper["external_id"] = job.external_id
+            with session_scope(self.factory) as s:
+                a = repo.get_analysis(s, job.analysis_id)
+                if a is None:
+                    return
+                p = repo.get_paper(s, job.paper_db_id)
+                if p is not None:
+                    p.title = p.title or paper.get("title")
+                    p.pages = paper.get("pages") or p.pages
+                    p.pdf_sha256 = paper.get("pdf_sha256") or p.pdf_sha256
+                a.progress = {"stage": "done", "stages": list(STAGES), "history": history + ["done"], "info": {}}
+                repo.store_result(s, a, result)
+                from onus.api.limits import today
+
+                repo.add_live_usage(s, today(), cost_eur=float((result.get("cost") or {}).get("eur") or 0.0))
+        except Exception as e:  # noqa: BLE001 - a failed paper is a status, not a crash
+            log.warning("live job %s failed: %s", job.analysis_id, type(e).__name__)
+            with session_scope(self.factory) as s:
+                a = repo.get_analysis(s, job.analysis_id)
+                if a is not None:
+                    repo.set_analysis_status(s, a, "failed", error=public_error(e))
