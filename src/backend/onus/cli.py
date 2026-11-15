@@ -432,6 +432,82 @@ def evidence(
         console.print(f"wrote {report}")
 
 
+async def _stored_or_fresh(doc, var_dir: Path, run_index: int, fp: str):
+    """Claims and evidence of this run: stored ones when their fingerprint matches, else recomputed (cached calls
+    make recomputation free when only later-stage prompts or rubrics changed)."""
+    from onus.claims.extract import claims_path, extract_claims, load_claims, save_claims
+    from onus.evidence.select import evidence_path, link_evidence, load_evidence, save_evidence
+
+    cp = claims_path(var_dir, doc.paper_id, run_index)
+    cs = load_claims(cp) if cp.is_file() else None
+    fresh = cs is None or cs.fingerprint != fp
+    if fresh:
+        cs = await extract_claims(doc, run_index=run_index)
+        save_claims(cs, var_dir)
+    ep = evidence_path(var_dir, doc.paper_id, run_index)
+    es = load_evidence(ep) if ep.is_file() and not fresh else None
+    if es is None or es.fingerprint != fp:
+        es = await link_evidence(doc, cs, run_index=run_index)
+        save_evidence(es, var_dir)
+    return cs, es
+
+
+@app.command()
+def checks(
+    paths: Annotated[list[Path], typer.Argument(help="Paper directories, or a split root (all its papers)")],
+    run_index: Annotated[int, typer.Option("--run-index", help="Run index (cache key; 0-2 in batch)")] = 0,
+    report: Annotated[Path | None, typer.Option(help="Also write a markdown report (e.g. docs/checks_dev.md)")]
+    = None,
+    concurrency: Annotated[int, typer.Option(help="Papers processed at once")] = 4,
+) -> None:
+    """Run the number, dominance, strength, scope and checklist checks -> $ONUS_VAR_DIR/checks/<id>.r<N>.json.
+
+    Uses the stored claims and evidence of the same run and fingerprint, or recomputes them first."""
+    from onus.checks.report import render_checks_report
+    from onus.checks.run import run_checks, save_checks
+    from onus.version import fingerprint
+
+    s = get_settings()
+    dirs = _paper_dirs_of(paths, *([report] if report else []))
+    fp = fingerprint()
+
+    async def run_all():
+        docs = [_load_or_ingest(d, s.var_dir, False) for d in dirs]
+        sem = asyncio.Semaphore(max(1, concurrency))
+
+        async def one(doc):
+            async with sem:
+                cs, es = await _stored_or_fresh(doc, s.var_dir, run_index, fp)
+                return doc, cs, es, await run_checks(doc, cs, es, run_index=run_index)
+
+        return await asyncio.gather(*[one(doc) for doc in docs])
+
+    results = asyncio.run(run_all())
+    t = Table(title=f"Checks (run {run_index}): fail / inconclusive / pass")
+    for col in ("paper", "claims", "number", "dominance", "strength", "scope", "limitations", "checklist B/U/C", "€"):
+        t.add_column(col, justify="right" if col != "paper" else "left")
+    for doc, _, _, ks in results:
+        save_checks(ks, s.var_dir)
+        st = ks.stats
+
+        def f(name: str, st=st) -> str:
+            d = st.get(name, {})
+            return f"{d.get('fail', 0)} / {d.get('inconclusive', 0)} / {d.get('pass', 0)}"
+
+        cl = st.get("checklist", {})
+        t.add_row(doc.paper_id, str(st["claims"]), f("number"), f("dominance"), f("strength"), f("scope"),
+                  str(st["limitations"]), f"{cl.get('backed', 0)}/{cl.get('unbacked', 0)}/{cl.get('contradicted', 0)}",
+                  f"{ks.cost['eur']:.4f}")
+        for w in ks.warnings:
+            console.print(f"  [yellow]{doc.paper_id}[/yellow] {w}")
+    console.print(t)
+    console.print(f"Spend (check calls): €{sum(ks.cost['eur'] for *_, ks in results):.4f} -> {s.var_dir / 'checks'}")
+    if report:
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(render_checks_report(results))
+        console.print(f"wrote {report}")
+
+
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def analyze() -> None:
     """Run the full pipeline over a data root (Phase 6)."""

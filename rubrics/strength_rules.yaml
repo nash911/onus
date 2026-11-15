@@ -1,0 +1,74 @@
+# Strength rules (BUILD_PLAN Appendix B.2). Used by onus/checks/strength.py.
+#
+# Markers use the lexicon syntax (case-insensitive, word boundaries; "re:" prefix = regular expression).
+# `requires` names conditions computed by code:
+#   stat_test         a statistical test is reported (claim context, linked evidence, or the paper's
+#                     method/experiments/results/appendix text)
+#   baselines>=2      at least two verified baseline labels in the linked evidence
+#   settings>=2       at least two verified datasets or settings in the linked evidence
+#   dominance         the dominance check passes (fails -> severity "contradicts"; inconclusive -> the rule is
+#                     inconclusive; not run -> requirement not met)
+#   dominance_if_comparison   as `dominance`, but only for comparison claims
+#   variance_or_3_seeds       variance reported (cell spreads or std/CI language) or >= 3 seeds/runs
+# Hedged claims are never flagged by this rubric. The rules apply to result, comparison, generality and causal
+# claims (`claim_types`); method and availability claims describe what was done, not what was found.
+
+version: 1
+
+claim_types: [result, comparison, generality, causal]
+
+comparison_markers:
+  - outperforms
+  - outperform
+  - outperformed
+  - outperforming
+  - surpasses
+  - surpass
+  - beats
+  - "re:\\bbest\\b"
+  - "re:(?:better|higher|lower|faster|stronger|more accurate) than"
+  - superior
+  # "state-of-the-art" as a claim about the paper's own result, not as an adjective for the models it uses
+  - "re:(?:achiev\\w*|set\\w*|reach\\w*|establish\\w*|attain\\w*|obtain\\w*|deliver\\w*|yield\\w*|new|is|are|becomes?)\\s+(?:a\\s+|the\\s+)?(?:new\\s+)?(?:state[- ]of[- ]the[- ]?art|sota)"
+  - "re:(?:state[- ]of[- ]the[- ]?art|sota)\\s+(?:results?|performance|accuracy|scores?)"
+
+rules:
+  - id: significance
+    title: "\"significant(ly)\" in a statistical sense"
+    markers:
+      - "re:significant(?:ly)?\\s+(?:\\w+\\s+){0,2}(?:improv\\w*|better|higher|lower|outperform\\w*|reduc\\w*|increas\\w*|decreas\\w*|gains?|differen\\w*|faster|fewer|more|less|boost\\w*|advantage\\w*|superior|enhanc\\w*|effect\\w*|correlat\\w*)"
+      - "re:(?:improv\\w*|better|higher|lower|outperform\\w*|reduc\\w*|increas\\w*|decreas\\w*|gains?|differen\\w*|faster|boost\\w*|enhanc\\w*|correlat\\w*)\\s+(?:\\w+\\s+){0,3}significantly"
+      - statistically significant
+    requires: [stat_test]
+  - id: sota
+    title: "\"state-of-the-art\" / \"outperforms all, existing or prior\""
+    markers:
+      - "re:(?:achiev\\w*|set\\w*|reach\\w*|establish\\w*|attain\\w*|obtain\\w*|deliver\\w*|yield\\w*|new|is|are|becomes?)\\s+(?:a\\s+|the\\s+)?(?:new\\s+)?(?:state[- ]of[- ]the[- ]?art|sota)"
+      - "re:(?:state[- ]of[- ]the[- ]?art|sota)\\s+(?:results?|performance|accuracy|scores?)"
+      - "re:outperform\\w*\\s+(?:all|existing|prior|previous|current|other|competing|strong)"
+    requires: ["baselines>=2", dominance]
+  - id: consistency
+    title: "\"consistently\" / \"always\" / \"across\""
+    markers:
+      - consistently
+      - always
+      # "across" over a plurality of tested settings, not "balanced across participants"
+      - "re:across\\s+(?:all|different|multiple|various|diverse|several|many|both|(?:a\\s+)?(?:wide|broad)\\s+range\\s+of|\\d+|two|three|four|five|six|seven|eight|nine|ten)\\b"
+    requires: ["settings>=2", dominance_if_comparison]
+  - id: generality
+    title: "\"robust\" / \"generalizes\""
+    markers:
+      - robust
+      - robustly
+      - robustness
+      - generalizes
+      - generalises
+      - generalize
+      - generalise
+      - generalization
+      - generalisation
+    requires: ["settings>=2"]
+  - id: absolute
+    title: absolute strength or universal scope
+    when: absolute_or_universal
+    requires: ["settings>=2", variance_or_3_seeds]

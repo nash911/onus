@@ -1,0 +1,12 @@
+# Number tolerance (BUILD_PLAN Appendix B.3). Used by onus/checks/numbers.py.
+#
+# pass if |computed - claimed| <= max(abs_half_unit * 10^(-d), rel * |claimed|),
+# where d is the number of decimals in the claimed number as written.
+# Relative changes are also tested as percentage points (and the reverse); a match only under the other
+# reading passes with a caveat and severity "overstates".
+
+version: 1
+abs_half_unit: 0.5
+rel: 0.005
+# A claimed percentage may be read from fractional cells (0.812 -> 81.2%) and the reverse.
+percent_scaling: true
