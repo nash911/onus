@@ -213,6 +213,38 @@
           ],
           "default": null,
           "title": "Checklist Key"
+        },
+        "rule_verdict": {
+          "anyOf": [
+            {
+              "enum": [
+                "supported",
+                "overstated",
+                "untraced",
+                "contradicted",
+                "not_checkable"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Verdict"
+        },
+        "adjudication": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adjudication"
         }
       },
       "required": [

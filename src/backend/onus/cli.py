@@ -508,16 +508,129 @@ def checks(
         console.print(f"wrote {report}")
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def analyze() -> None:
-    """Run the full pipeline over a data root (Phase 6)."""
-    _todo(6)
+def _result_path(out: Path, paper_id: str) -> Path:
+    from onus.ingest.document_builder import safe_id
+
+    return out / f"{safe_id(paper_id)}.json"
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def report() -> None:
-    """Markdown summary of a results directory (Phase 6)."""
-    _todo(6)
+@app.command()
+def analyze(
+    data_root: Annotated[Path | None, typer.Option("--data-root", help="Split root (default ONUS_DATA_ROOT)")] = None,
+    out: Annotated[Path | None, typer.Option(help="Results directory (default $ONUS_VAR_DIR/results/<split>)")]
+    = None,
+    runs: Annotated[int, typer.Option(help="Runs per paper (merged by majority)")] = 3,
+    run_start: Annotated[int, typer.Option("--run-start", help="First run index (cache key)")] = 0,
+    ids: Annotated[list[str] | None, typer.Option("--ids", help="Only these paper ids (repeatable)")] = None,
+    concurrency: Annotated[int, typer.Option(help="Papers processed at once")] = 4,
+    mode: Annotated[str, typer.Option(help="batch or live (live: 1 run, no code checks)")] = "batch",
+    force: Annotated[bool, typer.Option(help="Recompute even if a result with this fingerprint exists")] = False,
+    cost_report: Annotated[Path | None, typer.Option("--cost-report", help="Write a cost report for this "
+                                                                           "command (e.g. docs/cost_report.md)")]
+    = None,
+) -> None:
+    """Run the full pipeline over a data root -> <out>/<paper_id>.json (one RunResult per paper). Resumable."""
+    from datetime import UTC, datetime
+
+    from onus.ingest.document_builder import paper_dirs
+    from onus.llm.client import BudgetExceeded, get_client
+    from onus.pipeline import analyze_paper
+    from onus.schemas.result import RunResult
+    from onus.verdict.report import render_cost_report
+    from onus.version import fingerprint
+
+    if mode not in ("batch", "live"):
+        raise typer.BadParameter("--mode must be batch or live")
+    s = get_settings()
+    root = (data_root or s.data_root).resolve()
+    target = (out or s.var_dir / "results" / root.name).resolve()
+    _guard(root, target, *([cost_report] if cost_report else []))
+    dirs = paper_dirs(root)
+    if ids:
+        dirs = [d for d in dirs if d.name in set(ids)]
+    if not dirs:
+        console.print(f"[red]no papers under {root / 'papers'}[/red]")
+        raise typer.Exit(code=1)
+    fp = fingerprint()
+    n_runs = 1 if mode == "live" else runs
+    todo, done = [], []
+    for d in dirs:
+        p = _result_path(target, d.name)
+        if p.is_file() and not force:
+            try:
+                prev = RunResult.model_validate_json(p.read_text())
+                if prev.fingerprint == fp and prev.runs == n_runs and prev.mode == mode:
+                    done.append(prev)
+                    continue
+            except ValueError:
+                pass
+        todo.append(d)
+    console.print(f"{len(done)} up to date, {len(todo)} to analyse ({n_runs} run(s) each) -> {target}")
+    started = datetime.now(UTC).isoformat()
+    failures: dict[str, str] = {}
+
+    async def run_all():
+        sem = asyncio.Semaphore(max(1, concurrency))
+        stop = asyncio.Event()
+
+        async def one(d: Path):
+            async with sem:
+                if stop.is_set():
+                    return None
+                try:
+                    r = await analyze_paper(d, n_runs, mode, var_dir=s.var_dir, run_start=run_start)
+                except BudgetExceeded as e:
+                    stop.set()
+                    failures[d.name] = str(e)
+                    return None
+                except Exception as e:  # noqa: BLE001 - report and continue with the next paper
+                    failures[d.name] = f"{type(e).__name__}: {e}"[:300]
+                    return None
+                target.mkdir(parents=True, exist_ok=True)
+                _result_path(target, r.paper["id"]).write_text(r.model_dump_json(indent=1))
+                c = r.summary["counts"]
+                console.print(f"  {r.paper['id']}: {r.summary['n_claims']} claims, "
+                              + ", ".join(f"{k} {v}" for k, v in c.items() if v)
+                              + f"; €{r.cost['eur']:.3f}, {r.timings['wall_s'] / 60:.1f} min")
+                return r
+
+        return [r for r in await asyncio.gather(*[one(d) for d in todo]) if r is not None]
+
+    new = asyncio.run(run_all())
+    for k, v in failures.items():
+        console.print(f"  [red]{k}[/red] {v}")
+    console.print(f"{len(new)} analysed, {len(failures)} failed; spend €{sum(r.cost['eur'] for r in new):.3f}")
+    if cost_report:
+        rows = [r for r in get_client().ledger.rows() if r.get("ts", "") >= started]
+        cost_report.parent.mkdir(parents=True, exist_ok=True)
+        cost_report.write_text(render_cost_report(new, rows))
+        console.print(f"wrote {cost_report}")
+    if failures:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def report(
+    results_dir: Annotated[Path, typer.Argument(help="A results directory written by `onus analyze`")],
+    out: Annotated[Path | None, typer.Option(help="Write the markdown here (default: print it)")] = None,
+    title: Annotated[str, typer.Option(help="Report title")] = "Results",
+) -> None:
+    """Markdown summary of a results directory."""
+    from onus.schemas.result import RunResult
+    from onus.verdict.report import render_results_report
+
+    files = sorted(results_dir.glob("*.json"))
+    if not files:
+        console.print(f"[red]no results in {results_dir}[/red]")
+        raise typer.Exit(code=1)
+    results = [RunResult.model_validate_json(f.read_text()) for f in files]
+    text = render_results_report(results, title=title)
+    if out:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text)
+        console.print(f"wrote {out} ({len(results)} papers)")
+    else:
+        console.print(text, markup=False, highlight=False)
 
 
 @eval_app.callback()
