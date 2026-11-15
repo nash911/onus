@@ -1,0 +1,657 @@
+{
+  "$defs": {
+    "CheckResult": {
+      "properties": {
+        "check": {
+          "enum": [
+            "link",
+            "strength",
+            "number",
+            "dominance",
+            "checklist",
+            "scope",
+            "code_static",
+            "code_rerun"
+          ],
+          "title": "Check",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive",
+            "not_run"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "severity": {
+          "default": "none",
+          "enum": [
+            "contradicts",
+            "overstates",
+            "none"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "detail": {
+          "title": "Detail",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "check",
+        "outcome",
+        "detail"
+      ],
+      "title": "CheckResult",
+      "type": "object"
+    },
+    "ChecklistAudit": {
+      "properties": {
+        "key": {
+          "title": "Key",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "answer": {
+          "title": "Answer",
+          "type": "string"
+        },
+        "justification": {
+          "title": "Justification",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "backed",
+            "unbacked",
+            "contradicted",
+            "not_applicable",
+            "not_checkable"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "title",
+        "answer",
+        "justification",
+        "status",
+        "reason"
+      ],
+      "title": "ChecklistAudit",
+      "type": "object"
+    },
+    "Claim": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "result",
+            "comparison",
+            "generality",
+            "causal",
+            "method",
+            "availability",
+            "checklist"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "quote": {
+          "title": "Quote",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/Location"
+        },
+        "is_main": {
+          "title": "Is Main",
+          "type": "boolean"
+        },
+        "wording": {
+          "$ref": "#/$defs/Wording"
+        },
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "title": "Evidence",
+          "type": "array"
+        },
+        "checks": {
+          "items": {
+            "$ref": "#/$defs/CheckResult"
+          },
+          "title": "Checks",
+          "type": "array"
+        },
+        "verdict": {
+          "enum": [
+            "supported",
+            "overstated",
+            "untraced",
+            "contradicted",
+            "not_checkable"
+          ],
+          "title": "Verdict",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "caveat": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Caveat"
+        },
+        "risk": {
+          "title": "Risk",
+          "type": "integer"
+        },
+        "stability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Stability"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "quote",
+        "location",
+        "is_main",
+        "wording",
+        "verdict",
+        "reason",
+        "risk"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "CodeReport": {
+      "properties": {
+        "available": {
+          "title": "Available",
+          "type": "boolean"
+        },
+        "files": {
+          "title": "Files",
+          "type": "integer"
+        },
+        "static": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Static",
+          "type": "array"
+        },
+        "reruns": {
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "title": "Reruns",
+          "type": "array"
+        },
+        "code_version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Code Version"
+        }
+      },
+      "required": [
+        "available",
+        "files"
+      ],
+      "title": "CodeReport",
+      "type": "object"
+    },
+    "Evidence": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "table",
+            "table_cell",
+            "figure",
+            "text",
+            "checklist",
+            "code",
+            "rerun_output"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "snippet": {
+          "title": "Snippet",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Location"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "link_method": {
+          "enum": [
+            "explicit_ref",
+            "retrieval",
+            "llm_selected",
+            "code_search",
+            "sandbox"
+          ],
+          "title": "Link Method",
+          "type": "string"
+        },
+        "relation": {
+          "anyOf": [
+            {
+              "enum": [
+                "supports",
+                "partial",
+                "contradicts",
+                "unrelated"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Relation"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "snippet",
+        "link_method"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "LedgerEntry": {
+      "properties": {
+        "check": {
+          "enum": [
+            "link",
+            "strength",
+            "number",
+            "dominance",
+            "checklist",
+            "scope",
+            "code_static",
+            "code_rerun"
+          ],
+          "title": "Check",
+          "type": "string"
+        },
+        "ran_on": {
+          "title": "Ran On",
+          "type": "integer"
+        },
+        "not_run_on": {
+          "title": "Not Run On",
+          "type": "integer"
+        },
+        "reasons": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Reasons",
+          "type": "object"
+        }
+      },
+      "required": [
+        "check",
+        "ran_on",
+        "not_run_on"
+      ],
+      "title": "LedgerEntry",
+      "type": "object"
+    },
+    "Location": {
+      "properties": {
+        "page": {
+          "title": "Page",
+          "type": "integer"
+        },
+        "paragraph": {
+          "title": "Paragraph",
+          "type": "integer"
+        },
+        "sentence": {
+          "title": "Sentence",
+          "type": "integer"
+        },
+        "line_start": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line Start"
+        },
+        "line_end": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line End"
+        },
+        "section": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Section"
+        },
+        "start": {
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "page",
+        "paragraph",
+        "sentence",
+        "start",
+        "end"
+      ],
+      "title": "Location",
+      "type": "object"
+    },
+    "NotChecked": {
+      "properties": {
+        "what": {
+          "title": "What",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "count": {
+          "default": 1,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "what",
+        "reason"
+      ],
+      "title": "NotChecked",
+      "type": "object"
+    },
+    "Stability": {
+      "properties": {
+        "runs": {
+          "title": "Runs",
+          "type": "integer"
+        },
+        "agree": {
+          "title": "Agree",
+          "type": "integer"
+        },
+        "verdicts": {
+          "items": {
+            "enum": [
+              "supported",
+              "overstated",
+              "untraced",
+              "contradicted",
+              "not_checkable"
+            ],
+            "type": "string"
+          },
+          "title": "Verdicts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "runs",
+        "agree",
+        "verdicts"
+      ],
+      "title": "Stability",
+      "type": "object"
+    },
+    "Wording": {
+      "properties": {
+        "strength": {
+          "enum": [
+            "hedged",
+            "plain",
+            "strong",
+            "absolute"
+          ],
+          "title": "Strength",
+          "type": "string"
+        },
+        "scope": {
+          "enum": [
+            "specific",
+            "general",
+            "universal"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "markers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Markers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "strength",
+        "scope"
+      ],
+      "title": "Wording",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "default": "1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "onus_version": {
+      "title": "Onus Version",
+      "type": "string"
+    },
+    "fingerprint": {
+      "title": "Fingerprint",
+      "type": "string"
+    },
+    "models": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Models",
+      "type": "object"
+    },
+    "mode": {
+      "enum": [
+        "batch",
+        "live"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "runs": {
+      "title": "Runs",
+      "type": "integer"
+    },
+    "paper": {
+      "additionalProperties": true,
+      "title": "Paper",
+      "type": "object"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "claims": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Claims",
+      "type": "array"
+    },
+    "checklist": {
+      "items": {
+        "$ref": "#/$defs/ChecklistAudit"
+      },
+      "title": "Checklist",
+      "type": "array"
+    },
+    "code": {
+      "$ref": "#/$defs/CodeReport"
+    },
+    "ledger": {
+      "items": {
+        "$ref": "#/$defs/LedgerEntry"
+      },
+      "title": "Ledger",
+      "type": "array"
+    },
+    "not_checked": {
+      "items": {
+        "$ref": "#/$defs/NotChecked"
+      },
+      "title": "Not Checked",
+      "type": "array"
+    },
+    "summary": {
+      "additionalProperties": true,
+      "title": "Summary",
+      "type": "object"
+    },
+    "cost": {
+      "additionalProperties": true,
+      "title": "Cost",
+      "type": "object"
+    },
+    "timings": {
+      "additionalProperties": true,
+      "title": "Timings",
+      "type": "object"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "onus_version",
+    "fingerprint",
+    "models",
+    "mode",
+    "runs",
+    "paper",
+    "created_at",
+    "code"
+  ],
+  "title": "RunResult",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://onus/schema/result.v1.json"
+}

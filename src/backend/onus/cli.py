@@ -1,0 +1,254 @@
+"""`onus` command-line interface (Typer).
+
+Commands for later phases are registered now and exit with a clear message until they are built.
+"""
+
+from __future__ import annotations
+
+import asyncio
+from pathlib import Path
+from typing import Annotated, NoReturn
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from onus.config import get_settings, repo_root
+
+app = typer.Typer(no_args_is_help=True, add_completion=False, help="Onus: claim-to-evidence maps for papers.")
+console = Console()
+
+llm_app = typer.Typer(no_args_is_help=True, help="Berget AI: capability probe and spend.")
+schema_app = typer.Typer(no_args_is_help=True, help="The RunResult contract.")
+db_app = typer.Typer(no_args_is_help=True, help="Serving database.")
+eval_app = typer.Typer(help="Evaluation harness (Phase 7).", invoke_without_command=True)
+labels_app = typer.Typer(no_args_is_help=True, help="Blind hand labels (Phase 7).")
+app.add_typer(llm_app, name="llm")
+app.add_typer(schema_app, name="schema")
+app.add_typer(db_app, name="db")
+app.add_typer(eval_app, name="eval")
+app.add_typer(labels_app, name="labels")
+
+
+def _todo(phase: int) -> NoReturn:
+    console.print(f"[yellow]Not implemented yet: built in Phase {phase}.[/yellow]")
+    raise typer.Exit(code=2)
+
+
+# ---------------------------------------------------------------- version and freeze
+
+
+@app.command()
+def version() -> None:
+    """Print the Onus version, fingerprint and models."""
+    from onus import version as v
+
+    s = get_settings()
+    console.print(f"onus {v.ONUS_VERSION}  fingerprint {v.fingerprint()}")
+    for role, model in s.models_config.items():
+        console.print(f"  {role:16} {model}")
+    frozen = v.load_frozen()
+    if frozen:
+        state = "matches" if frozen["fingerprint"] == v.fingerprint() else "[red]DRIFTED[/red]"
+        console.print(f"frozen {frozen['version']} ({frozen['fingerprint']}): {state}")
+
+
+@app.command()
+def freeze(
+    version: Annotated[str | None, typer.Option("--version", help="P0 version to freeze, X.Y.Z")] = None,
+    code_version: Annotated[str | None, typer.Option("--code-version", help="code-v1 version (Phase 10)")] = None,
+) -> None:
+    """Pin the fingerprint in frozen.json and set ONUS_VERSION."""
+    from onus import version as v
+
+    if code_version:
+        _todo(10)
+    if not version:
+        raise typer.BadParameter("give --version X.Y.Z")
+    rec = v.freeze(version)
+    console.print(f"Frozen onus {rec['version']} fingerprint {rec['fingerprint']} -> {v.frozen_path()}")
+
+
+# ---------------------------------------------------------------- schema and db
+
+
+@schema_app.command("export")
+def schema_export(
+    out: Annotated[Path | None, typer.Option(help="Output path")] = None,
+) -> None:
+    """Write schema/result.schema.json from onus.schemas.result."""
+    from onus.schemas.result import export_schema
+
+    p = export_schema(out or repo_root() / "schema" / "result.schema.json")
+    console.print(f"wrote {p}")
+
+
+@db_app.command("init")
+def db_init(url: Annotated[str | None, typer.Option(help="Database URL (default DATABASE_URL)")] = None) -> None:
+    """Create all tables (SQLite: also WAL mode)."""
+    from onus.db.session import init_db, make_engine
+
+    engine = make_engine(url)
+    init_db(engine)
+    console.print(f"initialised {engine.url.render_as_string(hide_password=True)}")
+
+
+@db_app.command("export-pg")
+def db_export_pg() -> None:
+    """Write db/migrations/001_init.sql and db/schema.sql (Postgres DDL)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("export_pg_schema", repo_root() / "scripts" / "export_pg_schema.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for p in mod.export():
+        console.print(f"wrote {p}")
+
+
+# ---------------------------------------------------------------- llm
+
+
+@llm_app.command("probe")
+def llm_probe() -> None:
+    """Probe each role's model on Berget (live; costs under €0.05)."""
+    from onus.llm.capabilities import probe, write_probe_outputs
+    from onus.llm.client import get_client
+
+    s = get_settings()
+    if not s.berget_api_key.get_secret_value():
+        console.print("[red]BERGET_API_KEY is not set[/red]")
+        raise typer.Exit(code=1)
+    client = get_client()
+    before = client.ledger.total_eur
+    caps, rows = asyncio.run(probe(s, client))
+    spent = client.ledger.total_eur - before
+    write_probe_outputs(caps, rows, s.var_dir, repo_root() / "docs", spent)
+
+    t = Table(title="Berget capabilities")
+    for col in ("role", "model", "chat", "json_schema", "json_object", "tools", "cached tokens", "reasoning"):
+        t.add_column(col)
+    yn = {True: "yes", False: "no", None: "—"}
+    for role, rc in caps.roles.items():
+        if role == "embed":
+            t.add_row(role, rc.model, "—", "—", "—", "—", "—", f"embedding dim {rc.embedding_dim or '—'}")
+        else:
+            t.add_row(role, rc.model, yn[rc.chat], yn[rc.json_schema], yn[rc.json_object], yn[rc.tools],
+                      yn[rc.cached_tokens_reported], rc.reasoning_style or "—")
+    console.print(t)
+    failed = [r for r in rows if r["ok"] is False]
+    for r in failed:
+        console.print(f"  [yellow]{r['role']} {r['test']}[/yellow]: {r['note']}")
+    console.print(f"Probe spend: €{spent:.4f}. Wrote {s.var_dir / 'berget_capabilities.json'} and "
+                  f"docs/berget_capabilities.md")
+
+
+@llm_app.command("spend")
+def llm_spend(
+    by: Annotated[str, typer.Option(help="Group by: role, model, prompt_id or paper_id")] = "role",
+) -> None:
+    """Summarise the cost ledger."""
+    from onus.llm.costs import CostLedger
+
+    s = get_settings()
+    ledger = CostLedger(s.var_dir / "cost_ledger.jsonl")
+    summary = ledger.summary()
+    if by not in summary:
+        raise typer.BadParameter("--by must be one of role, model, prompt_id, paper_id")
+    t = Table(title=f"Spend by {by} ({ledger.path})")
+    for col in (by, "eur", "calls", "cache hits", "tokens in", "tokens out"):
+        t.add_column(col, justify="right" if col != by else "left")
+    for key, acc in sorted(summary[by].items(), key=lambda kv: -kv[1]["eur"]):
+        t.add_row(key, f"{acc['eur']:.4f}", str(acc["calls"]), str(acc["cache_hits"]), str(acc["tokens_in"]),
+                  str(acc["tokens_out"]))
+    tot = summary["total"]
+    t.add_row("[b]total[/b]", f"[b]{tot['eur']:.4f}[/b]", str(tot["calls"]), str(tot["cache_hits"]),
+              str(tot["tokens_in"]), str(tot["tokens_out"]))
+    console.print(t)
+    console.print(f"Dev budget: €{tot['eur']:.4f} of €{s.onus_dev_budget_eur:.2f}")
+
+
+# ---------------------------------------------------------------- later phases
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def ingest() -> None:
+    """Ingest one paper directory or PDF into a Document (Phase 2)."""
+    _todo(2)
+
+
+@app.command("ingest-all", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def ingest_all() -> None:
+    """Ingest every paper under a data root (Phase 2)."""
+    _todo(2)
+
+
+@app.command("ingest-report", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def ingest_report() -> None:
+    """Write docs/ingest_report.md (Phase 2)."""
+    _todo(2)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def claims() -> None:
+    """Extract and verify claims for one paper (Phase 3)."""
+    _todo(3)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def analyze() -> None:
+    """Run the full pipeline over a data root (Phase 6)."""
+    _todo(6)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def report() -> None:
+    """Markdown summary of a results directory (Phase 6)."""
+    _todo(6)
+
+
+@eval_app.callback()
+def eval_main(ctx: typer.Context) -> None:
+    """Evaluate results against a split root; prints aggregates only (Phase 7)."""
+    if ctx.invoked_subcommand is None:
+        _todo(7)
+
+
+@eval_app.command("merge-metrics", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def eval_merge_metrics() -> None:
+    """Combine metrics directories and hand-label scores into metrics.json (Phase 7)."""
+    _todo(7)
+
+
+@labels_app.command("export", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def labels_export() -> None:
+    """Blind, stratified hand-label sheet (Phase 7)."""
+    _todo(7)
+
+
+@labels_app.command("score", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def labels_score() -> None:
+    """Precision from a completed label sheet (Phase 7)."""
+    _todo(7)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def findings() -> None:
+    """Corpus research questions RQ1-RQ4 (Phase 7)."""
+    _todo(7)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def bundle() -> None:
+    """Bundle results with display metadata (Phase 7)."""
+    _todo(7)
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def codecheck() -> None:
+    """Static paper-code checks and sandboxed re-runs (Phase 10)."""
+    _todo(10)
+
+
+if __name__ == "__main__":
+    app()
