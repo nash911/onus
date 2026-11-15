@@ -41,6 +41,10 @@ T = TypeVar("T", bound=BaseModel)
 DEFAULT_CONCURRENCY = 8
 TIMEOUT_S = 180
 NUM_RETRIES = 3
+# provider throttling / outages: retried here with backoff (LiteLLM's own retries are immediate)
+TRANSIENT_ERRORS = ("RateLimitError", "ServiceUnavailableError", "APIConnectionError", "InternalServerError",
+                    "Timeout")
+TRANSIENT_BACKOFF_S = (5.0, 20.0, 60.0)
 EMBED_BATCH = 64
 
 REPAIR_INSTRUCTION = (
@@ -202,6 +206,16 @@ class LLMClient:
             self._sems[loop_id] = asyncio.Semaphore(self._concurrency)
         return self._sems[loop_id]
 
+    async def _with_backoff(self, fn, **kwargs: Any) -> Any:
+        """Retry throttling and transient provider errors with backoff; other errors propagate at once."""
+        for i, wait in enumerate((*TRANSIENT_BACKOFF_S, None)):
+            try:
+                return await fn(**kwargs)
+            except Exception as e:
+                if wait is None or not any(t in type(e).__name__ for t in TRANSIENT_ERRORS):
+                    raise
+                await asyncio.sleep(wait * (1 + 0.25 * i))
+
     def _common(self) -> dict[str, Any]:
         return {
             "api_base": self.settings.berget_api_base,
@@ -234,7 +248,7 @@ class LLMClient:
         model = self.settings.model_for(role)
         key = cache_key(model, messages, params, run_index)
         if use_cache and (hit := self.cache.get(key)) is not None:
-            self._log(role, model, meta.prompt_id, paper_id, hit["usage"], 0.0, True)
+            self._log(role, model, meta.prompt_id, paper_id, hit["usage"], 0.0, True, 0.0)
             meta.add(hit["usage"], 0.0, True, 0.0)
             return hit
 
@@ -242,7 +256,8 @@ class LLMClient:
         t0 = time.monotonic()
         try:
             async with self._sem():
-                resp = await self._acompletion(model=f"openai/{model}", messages=messages, **params, **self._common())
+                resp = await self._with_backoff(self._acompletion, model=f"openai/{model}", messages=messages,
+                                                **params, **self._common())
             out = normalize_response(resp)
         except BudgetExceeded:
             raise
@@ -251,18 +266,20 @@ class LLMClient:
         latency = time.monotonic() - t0
         u = out["usage"]
         eur = cost_eur(model, u["prompt_tokens"], u["completion_tokens"], u["cached_tokens"])
-        self._log(role, model, meta.prompt_id, paper_id, u, eur, False)
+        self._log(role, model, meta.prompt_id, paper_id, u, eur, False, latency)
         meta.add(u, eur, False, latency)
         if use_cache:
             self.cache.put(key, out)
         return out
 
-    def _log(self, role: str, model: str, prompt_id: str, paper_id: str | None, usage: dict, eur: float, hit: bool):
+    def _log(self, role: str, model: str, prompt_id: str, paper_id: str | None, usage: dict, eur: float, hit: bool,
+             latency: float = 0.0):
         self.ledger.append(
             LedgerEntry(
                 role=role, model=model, prompt_id=prompt_id, paper_id=paper_id,
                 tokens_in=int(usage.get("prompt_tokens", 0)), tokens_out=int(usage.get("completion_tokens", 0)),
                 cached_in=int(usage.get("cached_tokens", 0)), eur=round(eur, 8), cache_hit=hit,
+                latency_s=round(latency, 2),
             )
         )
 
@@ -363,7 +380,8 @@ class LLMClient:
         self.guard.check(paper_id)
         try:
             async with self._sem():
-                resp = await self._aembedding(model=f"openai/{model}", input=texts, **self._common())
+                resp = await self._with_backoff(self._aembedding, model=f"openai/{model}", input=texts,
+                                                **self._common())
         except BudgetExceeded:
             raise
         except Exception as e:  # noqa: BLE001

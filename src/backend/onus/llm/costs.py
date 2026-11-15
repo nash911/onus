@@ -47,6 +47,7 @@ class LedgerEntry:
     eur: float
     cache_hit: bool
     ts: str = ""
+    latency_s: float = 0.0  # wall time of the provider call (0 for cache hits)
 
     def to_json(self) -> str:
         d = self.__dict__.copy()

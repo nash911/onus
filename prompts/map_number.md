@@ -1,6 +1,6 @@
 ---
 id: map_number
-version: 1
+version: 2
 role: extract
 temperature: 0.0
 max_tokens: 6000
@@ -19,8 +19,9 @@ For each number, give its kind:
 Rules:
 1. An operand is {"table_id": "Table 2", "row": "R3", "col": "C2"}. Use the row and column ids shown. Never invent a table, row or column.
 2. Pick the cells the claim is about (its method, baseline, metric and setting). If several cells could fit and the claim does not say which, answer "not_in_tables".
-3. "higher_is_better": true or false for the metric if it is clear, else null.
-4. "note": one short phrase saying what the cells are (e.g. "Ours vs. best baseline, Acc").
+3. Map a number by what it describes, not by its value. If the claim's number describes a cell (the same system, metric and setting) but the value printed in the table is different, still map it to that cell: code compares the values, and a mismatch is exactly what it must find. Use "not_in_tables" only when no cell measures what the number describes.
+4. "higher_is_better": true or false for the metric if it is clear, else null.
+5. "note": one short phrase saying what the cells are (e.g. "Ours vs. best baseline, Acc").
 
 # user
 Claim: "{{claim}}"

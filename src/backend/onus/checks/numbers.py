@@ -12,6 +12,9 @@
    verdict rules treat a non-"none" severity as a flag).
 5. A mismatch is "fail" / "contradicts", unless the claimed number appears verbatim in another cell of the
    linked tables: then the mapping is suspect and the number is inconclusive.
+6. If the claim has no linked table, or the model says none of its numbers come from the linked tables, the
+   mapping is retried once over the paper's other parsed tables (`ClaimContext.fallback_tables`, ranked by word
+   overlap with numbers ignored). A result found this way is recorded with `data["fallback_tables"]`.
 """
 
 from __future__ import annotations
@@ -248,30 +251,52 @@ async def check_numbers(ctx: ClaimContext, llm, *, run_index: int, paper_id: str
     mentions = extract_numbers(ctx.claim.quote)
     if not mentions:
         return not_run("number", "no number in the claim")
-    if not ctx.tables:
+    if not ctx.tables and not ctx.fallback_tables:
         return not_run("number", "no linked table", numbers=[m.text for m in mentions])
-    try:
-        out, meta = await llm.complete_json(
-            "map_number",
-            {"claim": ctx.claim.quote, "numbers": "\n".join(f"{m.id}: {m.text}" for m in mentions),
-             "tables": "\n\n".join(v.render() for v in ctx.tables)},
-            MapNumberOut, run_index=run_index, paper_id=paper_id)
-        metas.append(meta)
-    except LLMError as e:
-        return CheckResult(check="number", outcome="inconclusive", detail="Number mapping failed.",
-                           data={"error": str(e)[:200], "numbers": [m.text for m in mentions]},
-                           evidence_ids=[i for v in ctx.tables for i in ctx.table_ids(v)])
-    by_id = {}
-    for it in out.items:
-        k = it.number_id.strip().strip("[]").upper()
-        by_id.setdefault(k, it)
-    results = [check_mention(m, by_id[m.id], ctx.tables, tol) if m.id in by_id else {"id": m.id, "text": m.text, "claimed": m.value, "status": "inconclusive",
-                                      "why": "not mapped by the model"}
-               for m in mentions]
+
+    async def _map(views: list[TableView]) -> list[dict] | CheckResult:
+        try:
+            out, meta = await llm.complete_json(
+                "map_number",
+                {"claim": ctx.claim.quote, "numbers": "\n".join(f"{m.id}: {m.text}" for m in mentions),
+                 "tables": "\n\n".join(v.render() for v in views)},
+                MapNumberOut, run_index=run_index, paper_id=paper_id)
+            metas.append(meta)
+        except LLMError as e:
+            return CheckResult(check="number", outcome="inconclusive", detail="Number mapping failed.",
+                               data={"error": str(e)[:200], "numbers": [m.text for m in mentions]},
+                               evidence_ids=[i for v in ctx.tables for i in ctx.table_ids(v)])
+        by_id = {}
+        for it in out.items:
+            by_id.setdefault(it.number_id.strip().strip("[]").upper(), it)
+        return [check_mention(m, by_id[m.id], views, tol) if m.id in by_id else
+                {"id": m.id, "text": m.text, "claimed": m.value, "status": "inconclusive",
+                 "why": "not mapped by the model"} for m in mentions]
+
+    results: list[dict] | CheckResult = []
+    fallback = False
+    if ctx.tables:
+        results = await _map(ctx.tables)
+        if isinstance(results, CheckResult):
+            return results
+    if ctx.fallback_tables and (not results or all(r["status"] == "skipped" for r in results)):
+        # the linked tables do not hold the numbers: offer the paper's other parsed tables
+        alt = await _map(ctx.fallback_tables)
+        if isinstance(alt, CheckResult):
+            if not results:
+                return alt
+        elif any(r["status"] != "skipped" for r in alt):
+            results, fallback = alt, True
+        elif not results:
+            results = alt
+    if not ctx.tables and not fallback:
+        return not_run("number", "no linked table", numbers=results)
     used = {t for r in results for t in r.get("tables", [])}
     ev_ids = [i for v in ctx.tables if v.id in used for i in ctx.table_ids(v)] or \
-        [i for v in ctx.tables for i in ctx.table_ids(v)]
-    data = {"numbers": results}
+        ([] if fallback else [i for v in ctx.tables for i in ctx.table_ids(v)])
+    data: dict = {"numbers": results}
+    if fallback:
+        data["fallback_tables"] = sorted(used)
     st = [r["status"] for r in results]
     if all(s == "skipped" for s in st):
         return not_run("number", "numbers not from the linked tables", numbers=results)

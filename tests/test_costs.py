@@ -40,7 +40,8 @@ def test_ledger_appends_and_totals(tmp_path):
     assert led.total_eur == pytest.approx(0.15)
     rows = [json.loads(line) for line in path.read_text().splitlines()]
     assert len(rows) == 3 and set(rows[0]) == {
-        "ts", "role", "model", "prompt_id", "paper_id", "tokens_in", "tokens_out", "cached_in", "eur", "cache_hit"
+        "ts", "role", "model", "prompt_id", "paper_id", "tokens_in", "tokens_out", "cached_in", "eur", "cache_hit",
+        "latency_s",
     }
     summ = led.summary()
     assert summ["total"]["calls"] == 3 and summ["total"]["cache_hits"] == 1

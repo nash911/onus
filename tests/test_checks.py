@@ -580,3 +580,36 @@ async def test_dominance_and_strength_gates():
     c = c.model_copy(update={"origin": "checklist_number"})
     r, _ = await check_strength(cctx(c), _PF(), DOM_NR, fake, run_index=0, paper_id="p", metas=[])
     assert r.data["reason"].startswith("checklist justification")
+
+
+async def test_check_numbers_falls_back_to_unlinked_tables():
+    from onus.checks.context import fallback_tables
+
+    claim = draft("Ours reaches 85.2 accuracy, the best result.")
+    fake = FakeLLM({"map_number": [
+        {"items": [{"number_id": "N1", "kind": "not_in_tables"}]},  # the linked Table 2 does not hold it
+        {"items": [{"number_id": "N1", "kind": "value", "operands": [{"table_id": "Table 1", "row": "R3",
+                                                                      "col": "C2"}]}]}]},
+        prompts=PromptRegistry())
+    ctx = cctx(claim, [T2])
+    ctx.fallback_tables = [TableView(T1)]
+    r = await check_numbers(ctx, fake, run_index=0, paper_id="p", metas=[])
+    assert r.outcome == "pass" and r.data["fallback_tables"] == ["Table 1"] and r.evidence_ids == []
+    assert len(fake.calls) == 2
+    # no linked table at all: the fallback alone runs the check
+    fake2 = FakeLLM({"map_number": {"items": [{"number_id": "N1", "kind": "value",
+                                               "operands": [{"table_id": "Table 1", "row": "R3", "col": "C2"}]}]}},
+                    prompts=PromptRegistry())
+    ctx2 = cctx(claim)
+    ctx2.fallback_tables = [TableView(T1)]
+    assert (await check_numbers(ctx2, fake2, run_index=0, paper_id="p", metas=[])).outcome == "pass"
+    # ranking ignores numbers and needs word overlap with the caption or labels
+    doc = Document(paper_id="p", source="t", pdf_sha256="0" * 64, title="t", pages=1, text="x", lines=[],
+                   paragraphs=[], sections=[], tables=[T1, T2], figures=[], mentions=[], checklist=[],
+                   ai_checklist=[], limitations_spans=[], code=CodeIndex(present=False, root=None, files=[],
+                                                                          languages={}, entry_candidates=[],
+                                                                          dependency_files=[],
+                                                                          repo_urls_in_paper=[]))
+    pc = PaperContext(doc)
+    assert [v.id for v in fallback_tables(pc, "Ours beats Baseline B on Acc and F1 (99.9)", set())] == ["Table 1"]
+    assert fallback_tables(pc, "Ours beats Baseline B on Acc and F1", {"Table 1"}) == []

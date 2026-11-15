@@ -21,8 +21,8 @@ console = Console()
 llm_app = typer.Typer(no_args_is_help=True, help="Berget AI: capability probe and spend.")
 schema_app = typer.Typer(no_args_is_help=True, help="The RunResult contract.")
 db_app = typer.Typer(no_args_is_help=True, help="Serving database.")
-eval_app = typer.Typer(help="Evaluation harness (Phase 7).", invoke_without_command=True)
-labels_app = typer.Typer(no_args_is_help=True, help="Blind hand labels (Phase 7).")
+eval_app = typer.Typer(help="Evaluation harness.", invoke_without_command=True)
+labels_app = typer.Typer(no_args_is_help=True, help="Blind hand labels.")
 app.add_typer(llm_app, name="llm")
 app.add_typer(schema_app, name="schema")
 app.add_typer(db_app, name="db")
@@ -633,41 +633,176 @@ def report(
         console.print(text, markup=False, highlight=False)
 
 
+def _eval_paths(split_root: Path, out: Path | None) -> tuple[Path, Path, Path | None]:
+    s = get_settings()
+    return split_root.expanduser().resolve(), s.var_dir.resolve(), out.expanduser().resolve() if out else None
+
+
 @eval_app.callback()
-def eval_main(ctx: typer.Context) -> None:
-    """Evaluate results against a split root; prints aggregates only (Phase 7)."""
-    if ctx.invoked_subcommand is None:
-        _todo(7)
+def eval_main(
+    ctx: typer.Context,
+    split_root: Annotated[Path | None, typer.Option("--split-root", help="Split root (papers/ and labels/)")] = None,
+    results: Annotated[Path | None, typer.Option(help="Results directory written by `onus analyze`")] = None,
+    out: Annotated[Path | None, typer.Option(help="Output directory (outside the repo for held-out roots)")] = None,
+    mutations: Annotated[str | None, typer.Option(help="NxK: up to N papers for each of K mutation types")] = None,
+    baseline: Annotated[bool, typer.Option("--baseline", help="Also run the single-prompt baseline")] = False,
+    seed: Annotated[int, typer.Option(help="Mutation selection seed")] = 7,
+    concurrency: Annotated[int, typer.Option(help="Mutation runs / baseline calls at once")] = 4,
+    check: Annotated[bool, typer.Option("--check", help="Dry run: check inputs and labels, print counts only "
+                                                       "(no network, no spend)")] = False,
+) -> None:
+    """Evaluate results against a split root; prints the aggregate table only."""
+    if ctx.invoked_subcommand is not None:
+        return
+    from onus.eval.harness import EvalError, EvalInputs, check_inputs, parse_plan, run_eval
+    from onus.pipeline import load_or_ingest
+    from onus.version import fingerprint
+
+    if split_root is None:
+        console.print("[red]--split-root is required[/red]")
+        raise typer.Exit(code=2)
+    root, var_dir, out_dir = _eval_paths(split_root, out)
+    try:
+        if check:
+            for line in check_inputs(root, results.expanduser().resolve() if results else None, var_dir, out_dir,
+                                     docs_loader=lambda d: load_or_ingest(d, var_dir), fingerprint=fingerprint()):
+                console.print(line, markup=False, highlight=False)
+            return
+        if results is None or out_dir is None:
+            console.print("[red]--results and --out are required (or use --check)[/red]")
+            raise typer.Exit(code=2)
+        from onus.llm.client import get_client
+
+        llm = get_client()
+        inp = EvalInputs(split_root=root, results_dir=results.expanduser().resolve(), out=out_dir, var_dir=var_dir,
+                         plan=parse_plan(mutations), with_baseline=baseline, seed=seed, concurrency=concurrency)
+        m = asyncio.run(run_eval(inp, llm, fingerprint=fingerprint(), judge_model=get_settings().model_for("judge"),
+                                 say=lambda x: console.print(x, markup=False, highlight=False)))
+    except EvalError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from e
+    console.print("")
+    console.print(m["_table"], markup=False, highlight=False)
+    console.print(f"\nwrote {out_dir}/metrics.json and per-paper detail (not printed)"
+                  + (f"; {m['_errors']} error(s) in errors.json" if m["_errors"] else ""))
 
 
-@eval_app.command("merge-metrics", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def eval_merge_metrics() -> None:
-    """Combine metrics directories and hand-label scores into metrics.json (Phase 7)."""
-    _todo(7)
+@eval_app.command("merge-metrics")
+def eval_merge_metrics(
+    dirs: Annotated[list[Path], typer.Argument(help="Metrics directories (each holds metrics.json)")],
+    labels: Annotated[Path | None, typer.Option(help="labels_scores.json from `onus labels score`")] = None,
+    out: Annotated[Path, typer.Option(help="Output metrics.json")] = Path("metrics.json"),
+) -> None:
+    """Combine metrics directories and hand-label scores into metrics.json."""
+    import json
+
+    from onus.eval.metrics import merge_metrics
+
+    ms = {}
+    for d in dirs:
+        f = d / "metrics.json"
+        if not f.is_file():
+            console.print(f"[red]no metrics.json in {d}[/red]")
+            raise typer.Exit(code=1)
+        ms[d.parent.name if d.name == "metrics" else d.name] = json.loads(f.read_text())
+    merged = merge_metrics(ms, json.loads(labels.read_text()) if labels else None)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(merged, indent=1, default=str))
+    console.print(f"wrote {out} ({len(ms)} split(s))")
 
 
-@labels_app.command("export", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def labels_export() -> None:
-    """Blind, stratified hand-label sheet (Phase 7)."""
-    _todo(7)
+@labels_app.command("export")
+def labels_export(
+    results: Annotated[Path, typer.Option(help="Results directory")],
+    out: Annotated[Path, typer.Option(help="CSV to write (the key goes next to it as <name>.key.json)")],
+    baseline: Annotated[Path | None, typer.Option(help="Baseline results directory (<eval out>/baseline)")] = None,
+    n_onus: Annotated[int, typer.Option("--n-onus")] = 60,
+    n_baseline: Annotated[int, typer.Option("--n-baseline")] = 30,
+    seed: Annotated[int, typer.Option()] = 7,
+) -> None:
+    """Blind, stratified hand-label sheet."""
+    from onus.eval.labels import export_sheet
+
+    info = export_sheet(results, baseline, n_onus, n_baseline, seed, out)
+    console.print(f"wrote {out}: {info['items']} items ({info['onus']} Onus, {info['baseline']} baseline); "
+                  f"key {info['key']}")
 
 
-@labels_app.command("score", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def labels_score() -> None:
-    """Precision from a completed label sheet (Phase 7)."""
-    _todo(7)
+@labels_app.command("score")
+def labels_score(
+    in_: Annotated[Path, typer.Option("--in", help="Completed label sheet")],
+    key: Annotated[Path, typer.Option(help="The .key.json written by export")],
+    out: Annotated[Path, typer.Option(help="labels_scores.json")],
+) -> None:
+    """Precision from a completed label sheet."""
+    import json
+
+    from onus.eval.labels import score_sheet
+
+    sc = score_sheet(in_, key)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(sc, indent=1))
+    for system, by in sc["systems"].items():
+        a = by.get("all", {})
+        p = a.get("precision")
+        console.print(f"{system}: precision {p:.0%} ({a['correct']}/{a['correct'] + a['incorrect']})" if p is not None
+                      else f"{system}: no labelled items")
+    console.print(f"wrote {out}")
+
+
+def _multi_opts(args: list[str]) -> dict[str, list[str]]:
+    """`--runs a b c --split-roots x y z --out f` -> {"runs": [a, b, c], ...} (lists after one flag)."""
+    out: dict[str, list[str]] = {}
+    key = None
+    for a in args:
+        if a.startswith("--"):
+            key, _, val = a[2:].partition("=")
+            out.setdefault(key, [])
+            if val:
+                out[key].append(val)
+        elif key is None:
+            raise typer.BadParameter(f"unexpected argument {a!r}")
+        else:
+            out[key].append(a)
+    return out
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def findings() -> None:
-    """Corpus research questions RQ1-RQ4 (Phase 7)."""
-    _todo(7)
+def findings(ctx: typer.Context) -> None:
+    """Corpus research questions RQ1-RQ4 -> findings.json. Usage: --runs DIR... --split-roots ROOT... --out FILE
+    [--seed N]."""
+    import json
+
+    from onus.eval.findings import compute_findings
+
+    o = _multi_opts(ctx.args)
+    unknown = set(o) - {"runs", "split-roots", "out", "seed"}
+    if unknown or not o.get("runs") or not o.get("split-roots") or len(o.get("out", [])) != 1:
+        console.print("[red]usage: onus findings --runs DIR... --split-roots ROOT... --out FILE [--seed N][/red]")
+        raise typer.Exit(code=2)
+    out = Path(o["out"][0])
+    try:
+        f = compute_findings([Path(x) for x in o["runs"]], [Path(x) for x in o["split-roots"]],
+                             int(o.get("seed", ["7"])[0]))
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from e
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(f, indent=1, default=str))
+    console.print(f"wrote {out} ({f['papers']} papers)")
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def bundle() -> None:
-    """Bundle results with display metadata (Phase 7)."""
-    _todo(7)
+@app.command()
+def bundle(
+    results: Annotated[Path, typer.Option(help="Results directory")],
+    split_root: Annotated[Path, typer.Option("--split-root", help="Split root (for display metadata)")],
+    out: Annotated[Path, typer.Option(help="Output .jsonl.gz")],
+) -> None:
+    """Bundle results with display metadata."""
+    from onus.bundle import write_bundle
+
+    n = write_bundle(results, split_root, out)
+    console.print(f"wrote {out} ({n} papers)")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})

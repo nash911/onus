@@ -4,10 +4,15 @@ A claim's *linked* evidence is every evidence item the selection kept with a rel
 plus every object the claim cites (explicit references), whatever its relation. Evidence items carry a 500-char
 snippet; the checks need the full text, so it is rebuilt from the Document (tables and figures by id,
 paragraphs by location).
+
+`fallback_tables` are the paper's other parsed numeric tables, ranked by word overlap between the claim and the
+table's caption and labels (numbers ignored, so a changed number does not change the ranking). The number check
+offers them only when the linked tables cannot account for the claim's numbers.
 """
 
 from __future__ import annotations
 
+import re
 from bisect import bisect_right
 from dataclasses import dataclass, field
 
@@ -15,12 +20,15 @@ from onus.claims.models import DraftClaim
 from onus.claims.quotes import QuoteVerifier
 from onus.evidence.explicit import ObjectIndex
 from onus.evidence.models import ClaimEvidence
+from onus.evidence.retrieve import _STOP
 from onus.ingest.lines import normalise
 from onus.schemas.document import Document
 from onus.schemas.result import Evidence
 
 from .tables import TableView
 
+FALLBACK_TABLES = 3
+FALLBACK_MIN_OVERLAP = 2
 BODY_EXCLUDED = {"checklist", "ai_checklist", "references"}
 PAPER_FEATURE_ROLES = {"method", "experiments", "results", "discussion", "appendix", "other"}
 
@@ -77,6 +85,7 @@ class ClaimContext:
     ce: ClaimEvidence | None
     linked: list[tuple[Evidence, str]] = field(default_factory=list)  # (evidence, full text)
     tables: list[TableView] = field(default_factory=list)  # linked, parsed, with numeric cells
+    fallback_tables: list[TableView] = field(default_factory=list)  # unlinked parsed numeric tables, ranked
     context: str = ""  # the claim ±1 sentence
 
     @property
@@ -90,14 +99,30 @@ class ClaimContext:
 def claim_context(pc: PaperContext, claim: DraftClaim, ce: ClaimEvidence | None) -> ClaimContext:
     lo, hi = pc.index.context_span(claim.location.start, claim.location.end)
     ctx = ClaimContext(claim=claim, ce=ce, context=pc.text(lo, hi))
-    if ce is None:
-        return ctx
-    for e in ce.evidence:
-        if e.relation == "unrelated" and e.link_method != "explicit_ref":
-            continue
-        ctx.linked.append((e, pc.evidence_text(e)))
-        if e.kind == "table":
-            view = pc.views.get(e.label)
-            if view is not None and view.table.parsed and view.numeric and all(t.id != view.id for t in ctx.tables):
-                ctx.tables.append(view)
+    if ce is not None:
+        for e in ce.evidence:
+            if e.relation == "unrelated" and e.link_method != "explicit_ref":
+                continue
+            ctx.linked.append((e, pc.evidence_text(e)))
+            if e.kind == "table":
+                view = pc.views.get(e.label)
+                if view is not None and view.table.parsed and view.numeric and all(t.id != view.id for t in ctx.tables):
+                    ctx.tables.append(view)
+    ctx.fallback_tables = fallback_tables(pc, claim.quote, {t.id for t in ctx.tables})
     return ctx
+
+
+def _words(text: str) -> set[str]:
+    return {t for t in re.findall(r"[a-z][a-z0-9\-]+", text.lower()) if len(t) > 2 and t not in _STOP}
+
+
+def fallback_tables(pc: PaperContext, quote: str, exclude: set[str]) -> list[TableView]:
+    words = _words(quote)
+    scored = []
+    for v in pc.views.values():
+        if v.id in exclude or not v.table.parsed or not v.numeric:
+            continue
+        overlap = len(words & _words(" ".join([v.table.caption, *v.col_labels, *v.row_labels])))
+        if overlap >= FALLBACK_MIN_OVERLAP:
+            scored.append((-overlap, v.id, v))
+    return [v for *_, v in sorted(scored, key=lambda x: (x[0], x[1]))[:FALLBACK_TABLES]]

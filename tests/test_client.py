@@ -166,3 +166,19 @@ def test_parse_json_output_tolerates_fences_and_prose():
     assert parse_json_output('Here: {"city": "A", "country": "B"} done', City).city == "A"
     with pytest.raises(ValueError):
         parse_json_output("", City)
+
+
+async def test_throttling_is_retried_with_backoff(make_client, monkeypatch):
+    import onus.llm.client as client_mod
+
+    class RateLimitError(Exception):
+        pass
+
+    monkeypatch.setattr(client_mod, "TRANSIENT_BACKOFF_S", (0.0, 0.0))
+    c, t = make_client(RateLimitError("429"), RateLimitError("429"), reply('{"city": "Paris", "country": "France"}'))
+    obj, _ = await c.complete_json("city", {"country": "France"}, City)
+    assert obj.city == "Paris" and len(t.calls) == 3
+    c2, t2 = make_client(RateLimitError("429"), RateLimitError("429"), RateLimitError("429"))
+    with pytest.raises(LLMCallError):
+        await c2.complete_json("city", {"country": "Spain"}, City)
+    assert len(t2.calls) == 3  # two backoffs, then give up

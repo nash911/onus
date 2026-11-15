@@ -222,7 +222,8 @@ __marimo__/
 
 data/
 temp/
-docs/
+docs/*
+!docs/public/
 .hunknote/
 var/
 *.db
