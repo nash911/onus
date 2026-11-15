@@ -30,7 +30,7 @@ def test_db_init(tmp_path):
 
 
 def test_later_phase_commands_say_so():
-    for args in (["ingest", "somewhere"], ["analyze", "--data-root", "x"], ["eval"], ["labels", "export"],
+    for args in (["claims"], ["analyze", "--data-root", "x"], ["eval"], ["labels", "export"],
                  ["codecheck"], ["freeze", "--code-version", "1.0.0"]):
         r = runner.invoke(app, args)
         assert r.exit_code == 2 and "Phase" in r.output, (args, r.output)

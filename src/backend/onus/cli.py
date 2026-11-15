@@ -171,22 +171,121 @@ def llm_spend(
 # ---------------------------------------------------------------- later phases
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def ingest() -> None:
-    """Ingest one paper directory or PDF into a Document (Phase 2)."""
-    _todo(2)
+def _guard(data_root: Path, *outputs: Path) -> None:
+    """Hard rule 4: a data root outside the repo needs ONUS_VAR_DIR (and every output) outside it too."""
+    from onus.config import UnsafePathsError, assert_safe_paths
+
+    try:
+        assert_safe_paths(data_root, get_settings().var_dir, extra_outputs=tuple(outputs))
+    except UnsafePathsError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1) from e
 
 
-@app.command("ingest-all", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def ingest_all() -> None:
-    """Ingest every paper under a data root (Phase 2)."""
-    _todo(2)
+def _data_root_of(path: Path) -> Path:
+    path = path.resolve()
+    paper_dir = path if path.is_dir() else path.parent
+    return paper_dir.parent.parent if paper_dir.parent.name == "papers" else paper_dir
 
 
-@app.command("ingest-report", context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def ingest_report() -> None:
-    """Write docs/ingest_report.md (Phase 2)."""
-    _todo(2)
+@app.command()
+def ingest(
+    path: Annotated[Path, typer.Argument(help="A paper directory (paper.pdf + code/) or a PDF file")],
+    source: Annotated[str | None, typer.Option(help="Paper source (default: agents4science for a paper "
+                                                       "directory, upload for a bare PDF)")] = None,
+    paper_id: Annotated[str | None, typer.Option("--paper-id", help="Override the paper id")] = None,
+) -> None:
+    """Ingest one paper directory or PDF into $ONUS_VAR_DIR/docs/<id>.json."""
+    from onus.ingest.document_builder import ingest_paper_dir, ingest_pdf, save_document
+
+    s = get_settings()
+    if not path.exists():
+        raise typer.BadParameter(f"{path} does not exist")
+    _guard(_data_root_of(path))
+    if path.is_dir():
+        doc = ingest_paper_dir(path, s.var_dir, source=source or "agents4science", paper_id=paper_id)
+    else:
+        doc = ingest_pdf(path, s.var_dir, source=source or "upload", paper_id=paper_id)
+    out = save_document(doc, s.var_dir)
+    console.print(f"{doc.paper_id}: {doc.pages} pages, {len(doc.sections)} sections, {len(doc.tables)} tables, "
+                  f"{len(doc.checklist)} checklist items -> {out}")
+    for w in doc.warnings:
+        console.print(f"  [yellow]warning[/yellow] {w}")
+
+
+@app.command("ingest-all")
+def ingest_all(
+    data_root: Annotated[Path | None, typer.Option("--data-root", help="Split root (default ONUS_DATA_ROOT)")] = None,
+    source: Annotated[str, typer.Option(help="Paper source")] = "agents4science",
+) -> None:
+    """Ingest every paper under <data_root>/papers/."""
+    from onus.ingest.document_builder import ingest_paper_dir, paper_dirs, save_document
+
+    s = get_settings()
+    root = (data_root or s.data_root).resolve()
+    _guard(root)
+    dirs = paper_dirs(root)
+    if not dirs:
+        console.print(f"[red]no papers under {root / 'papers'}[/red]")
+        raise typer.Exit(code=1)
+    failed = 0
+    t = Table(title=f"Ingest {root}")
+    for col in ("paper", "pages", "sections", "tables", "checklist", "code files", "warnings"):
+        t.add_column(col)
+    for d in dirs:
+        try:
+            doc = ingest_paper_dir(d, s.var_dir, source=source)
+        except Exception as e:  # noqa: BLE001 - report and continue with the next paper
+            failed += 1
+            t.add_row(d.name, "[red]failed[/red]", "", "", "", "", f"{type(e).__name__}: {e}"[:80])
+            continue
+        save_document(doc, s.var_dir)
+        t.add_row(doc.paper_id, str(doc.pages), str(len(doc.sections)), str(len(doc.tables)),
+                  str(len(doc.checklist)), str(len(doc.code.files)), str(len(doc.warnings)))
+    console.print(t)
+    console.print(f"{len(dirs) - failed}/{len(dirs)} ingested -> {s.var_dir / 'docs'}")
+    if failed:
+        raise typer.Exit(code=1)
+
+
+@app.command("ingest-report")
+def ingest_report(
+    data_root: Annotated[Path | None, typer.Option("--data-root", help="Split root (default ONUS_DATA_ROOT)")] = None,
+    out: Annotated[Path | None, typer.Option(help="Report path (default docs/ingest_report.md)")] = None,
+    refresh: Annotated[bool, typer.Option(help="Re-ingest even if a stored Document exists")] = False,
+) -> None:
+    """Write the per-paper ingest diagnostics to docs/ingest_report.md."""
+    from onus.ingest.document_builder import (
+        doc_path,
+        ingest_paper_dir,
+        ingest_stats,
+        load_document,
+        paper_dirs,
+        render_report,
+        save_document,
+    )
+
+    s = get_settings()
+    root = (data_root or s.data_root).resolve()
+    target = out or repo_root() / "docs" / "ingest_report.md"
+    _guard(root, target)
+    stats: list[dict] = []
+    failures: dict[str, str] = {}
+    for d in paper_dirs(root):
+        p = doc_path(s.var_dir, d.name)
+        try:
+            if p.is_file() and not refresh and p.stat().st_mtime >= (d / "paper.pdf").stat().st_mtime:
+                doc = load_document(p)
+            else:
+                doc = ingest_paper_dir(d, s.var_dir)
+                save_document(doc, s.var_dir)
+        except Exception as e:  # noqa: BLE001
+            failures[d.name] = f"{type(e).__name__}: {e}"
+            continue
+        stats.append(ingest_stats(doc))
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_report(stats, failures))
+    console.print(f"wrote {target} ({len(stats)} papers, {len(failures)} failed)")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})

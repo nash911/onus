@@ -1,7 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "blockReadsOutsideWorkingDirectories": true,
     "deny": [
       "Read(~/onus-heldout/**)",
       "Edit(~/onus-heldout/**)",
@@ -29,10 +28,15 @@
   },
   "sandbox": {
     "enabled": true,
+    "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": false,
     "filesystem": {
-      "denyWrite": ["./.env"],
+      "denyWrite": [
+        "./.env"
+      ],
       "denyRead": [
+        "~",
+        "~/Dropbox/AI4Metascience_Hackathon/onus/deploy_data",
         "~/onus-heldout",
         "~/onus-heldout.zip",
         "~/onus-runs",
@@ -41,6 +45,16 @@
         "~/Dropbox/AI4Metascience_Hackathon/code",
         "~/.claude-personal/projects/-home-nash-Dropbox-AI4Metascience-Hackathon",
         "/tmp/claude-1000/-home-nash-Dropbox-AI4Metascience-Hackathon"
+      ],
+      "allowRead": [
+        "~/Dropbox/AI4Metascience_Hackathon/onus",
+        "~/.local",
+        "~/.cache/pypoetry",
+        "~/.cache/pip",
+        "~/.config/pypoetry",
+        "~/.nvm",
+        "~/.npm",
+        "~/.gitconfig"
       ]
     },
     "network": {
