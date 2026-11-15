@@ -78,8 +78,12 @@ def parse_checklist(text: str, sections: list[Section]) -> list[ChecklistItem]:
                 if jm:
                     jtext = rest[jm.end() :]
                     g = _GUIDE.search(jtext)
-                    justification = _clean(jtext[: g.start()] if g else jtext)
-                    end_rel = h.end() + am.start() + jm.end() + (g.start() if g else len(jtext))
+                    # Without a Guidelines block (often the last item), the justification ends with its own
+                    # paragraph: whatever follows the checklist (author lists, affiliations, notes) is not
+                    # part of it, and front matter of that kind must never reach the pipeline.
+                    cut = g.start() if g else (jtext.find("\n\n") if "\n\n" in jtext else len(jtext))
+                    justification = _clean(jtext[:cut])
+                    end_rel = h.end() + am.start() + jm.end() + cut
             title = _clean(h.group("title"))
             items.append(ChecklistItem(key=key_for(title), title=title, question=question, answer=answer,
                                        justification=justification, start=sec.start + h.start(),

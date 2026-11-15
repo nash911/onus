@@ -202,6 +202,16 @@ def test_parse_checklist_items_keys_answers_and_drops_guidelines() -> None:
     assert CHECKLIST[items[0].start : items[0].start + 9] == "1. Claims"
 
 
+def test_last_justification_stops_at_its_paragraph() -> None:
+    """Nothing after the checklist (author lists, affiliations) may become part of the last item."""
+    text = (CHECKLIST + " It runs end to end.\n\nAuthors:\n\nJane Doe1\n\nAffiliations:\n\n"
+            "1Example University, Some City")
+    items = C.parse_checklist(text, _checklist_section(text))
+    assert items[-1].justification == "Code is in the supplement. It runs end to end."
+    assert "Affiliations" not in text[items[-1].start : items[-1].end]
+    assert items[2].justification == "Not applicable here."
+
+
 @pytest.mark.parametrize(
     ("title", "key"),
     [("Claims", "claims"), ("Theory assumptions and proofs", "theory"), ("Theory", "theory"),

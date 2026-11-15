@@ -359,6 +359,79 @@ def claims(
         console.print(f"wrote {report}")
 
 
+def _paper_dirs_of(paths: list[Path], *outputs: Path) -> list[Path]:
+    from onus.ingest.document_builder import paper_dirs
+
+    dirs: list[Path] = []
+    for p in paths:
+        p = p.resolve()
+        if not p.is_dir():
+            raise typer.BadParameter(f"{p} is not a directory")
+        _guard(_data_root_of(p) if (p / "paper.pdf").is_file() else p, *outputs)
+        dirs += [p] if (p / "paper.pdf").is_file() else paper_dirs(p)
+    if not dirs:
+        console.print("[red]no papers found[/red]")
+        raise typer.Exit(code=1)
+    return dirs
+
+
+@app.command()
+def evidence(
+    paths: Annotated[list[Path], typer.Argument(help="Paper directories, or a split root (all its papers)")],
+    run_index: Annotated[int, typer.Option("--run-index", help="Run index (cache key; 0-2 in batch)")] = 0,
+    report: Annotated[Path | None, typer.Option(help="Also write a markdown sample (e.g. docs/evidence_dev.md)")]
+    = None,
+    sample: Annotated[int, typer.Option(help="Claims sampled into --report")] = 10,
+    concurrency: Annotated[int, typer.Option(help="Papers processed at once")] = 4,
+) -> None:
+    """Link every non-checklist claim to evidence -> $ONUS_VAR_DIR/evidence/<id>.r<N>.json.
+
+    Uses the stored claims of the same run and fingerprint, or extracts them first."""
+    from onus.claims.extract import claims_path, extract_claims, load_claims, save_claims
+    from onus.evidence.report import render_evidence_report
+    from onus.evidence.select import link_evidence, save_evidence
+    from onus.version import fingerprint
+
+    s = get_settings()
+    dirs = _paper_dirs_of(paths, *([report] if report else []))
+    fp = fingerprint()
+
+    async def run_all():
+        docs = [_load_or_ingest(d, s.var_dir, False) for d in dirs]
+        sem = asyncio.Semaphore(max(1, concurrency))
+
+        async def one(doc):
+            async with sem:
+                cp = claims_path(s.var_dir, doc.paper_id, run_index)
+                cs = load_claims(cp) if cp.is_file() else None
+                if cs is None or cs.fingerprint != fp:
+                    cs = await extract_claims(doc, run_index=run_index)
+                    save_claims(cs, s.var_dir)
+                return doc, cs, await link_evidence(doc, cs, run_index=run_index)
+
+        return await asyncio.gather(*[one(doc) for doc in docs])
+
+    results = asyncio.run(run_all())
+    t = Table(title=f"Evidence (run {run_index})")
+    for col in ("paper", "claims", "pool", "cited", "dangling", "linked", "not linked", "select failed", "€"):
+        t.add_column(col, justify="right" if col != "paper" else "left")
+    for doc, _, es in results:
+        save_evidence(es, s.var_dir)
+        st = es.stats
+        t.add_row(doc.paper_id, str(st["claims"]), str(st["pool"]), str(st["with_explicit"]),
+                  str(st["dangling_claims"]), str(st["with_support"]), str(st["no_support"]),
+                  str(st["select_failed"]), f"{es.cost['eur']:.4f}")
+        for w in es.warnings:
+            console.print(f"  [yellow]{doc.paper_id}[/yellow] {w}")
+    console.print(t)
+    console.print(f"Spend (chat calls): €{sum(es.cost['eur'] for _, _, es in results):.4f} -> "
+                  f"{s.var_dir / 'evidence'}")
+    if report:
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(render_evidence_report(results, sample=sample))
+        console.print(f"wrote {report}")
+
+
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def analyze() -> None:
     """Run the full pipeline over a data root (Phase 6)."""
