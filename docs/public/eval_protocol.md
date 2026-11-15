@@ -96,6 +96,16 @@ held-out number.
 | The printed table shows each system's flag rate on the unmutated papers and its collateral flag rate beside its recall, with Wilson 95% intervals on every rate | Recall alone flatters a system that flags a lot (Phase 7b) |
 | The harness has its own fingerprint (`eval/` scoring modules and the `baseline_support` and `widen_scope` prompts), printed by `onus version` and `onus eval` and stored in `metrics.json` | So eval, test_1 and test_2 can be shown to use the same harness |
 
+### Harness changes after eval #1 (harness v2, before eval #2)
+
+Eval #1 used harness `a010dfd35251`. Two harness bugs were found on dev while investigating eval #1's aggregate
+table; both are fixed in harness v2, which is used from eval #2 onward. Eval #1 was not re-run.
+
+| Change | Why |
+| --- | --- |
+| The baseline receives the claims in paper order (by position), not in the order of the RunResult | The RunResult lists claims by Onus's verdict, flagged first. So the baseline's input order and batches depended on Onus's verdicts, and any change to Onus re-sampled the baseline. **Eval #1's baseline numbers were produced with the old harness (claims ordered by Onus's verdicts) and are superseded from eval #2 onward.** |
+| delete_errorbars also removes all wording the checklist audit accepts as error-bars backing (for example "stdev", IQR, credible intervals, variance across folds, "p < .05" without the leading zero), in body text, table and figure captions, and every table cell including header cells ("± SD", "95% CI"). The list is the audit's own pattern (`error_bars` in `rubrics/checklist_map.yaml`), read at run time, and its text is part of the harness fingerprint; a test fails if the audit accepts a form the mutation leaves in place | Found while investigating eval #1's delete_errorbars misses: the mutation removed less than the audit accepts, so a mutated paper could still report spreads and an unflagged "Yes" was then correct. The fix changes the ground truth, so it applies to Onus and the baseline equally. The pipeline's wording was not changed to match |
+
 Two pipeline defects found by the dev harness were also fixed then: number mapping could never report a
 mismatch (`map_number` v1), and the number check now tries the paper's other parsed tables when the linked
 ones lack the claim's numbers. Phase 7b (before eval #1) fixed further dev misses; its changes are listed in
@@ -104,8 +114,9 @@ the first eval-log entry.
 ## 5. Budget
 
 All model calls are priced and logged. Held-out runs use a separate cost ledger from development, each
-capped by `ONUS_DEV_BUDGET_EUR` (€50), with a per-paper cap `ONUS_MAX_EUR_PER_PAPER` (€1.50). Estimated
-cost per eval run is about €9.
+capped by `ONUS_DEV_BUDGET_EUR` (€50), with a per-paper cap `ONUS_MAX_EUR_PER_PAPER` (€1.50). Eval #1 cost €14.41
+(estimate was €9–11; the baseline's judge calls on the longer held-out papers cost about twice the dev rate).
+Repeat eval runs reuse the held-out model cache, so only calls whose inputs changed are paid again.
 
 ## 6. Known limits
 

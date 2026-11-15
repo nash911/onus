@@ -2,12 +2,16 @@
 
 fingerprint = sha256(ONUS_VERSION + models config + prompts/*.md (except the harness prompts) + rubrics/*.yaml
                      + pipeline source)[:12]
-Pipeline source = every .py under src/backend/onus except eval/, api/, bundle.py and version.py (whose only
-moving part, ONUS_VERSION, is hashed as "version"; `onus freeze` rewrites that line), so code-only changes change
-the fingerprint.
+Pipeline source = every .py under src/backend/onus that can change an analysis result, so code-only changes
+change the fingerprint. Excluded (they never change a RunResult):
+- eval/ (the harness has its own fingerprint), api/ and db/ (serving), codecheck/ (code-v1 has its own fingerprint);
+- bundle.py (display metadata), version.py (its only moving part, ONUS_VERSION, is hashed as "version";
+  `onus freeze` rewrites that line);
+- ingest/fetch.py (live-mode PDF download, used only by the API), llm/fake.py (test double), and the Markdown
+  dev-report writers checks/, claims/, evidence/ and verdict/report.py.
 
 harness_fingerprint = sha256(eval/{__init__,mutate,baseline,metrics,truth,harness}.py + the harness prompts
-baseline_support and widen_scope)[:12]. It is fixed from eval #1 (docs/public/eval_protocol.md §4).
+baseline_support and widen_scope + the checklist audit's error_bars wording, which delete_errorbars removes)[:12]. It is fixed from eval #1 (docs/public/eval_protocol.md §4).
 
 Only the top level of `prompts/` and `rubrics/` counts. The code checks (P1, code-v1) keep their own
 prompts and rubrics in `prompts/code/` and `rubrics/code/` with a separate fingerprint, so adding them
@@ -30,8 +34,9 @@ CODE_VERSION: str | None = None
 FINGERPRINT_LEN = 12
 HARNESS_PROMPTS = ("baseline_support.md", "widen_scope.md")
 HARNESS_MODULES = ("__init__.py", "mutate.py", "baseline.py", "metrics.py", "truth.py", "harness.py")
-SOURCE_EXCLUDED_DIRS = ("eval", "api")
-SOURCE_EXCLUDED_FILES = ("bundle.py", "version.py")
+SOURCE_EXCLUDED_DIRS = ("eval", "api", "db", "codecheck")
+SOURCE_EXCLUDED_FILES = ("bundle.py", "version.py", "ingest/fetch.py", "llm/fake.py", "checks/report.py",
+                         "claims/report.py", "evidence/report.py", "verdict/report.py")
 
 
 def _sha256(data: bytes) -> str:
@@ -55,7 +60,7 @@ def source_hashes(pkg: Path | None = None) -> dict[str, str]:
     out = {}
     for p in sorted(pkg.rglob("*.py")):
         rel = p.relative_to(pkg)
-        if "__pycache__" in rel.parts or rel.parts[0] in SOURCE_EXCLUDED_DIRS or str(rel) in SOURCE_EXCLUDED_FILES:
+        if "__pycache__" in rel.parts or rel.parts[0] in SOURCE_EXCLUDED_DIRS or rel.as_posix() in SOURCE_EXCLUDED_FILES:
             continue
         out[rel.as_posix()] = _sha256(p.read_bytes())
     return out
@@ -82,8 +87,15 @@ def fingerprint_parts(
 def harness_parts(prompts: Path | None = None, pkg: Path | None = None) -> dict:
     ev = (pkg or package_dir()) / "eval"
     pr = file_hashes(prompts or prompts_dir(), "*.md")
+    from onus.checks.rubrics import load_checklist_map
+
+    cmap = rubrics_dir() / "checklist_map.yaml"
+    rules = load_checklist_map(cmap) if cmap.is_file() else {}
+    eb = rules["error_bars"].pattern if "error_bars" in rules else None
     return {"modules": {m: _sha256((ev / m).read_bytes()) for m in HARNESS_MODULES if (ev / m).is_file()},
-            "prompts": {k: v for k, v in pr.items() if k in HARNESS_PROMPTS}}
+            "prompts": {k: v for k, v in pr.items() if k in HARNESS_PROMPTS},
+            # delete_errorbars removes what the audit accepts (harness v2), so that wording scores the harness too
+            "audit_error_bars": _sha256(eb.pattern.encode()) if eb else None}
 
 
 def harness_fingerprint(prompts: Path | None = None, pkg: Path | None = None) -> str:

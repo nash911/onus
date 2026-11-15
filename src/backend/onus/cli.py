@@ -7,12 +7,13 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Annotated, NoReturn
+from typing import Annotated
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
+from onus.codecheck.cli import app as codecheck_app
 from onus.config import get_settings, repo_root
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help="Onus: claim-to-evidence maps for papers.")
@@ -28,11 +29,7 @@ app.add_typer(schema_app, name="schema")
 app.add_typer(db_app, name="db")
 app.add_typer(eval_app, name="eval")
 app.add_typer(labels_app, name="labels")
-
-
-def _todo(phase: int) -> NoReturn:
-    console.print(f"[yellow]Not implemented yet: built in Phase {phase}.[/yellow]")
-    raise typer.Exit(code=2)
+app.add_typer(codecheck_app, name="codecheck")  # code-check commands live in codecheck/cli.py (outside the P0 hash)
 
 
 # ---------------------------------------------------------------- version and freeze
@@ -65,7 +62,11 @@ def freeze(
     from onus import version as v
 
     if code_version:
-        _todo(10)
+        from onus.codecheck.cli import freeze_code
+
+        freeze_code(code_version)  # code-v1 lives in codecheck/ (outside the P0 fingerprint)
+        if not version:
+            return
     if not version:
         raise typer.BadParameter("give --version X.Y.Z")
     rec = v.freeze(version)
@@ -806,12 +807,6 @@ def bundle(
 
     n = write_bundle(results, split_root, out)
     console.print(f"wrote {out} ({n} papers)")
-
-
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
-def codecheck() -> None:
-    """Static paper-code checks and sandboxed re-runs (Phase 10)."""
-    _todo(10)
 
 
 if __name__ == "__main__":

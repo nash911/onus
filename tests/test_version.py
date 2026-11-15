@@ -85,18 +85,20 @@ def test_freeze_rejects_bad_versions():
 def _pkg(tmp_path: Path) -> Path:
     pkg = tmp_path / "onus"
     for f in ("pipeline.py", "checks/numbers.py", "eval/mutate.py", "eval/labels.py", "api/app.py", "bundle.py",
-              "version.py"):
+              "version.py", "db/models.py", "codecheck/static.py", "codecheck/cli.py", "ingest/fetch.py",
+              "llm/fake.py", "checks/report.py", "verdict/report.py"):
         (pkg / f).parent.mkdir(parents=True, exist_ok=True)
         (pkg / f).write_text("x = 1\n")
     return pkg
 
 
-def test_pipeline_source_is_in_the_fingerprint_but_not_eval_api_or_bundle(dirs, tmp_path):
+def test_pipeline_source_is_in_the_fingerprint_but_not_non_result_code(dirs, tmp_path):
     pkg = _pkg(tmp_path)
     s = Settings(_env_file=None)
     base = v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg)
     assert set(v.source_hashes(pkg)) == {"pipeline.py", "checks/numbers.py"}
-    for f in ("eval/mutate.py", "api/app.py", "bundle.py", "version.py"):
+    for f in ("eval/mutate.py", "api/app.py", "bundle.py", "version.py", "db/models.py", "codecheck/static.py",
+              "codecheck/cli.py", "ingest/fetch.py", "llm/fake.py", "checks/report.py", "verdict/report.py"):
         (pkg / f).write_text("x = 2\n")
     assert v.fingerprint("1.0.0", s, dirs[0], dirs[1], pkg) == base
     (pkg / "checks/numbers.py").write_text("x = 2\n")

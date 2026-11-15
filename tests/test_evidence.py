@@ -274,3 +274,27 @@ async def test_embedding_retries_shorter_on_context_errors(doc):
     fake.embed = picky  # type: ignore[method-assign]
     es = await link_evidence(doc, cs, fake, fingerprint=FP)
     assert not any("BM25 only" in w for w in es.warnings) and lengths[1] <= rt.EMBED_CHARS_RETRY
+
+
+async def test_availability_claims_are_backed_by_the_submission_not_the_text(doc, index):
+    from onus.evidence.select import availability_evidence
+    from onus.schemas.document import CodeIndex
+
+    c = (await _claims(doc)).by_origin("llm")[0]
+    code_claim = c.model_copy(update={"type": "availability", "quote": "Our code is included in the supplementary material."})
+    data_claim = c.model_copy(update={"type": "availability", "quote": "All outputs are in the supplement."})
+    none = doc.model_copy(update={"code": CodeIndex()})
+    assert availability_evidence(code_claim, none, index) is None and availability_evidence(c, none, index) is None
+    src = doc.model_copy(update={"code": CodeIndex(present=True, files=[
+        {"path": "run.py", "ext": ".py", "lines": 3, "bytes": 30, "is_source": True},
+        {"path": "out.csv", "ext": ".csv", "lines": 3, "bytes": 30, "is_source": False}])})
+    ev = availability_evidence(code_claim, src, index)
+    assert ev.kind == "code" and ev.relation == "supports" and ev.link_method == "code_search" and "run.py" in ev.snippet
+    assert availability_evidence(data_claim, src, index).relation == "partial"
+    content = c.model_copy(update={"type": "availability", "quote": "The repository specifies every random seed."})
+    assert availability_evidence(content, src, index).relation == "partial"  # what the code holds: not checked
+    assert availability_evidence(c, src, index) is None  # only availability claims
+    url = doc.model_copy(update={"code": CodeIndex(repo_urls_in_paper=["https://github.com/x/y"])})
+    ev = availability_evidence(code_claim, url, index)
+    assert ev.kind == "text" and ev.relation == "supports"
+    assert availability_evidence(data_claim, url, index) is None

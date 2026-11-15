@@ -6,7 +6,7 @@
 # "No" and "NA" answers are not_applicable. Items not listed here use the prompt `checklist_item`.
 # Patterns are case-insensitive regular expressions unless the item sets case_sensitive.
 
-version: 2
+version: 3
 
 items:
   error_bars:
@@ -26,7 +26,8 @@ items:
     unbacked: "no compute details (hardware, memory or run time) were found"
   experimental_details:
     check: pattern
-    pattern: "\\b(?:learning rates?|batch sizes?|epochs?|optimi[sz]ers?|adam\\w*|sgd|temperature|random seeds?|seeds?|hyper-?parameters?|weight decay|dropout|top-?p|top-?k|max(?:imum)? tokens|warm-?up|iterations|train(?:ing)?/test split|validation split|(?:simulation|model|experimental|algorithm|default|training|system) parameters?|parameters? (?:were|are|was|is) (?:set|chosen|fixed|tuned|selected)|set to [-\\d.]+)\\b"
+    roles: [method, experiments, results, discussion, appendix, other]
+    pattern: "\\b(?:learning rates?|batch sizes?|epochs?|optimi[sz]ers?|adam\\w*|sgd|temperature|random seeds?|seeds?|hyper-?parameters?|weight decay|dropout|top-?p|top-?k|max(?:imum)? tokens|warm-?up|iterations|train(?:ing)?/test split|validation split|(?:simulation|model|experimental|algorithm|default|training|system) parameters?|parameters? (?:were|are|was|is) (?:set|chosen|fixed|tuned|selected)|set to [-\\d.]+|experimental (?:setup|settings?|protocol|design|procedure)|implementation details|(?:simulation|evaluation|training|study) (?:setup|settings?|details|protocol|design)|(?:configurable )?thresholds? (?:of|=|was|were|is|set)|sample sizes?|number of (?:samples|trials|runs|iterations|participants|simulations|permutations|replicates|episodes|folds)|n\\s*=\\s*\\d|grid search|cross-validation|\\d+-fold|k-fold|(?:train(?:ing)?|validation|held-out) (?:sets?|splits?)|data splits?)\\b|[α-ωΑ-Ω]\\s*=\\s*-?\\d|∈\\s*\\{\\s*-?\\d"
     unbacked: "no hyperparameter or setup details were found"
   reproducibility:
     check: any_of

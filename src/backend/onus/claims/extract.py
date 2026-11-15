@@ -9,7 +9,8 @@
 3. Each quote is verified in the paper text (`quotes.QuoteVerifier`); unverified quotes are dropped and
    counted. The stored quote is the paper's own text.
 4. Every checklist answer becomes a `checklist` claim with no LLM; sentences of a justification that hold
-   a number become extra `result` claims.
+   a number become extra `result` claims, except for the `claims` item, whose justification restates the
+   abstract's claims (already extracted from the abstract) as statements about the paper itself.
 5. Wording: strength from the lexicon, scope from lexicon markers or prompt `classify_scope`.
 6. Deduplicate (`rapidfuzz.ratio` >= 90, or one span inside another).
 
@@ -40,6 +41,7 @@ MAX_LLM_CLAIMS = 25
 MAX_QUOTE_SENTENCES = 3  # the prompt asks for at most 2; one extra tolerates splitter differences
 MAX_NUMBER_CLAIMS_PER_ITEM = 2
 MAX_NUMBER_CLAIMS = 8
+NO_NUMBER_CLAIMS_ITEMS = frozenset({"claims"})  # justification restates the abstract: no new claims
 DEDUP_RATIO = 90.0
 
 _EXCLUDED_ROLES = {"references", "appendix", "checklist", "ai_checklist", "related_work", "limitations"}
@@ -263,7 +265,7 @@ def checklist_claims(doc: Document, verifier: QuoteVerifier, lexicon: Lexicon) -
             match="parse", scope_source="markers" if scope else "default",
         ))
 
-        if item.justification.strip():
+        if item.justification.strip() and item.key not in NO_NUMBER_CLAIMS_ITEMS:
             per_item = 0
             for p in [p for p in doc.paragraphs if p.start < m.end and p.end > m.start]:
                 for s0, e0 in p.sentences:

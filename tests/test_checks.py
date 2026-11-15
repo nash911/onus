@@ -564,6 +564,32 @@ async def test_error_bars_backed_by_significance_tests():
     assert a["experimental_details"].status == "backed"
 
 
+async def test_experimental_details_v3_is_domain_general_and_body_only():
+    for sentence in ("Segments are scored for k ∈ {2, 3} and the null uses 1,000 rotations per protein.",
+                     "Section 4.1 gives the experimental setup used for every table in this paper.",
+                     "Statistical thresholds of 0.6 word overlap are applied to every candidate match.",
+                     "We fix α = 0.05 and draw 500 bootstrap replicates for each comparison here."):
+        body = [("2 Methods", "method", [sentence]), ("4 Results", "results", ["Accuracy is 85.2 on the test."])]
+        a, _ = await _audit(_cl_doc([("experimental_details", "Yes", "Appendix.")], body=body))
+        assert a["experimental_details"].status == "backed", sentence
+    body = [("Abstract", "abstract", ["We describe the experimental setup and every hyperparameter."]),
+            ("4 Results", "results", ["Accuracy is 85.2 on the test set."])]
+    a, _ = await _audit(_cl_doc([("experimental_details", "Yes", "Abstract.")], body=body))
+    assert a["experimental_details"].status == "unbacked"  # the abstract saying so is not the details
+
+
+def test_no_number_claims_from_the_claims_item():
+    from onus.claims.extract import checklist_claims
+    from onus.claims.quotes import QuoteVerifier
+    from onus.claims.wording import load_lexicon
+
+    doc = _cl_doc([("claims", "Yes", "The abstract states our results on 10 models with 85.2% accuracy. See it."),
+                   ("compute", "Yes", "Each run takes 2 hours on one CPU with 16 GB of memory. See Section 3.")])
+    drafts, _ = checklist_claims(doc, QuoteVerifier(doc), load_lexicon())
+    nums = [c for c in drafts if c.origin == "checklist_number"]
+    assert [c.checklist_key for c in nums] == ["compute"]
+
+
 def test_scope_explanation_hides_batch_ids():
     from onus.checks.scope import _scrub_ids
 

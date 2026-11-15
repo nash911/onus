@@ -79,7 +79,8 @@ def paper_text(doc: Document, limit: int = PAPER_CHARS) -> str:
 
 async def run_baseline(doc: Document, result: RunResult, llm, *, fingerprint: str,
                        run_index: int = 0) -> BaselineResult:
-    claims = result.claims
+    # paper order, never Onus's (verdict-sorted) order: harness v2 (docs/public/eval_protocol.md §4)
+    claims = sorted(result.claims, key=lambda c: (c.location.start, c.location.end, c.id))
     br = BaselineResult(paper_id=result.paper["id"], fingerprint=fingerprint)
     text, tables = paper_text(doc), table_renderings(doc) or "(none)"
     labels: dict[str, tuple[str, str]] = {}

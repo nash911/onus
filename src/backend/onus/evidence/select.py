@@ -9,6 +9,12 @@ Per non-checklist claim:
    "unrelated" (`link_method="llm_selected"`).
 4. If selection fails, the explicit links and the top 3 retrieved candidates are kept with no relation
    (`link_method="retrieval"`), and the `link` check is `inconclusive`.
+5. Availability claims (code): a claim that code is available (released, included, provided, ...) is backed by
+   the submission's own source files, or by a repository URL in the paper (`kind="code"`/`"text"`, relation
+   supports). A claim about other artefacts (data, outputs, videos), or about what the code contains, gets the
+   submitted files as partial evidence only: their presence is visible, their contents are not checked here.
+   These items are numbered after all other evidence of the paper, so adding them never renumbers the evidence
+   (and so the prompts) of other claims.
 
 Checklist claims are not linked here: the checklist audit (Phase 5) handles them.
 """
@@ -16,6 +22,7 @@ Checklist claims are not linked here: the checklist audit (Phase 5) handles them
 from __future__ import annotations
 
 import asyncio
+import re
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -148,6 +155,38 @@ async def _link_one(claim: DraftClaim, index: ObjectIndex, pool: CandidatePool, 
     return ce, evidence
 
 
+_CODE_WORDS = re.compile(r"\b(?:code|codes|codebase|source files?|implementations?|scripts?|repositor(?:y|ies)|"
+                         r"software|packages?|notebooks?|github|gitlab)\b", re.IGNORECASE)
+
+
+_AVAILABLE = re.compile(r"\b(?:available|availability|included|includes?|releas\w*|provid\w*|shar(?:e|ed|ing)|"
+                        r"publish\w*|open[- ]sourc\w*|upload\w*|can be (?:found|accessed|downloaded)|accessible|"
+                        r"attached|submitted|supplied|distribut\w*|hosted)\b", re.IGNORECASE)
+
+
+def availability_evidence(claim: DraftClaim, doc: Document, index: ObjectIndex) -> Evidence | None:
+    """Step 5: what the submission itself shows for an availability claim (code only, no model)."""
+    if claim.type != "availability":
+        return None
+    src = [f for f in doc.code.files if f.get("is_source")]
+    about_code = bool(_CODE_WORDS.search(claim.quote)) and bool(_AVAILABLE.search(claim.quote))
+    if about_code and src:
+        return Evidence(id="", kind="code", label=f"{len(src)} source file(s) in the submitted code",
+                        snippet=", ".join(f["path"] for f in src[:6]), location=None, link_method="code_search",
+                        relation="supports")
+    if about_code and doc.code.repo_urls_in_paper:
+        url = doc.code.repo_urls_in_paper[0]
+        pos = doc.text.find(url)
+        loc = index.v.locate(pos, pos + len(url)) if pos >= 0 else None
+        return Evidence(id="", kind="text", label=url, snippet=url, location=loc, link_method="retrieval",
+                        relation="supports")
+    if doc.code.files:
+        return Evidence(id="", kind="code", label=f"{len(doc.code.files)} file(s) in the submitted material",
+                        snippet=", ".join(f["path"] for f in doc.code.files[:6]), location=None,
+                        link_method="code_search", relation="partial")
+    return None
+
+
 def _cost(metas: list[CallMeta]) -> dict:
     return {"eur": round(sum(m.eur for m in metas), 6), "calls": sum(m.calls for m in metas),
             "cache_hits": sum(m.cache_hits for m in metas), "tokens_in": sum(m.tokens_in for m in metas),
@@ -184,7 +223,7 @@ async def link_evidence(doc: Document, claims: ClaimSet, llm=None, *, run_index:
 
     out: list[ClaimEvidence] = []
     n = 0
-    methods = {"explicit_ref": 0, "retrieval": 0, "llm_selected": 0}
+    methods = {"explicit_ref": 0, "retrieval": 0, "llm_selected": 0, "code_search": 0}
     relations = {r: 0 for r in (*RELATIONS, "none")}
     for ce, evidence in linked:
         notes = {}
@@ -197,8 +236,16 @@ async def link_evidence(doc: Document, claims: ClaimSet, llm=None, *, run_index:
             relations[e.relation or "none"] += 1
         ce.evidence = evidence
         ce.notes = notes
-        ce.link = _link_check(evidence, ce.dangling, len(ce.candidates), ce.select_failed)
         out.append(ce)
+    for claim, ce in zip(targets, out, strict=True):  # step 5, numbered last (see the module docstring)
+        if (av := availability_evidence(claim, doc, index)) is not None:
+            n += 1
+            av.id = f"ev{n}"
+            methods[av.link_method] += 1
+            relations[av.relation or "none"] += 1
+            ce.evidence = [av, *ce.evidence]
+    for ce in out:
+        ce.link = _link_check(ce.evidence, ce.dangling, len(ce.candidates), ce.select_failed)
     if stats["select_failed"]:
         warnings.append(f"select_evidence failed on {stats['select_failed']} claim(s); kept unjudged candidates")
 

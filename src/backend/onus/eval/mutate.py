@@ -10,7 +10,7 @@ sections, mentions, checklist items, limitation spans), so the mutated Document 
 | checklist_flip | a "No"/"NA" answer on error_bars, open_access, compute or experimental_details becomes "Yes" | that item is `unbacked` or `contradicted` |
 | remove_table | a parsed table that >= 1 claim relies on is deleted (object, caption and grid text) | each such claim is `untraced` or `not_checkable` |
 | widen_scope | a specific claim is rewritten to universal wording (prompt `widen_scope`, fast role) | that claim is `overstated` or `contradicted` |
-| delete_errorbars | spreads, std/CI and significance-test mentions are removed; the error-bars "Yes" stays | the error_bars item is `unbacked` (or `contradicted`) |
+| delete_errorbars | spreads, std/CI and significance-test mentions, and everything the checklist audit accepts as error-bars wording (in text, captions and table cells, headers included), are removed; the error-bars "Yes" stays | the error_bars item is `unbacked` (or `contradicted`) |
 
 A claim "relies on" a table when its sentence cites the table, or the table is its only supporting evidence.
 Selection is seeded: `random.Random(f"{seed}:{paper_id}:{type}")`.
@@ -27,6 +27,7 @@ from collections.abc import Callable
 from pydantic import BaseModel, Field
 
 from onus.checks.numbers import extract_numbers
+from onus.checks.rubrics import default_checklist_map
 from onus.claims.quotes import match_key
 from onus.claims.wording import load_lexicon
 from onus.ingest.tables import render_table
@@ -47,6 +48,25 @@ ERR_SENTENCE = re.compile(
     r"\bpermutation tests?\b|\bFDR\b|\bvariance (?:across|over|between) (?:runs|seeds|trials)", re.IGNORECASE)
 COMPUTE = re.compile(r"\b(?:GPUs?|CPUs?|TPUs?|A100|H100|V100|RTX|cores?|RAM|GB of memory|cluster|"
                      r"\d+(?:\.\d+)?\s*(?:GPU|CPU)?[- ]?hours?|wall[- ]clock|compute budget)\b", re.IGNORECASE)
+
+
+def audit_spread_pattern() -> re.Pattern[str]:
+    """The wording the checklist audit accepts as backing an error-bars "Yes" (rubrics/checklist_map.yaml,
+    `error_bars.pattern`). delete_errorbars removes everything this matches, so the mutation and the audit cannot
+    drift apart (harness v2). Its text is part of the harness fingerprint."""
+    pat = default_checklist_map()["error_bars"].pattern
+    assert pat is not None
+    return pat
+
+
+def _spread_text(text: str) -> bool:
+    return bool(ERR_SENTENCE.search(text) or audit_spread_pattern().search(text))
+
+
+def _strip_audit(text: str) -> str:
+    return re.sub(r"[ \t]{2,}", " ", audit_spread_pattern().sub("", text))
+
+
 ERR_INLINE = re.compile(r"\s*(?:±|\+/-)\s*\d*\.?\d+%?"
                         r"|(?:(?<=\d)|(?<=\d%))\s*[(\[]\s*-?\d*\.?\d+\s*%?\s*[–\-]\s*-?\d*\.?\d+\s*%?\s*[)\]]")
 
@@ -218,8 +238,8 @@ def _strip_inline(text: str) -> str:
 
 def _clean_caption(caption: str) -> str:
     parts = re.split(r"(?<=[.!?])\s+", caption)
-    keep = [s for s in parts if not ERR_SENTENCE.search(s)]
-    return _strip_inline(" ".join(keep))
+    keep = [s for s in parts if not _spread_text(s)]
+    return _strip_audit(_strip_inline(" ".join(keep)))
 
 
 def match_claims(result: RunResult, span: tuple[int, int] | None, quote: str | None = None) -> list:
@@ -266,7 +286,7 @@ def _checklist_flip(doc: Document, result: RunResult, rng: random.Random, mut: M
     items = [it for it in doc.checklist if it.key in FLIP_KEYS and it.answer.strip().lower() in NO_ANSWERS]
     # the paper must really lack what the item asks for
     lacks = {"open_access": not (doc.code.present or doc.code.repo_urls_in_paper),
-             "error_bars": not _body_has(doc, ERR_SENTENCE)
+             "error_bars": not _body_has(doc, ERR_SENTENCE) and not _body_has(doc, audit_spread_pattern())
              and not any(c.spread is not None for t in doc.tables for row in t.rows for c in row),
              "compute": not _body_has(doc, COMPUTE), "experimental_details": True}
     items = [it for it in items if lacks[it.key]]
@@ -393,7 +413,7 @@ def _delete_errorbars(doc: Document, result: RunResult, rng: random.Random, mut:
     if item is None or item.answer.strip().lower() != "yes":
         mut.reason = "error_bars is not answered Yes"
         return None
-    sents = [(a, b) for a, b in _sentences(doc, EXCLUDED_ROLES) if ERR_SENTENCE.search(doc.text[a:b])]
+    sents = [(a, b) for a, b in _sentences(doc, EXCLUDED_ROLES) if _spread_text(doc.text[a:b])]
     has_cells = any(c.spread is not None for t in doc.tables for row in t.rows for c in row)
     if not sents and not has_cells:
         mut.reason = "the paper reports no spreads or significance information"
@@ -404,10 +424,11 @@ def _delete_errorbars(doc: Document, result: RunResult, rng: random.Random, mut:
     for p in doc.paragraphs:
         if _role_at(doc, p.start) in EXCLUDED_ROLES:
             continue
-        for mm in ERR_INLINE.finditer(doc.text, p.start, p.end):
-            a, b = mm.span()
-            if not any(s <= a < e or s < b <= e for s, e, _ in covered):
-                edits.append((a, b, ""))
+        for rx in (ERR_INLINE, audit_spread_pattern()):  # audit wording left in table grids, headers, captions
+            for mm in rx.finditer(doc.text, p.start, p.end):
+                a, b = mm.span()
+                if b > a and not any(s <= a < e or s < b <= e for s, e, _ in covered):
+                    edits.append((a, b, ""))
     edits = sorted(set(edits))
     merged: list[Edit] = []
     for e in edits:
@@ -423,6 +444,8 @@ def _delete_errorbars(doc: Document, result: RunResult, rng: random.Random, mut:
                 if c.spread is not None or ERR_INLINE.search(c.raw):
                     c.spread = None
                     c.raw = _strip_inline(c.raw).strip()
+                if audit_spread_pattern().search(c.raw):  # header cells such as "Acc ± SD" or "95% CI"
+                    c.raw = _strip_audit(c.raw).strip()
     for f in d.figures:
         f.caption = _clean_caption(f.caption)
     mut.checklist_key = "error_bars"

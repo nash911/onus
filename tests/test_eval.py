@@ -372,3 +372,72 @@ async def test_abstract_number_avoids_values_that_round_to_a_cell():
     d.tables[0].rows.append([parse_cell("Other"), parse_cell("88.24")])  # 88.2 at the claim's precision
     mut, _ = await mutate(d, _result(d, []), "abstract_number", 7)
     assert mut.applied and mut.replacement == "82.2"
+
+
+# ---------------------------------------------------------------- harness v2
+
+
+# One example per form the audit's error_bars wording accepts. The first test fails if an example stops being
+# accepted (keep the list in step with rubrics/checklist_map.yaml); the second fails if the mutation leaves any
+# accepted form where the audit looks (body text, table cells incl. headers, table and figure captions).
+# ("s.d.", "s.e.m." before a space are not accepted by the audit's pattern: a trailing "\\b" after "." fails.)
+AUDIT_FORMS = ["std", "stdev", "standard deviations", "standard error", "sem",
+               "confidence interval", "95% CI", "CI", "error bars", "interquartile", "IQR",
+               "variance across folds", "variance over repetitions", "variance between seeds", "credible intervals",
+               "p-values", "t-test", "Wilcoxon", "Mann-Whitney", "bootstrap confidence", "bootstrapped intervals",
+               "permutation tests", "ANOVA", "chi-squared", "Bonferroni", "FDR", "Benjamini",
+               "significance tests", "statistically significant", "±", "+/-", "p < .05", "p<0.01", "p ≤ .001"]
+
+
+def test_every_audit_form_is_accepted_by_the_audit():
+    from onus.eval.mutate import audit_spread_pattern
+
+    missing = [f for f in AUDIT_FORMS if not audit_spread_pattern().search(f"we report {f} here")]
+    assert missing == []
+
+
+def test_mutation_source_is_the_audit_wording():
+    from onus.checks.rubrics import default_checklist_map
+    from onus.eval.mutate import audit_spread_pattern
+
+    assert audit_spread_pattern() is default_checklist_map()["error_bars"].pattern
+
+
+@pytest.mark.parametrize("form", AUDIT_FORMS)
+async def test_delete_errorbars_removes_every_form_the_audit_accepts(form):
+    from onus.checks.checklist_audit import Auditor
+    from onus.checks.context import PaperContext
+    from onus.schemas.document import Figure
+
+    results = [f"Our ranker gains 3 points and we report {form} for it.", "Our ranker is fast on the benchmark."]
+    d = make_doc([("Abstract", "abstract", ["We present a ranker for widgets."]), ("3 Results", "results", results),
+                  ("References", "references", ["[1] A. Smith. Widgets. 2020."])],
+                 checklist=[("error_bars", "Yes", f"We report {form}.")])
+    grid = [[parse_cell(x) for x in ("Method", f"Acc ({form})")], [parse_cell(x) for x in ("Ours", "85.2")]]
+    d.tables = [Table(id="Table 1", caption=f"Table 1: Accuracy. Values with {form}.", page=1, bbox=(0, 0, 1, 1),
+                      header_rows=1, rows=grid, parsed=True)]
+    d.figures = [Figure(id="Figure 1", caption=f"Figure 1: Accuracy. Shaded: {form}.", page=1)]
+    assert Auditor(PaperContext(d)).condition("error_bars")[0]  # backed before
+    mut, md = await mutate(d, _result(d, []), "delete_errorbars", 7)
+    assert mut.applied, mut.reason
+    ok, _, why = Auditor(PaperContext(md)).condition("error_bars")
+    assert not ok, f"{form!r} survives the mutation: {why}"
+
+
+async def test_baseline_sees_claims_in_paper_order_not_by_verdict():
+    d = _doc()
+    a = _claim(d, RESULTS[0], "supported", "a")
+    b = _claim(d, RESULTS[1], "overstated", "b")
+    c = _claim(d, RESULTS[2], "untraced", "c")
+    seen = []
+
+    def judge(variables: dict, run_index: int) -> dict:
+        seen.append(variables["claims"])
+        return {"items": []}
+
+    fake = FakeLLM({"baseline_support": judge}, prompts=PromptRegistry())
+    r1 = _result(d, [c, b, a])  # Onus order: highest risk first
+    r2 = _result(d, [a, b, c])
+    await run_baseline(d, r1, fake, fingerprint="fp")
+    await run_baseline(d, r2, fake, fingerprint="fp")
+    assert seen[0] == seen[1] and seen[0].index(RESULTS[0][:20]) < seen[0].index(RESULTS[2][:20])
