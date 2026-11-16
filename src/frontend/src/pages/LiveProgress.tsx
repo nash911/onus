@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { IconCircle, IconSpinner, IconSupported } from "../components/Icons";
+import { useMeta } from "../components/Layout";
 import { ErrorBox, Loading, PageTitle } from "../components/States";
 
 const LABELS: Record<string, string> = {
@@ -18,6 +19,7 @@ const ORDER = ["fetch", "ingest", "claims", "evidence", "checks", "verdicts"];
 export default function LiveProgress() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const meta = useMeta();
   const q = useQuery({
     queryKey: ["status", id],
     queryFn: () => api.status(id),
@@ -41,7 +43,13 @@ export default function LiveProgress() {
 
   return (
     <div className="max-w-2xl">
-      <PageTitle sub="Live analysis: one run, no code checks. This page updates by itself and opens the report when it is ready.">
+      <PageTitle
+        sub={
+          meta.data?.live.code_checks
+            ? "Live analysis: one run. This page updates by itself and opens the report when it is ready; code checks run after that and the report updates in place."
+            : "Live analysis: one run, no code checks. This page updates by itself and opens the report when it is ready."
+        }
+      >
         Analysing the paper
       </PageTitle>
 

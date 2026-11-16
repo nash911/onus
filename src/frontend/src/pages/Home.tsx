@@ -37,30 +37,67 @@ function StartError({ error }: { error: unknown }) {
   );
 }
 
+/** Optional code .zip next to a paper input (only when live code checks are on). */
+function CodeInput({ id, maxMb, onChange }: { id: string; maxMb: number; onChange: (f: File | null) => void }) {
+  const helpId = `${id}-help`;
+  return (
+    <div className="flex min-w-0 flex-col gap-1 sm:max-w-xs">
+      <label htmlFor={id} className="text-sm font-medium">
+        Code (optional)
+      </label>
+      <input
+        id={id}
+        type="file"
+        accept=".zip,application/zip,application/x-zip-compressed"
+        aria-describedby={helpId}
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+        className="w-full min-w-0 text-sm file:mr-3 file:rounded file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm"
+      />
+      <span id={helpId} className="text-xs text-slate-500">
+        A .zip up to {maxMb} MB
+      </span>
+    </div>
+  );
+}
+
+function codeProblem(f: File | null, maxMb: number): string | null {
+  if (!f) return null;
+  if (!/\.zip$/i.test(f.name)) return "The code must be a .zip file.";
+  if (f.size > maxMb * 1024 * 1024) return `The code .zip is larger than ${maxMb} MB.`;
+  return null;
+}
+
 function StartForm() {
   const meta = useMeta();
   const navigate = useNavigate();
   const [source, setSource] = useState<Source>("arxiv");
   const [ident, setIdent] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [refCode, setRefCode] = useState<File | null>(null);
+  const [pdfCode, setPdfCode] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const ids = { input: useId(), source: useId(), file: useId(), help: useId() };
+  const ids = { input: useId(), source: useId(), file: useId(), help: useId(), refCode: useId(), pdfCode: useId() };
 
   const go = (r: StartResponse) =>
     navigate(r.status === "done" ? `/analyses/${r.analysis_id}` : `/live/${r.analysis_id}`);
   const byRef = useMutation({
     mutationFn: () => {
       const v = ident.trim();
-      return api.startRef(/^https?:\/\//i.test(v) || v.includes(":") ? { ref: v } : { source, id: v });
+      const body = /^https?:\/\//i.test(v) || v.includes(":") ? { ref: v } : { source, id: v };
+      return api.startRef(body, codeOn ? refCode : null);
     },
     onSuccess: go,
   });
-  const byUpload = useMutation({ mutationFn: (f: File) => api.startUpload(f), onSuccess: go });
+  const byUpload = useMutation({ mutationFn: (f: File) => api.startUpload(f, codeOn ? pdfCode : null), onSuccess: go });
   const busy = byRef.isPending || byUpload.isPending;
   const live = meta.data?.live;
   const off = live != null && !live.enabled;
+  const codeOn = !!live?.code_checks && !!live.code;
+  const codeMb = live?.code?.max_zip_mb ?? 25;
   const maxMb = live?.max_pdf_mb ?? 20;
   const tooBig = file != null && file.size > maxMb * 1024 * 1024;
+  const refCodeProblem = codeOn ? codeProblem(refCode, codeMb) : null;
+  const pdfCodeProblem = codeOn ? codeProblem(pdfCode, codeMb) : null;
 
   return (
     <section aria-labelledby="start-h" className="rounded border border-slate-200 p-4 sm:p-6">
@@ -68,7 +105,9 @@ function StartForm() {
         Analyse a paper
       </h2>
       <p id={ids.help} className="mt-1 text-sm text-slate-600">
-        One run, no code checks; usually a few minutes.
+        {codeOn
+          ? `One run; usually a few minutes. Code checks run after the report is ready, on the code you add or the paper's ${live?.code?.hosts.join(", ") ?? ""} link.`
+          : "One run, no code checks; usually a few minutes."}
         {live?.enabled && ` Up to ${live.max_per_ip_per_hour} analyses per hour; PDFs up to ${maxMb} MB.`}
       </p>
       {off && (
@@ -87,7 +126,7 @@ function StartForm() {
         className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end"
         onSubmit={(e) => {
           e.preventDefault();
-          if (ident.trim()) byRef.mutate();
+          if (ident.trim() && !refCodeProblem) byRef.mutate();
         }}
       >
         <div className="flex flex-col gap-1">
@@ -119,9 +158,10 @@ function StartForm() {
             spellCheck={false}
           />
         </div>
+        {codeOn && <CodeInput id={ids.refCode} maxMb={codeMb} onChange={setRefCode} />}
         <button
           type="submit"
-          disabled={busy || !ident.trim()}
+          disabled={busy || !ident.trim() || !!refCodeProblem}
           className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           Analyse
@@ -132,7 +172,7 @@ function StartForm() {
         className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-end"
         onSubmit={(e) => {
           e.preventDefault();
-          if (file && !tooBig) byUpload.mutate(file);
+          if (file && !tooBig && !pdfCodeProblem) byUpload.mutate(file);
         }}
       >
         <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -148,9 +188,10 @@ function StartForm() {
             className="w-full min-w-0 text-sm file:mr-3 file:rounded file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm"
           />
         </div>
+        {codeOn && <CodeInput id={ids.pdfCode} maxMb={codeMb} onChange={setPdfCode} />}
         <button
           type="submit"
-          disabled={busy || !file || tooBig}
+          disabled={busy || !file || tooBig || !!pdfCodeProblem}
           className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
         >
           {byUpload.isPending ? "Uploading…" : "Upload and analyse"}
@@ -158,6 +199,11 @@ function StartForm() {
       </form>
       </fieldset>
       {tooBig && <p className="mt-2 text-sm text-red-800">That file is larger than {maxMb} MB.</p>}
+      {(refCodeProblem ?? pdfCodeProblem) && (
+        <p className="mt-2 text-sm text-red-800" role="alert">
+          {refCodeProblem ?? pdfCodeProblem}
+        </p>
+      )}
       {byRef.error && <StartError error={byRef.error} />}
       {byUpload.error && <StartError error={byUpload.error} />}
     </section>

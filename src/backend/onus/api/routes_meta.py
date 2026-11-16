@@ -111,11 +111,18 @@ def meta(ctx: Ctx) -> dict[str, Any]:
         "live": {
             "enabled": ctx.live_enabled,
             "runs": 1,
-            "code_checks": False,
+            "code_checks": ctx.code_checks_enabled,
             "capabilities_probed_at": ctx.capabilities_probed_at,
             "max_pdf_mb": lim.max_pdf_mb,
             "max_per_ip_per_hour": lim.max_per_ip_per_hour,
             "max_per_day": lim.max_per_day,
+            "code": {
+                "max_zip_mb": ctx.serving.live_max_code_zip_mb,
+                "max_reruns_per_day": ctx.serving.live_max_reruns_per_day,
+                "max_reruns_per_ip_per_day": ctx.serving.live_max_reruns_per_ip_per_day,
+                "max_rerun_minutes": ctx.settings.onus_rerun_max_minutes,
+                "hosts": ["GitHub", "GitLab", "Hugging Face"],
+            } if ctx.code_checks_enabled else None,
         },
     }
 

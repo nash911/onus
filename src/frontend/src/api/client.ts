@@ -60,15 +60,24 @@ export const api = {
   status: (id: string) => request<AnalysisStatus>(`/api/analyses/${encodeURIComponent(id)}/status`),
   findings: () => optional<Findings>(FIXTURES ? "/__dev/findings.json" : "/api/findings"),
   metrics: () => optional<Metrics>(FIXTURES ? "/__dev/metrics.json" : "/api/metrics"),
-  startRef: (body: { source: string; id: string } | { ref: string }) =>
-    request<StartResponse>("/api/analyses", {
+  /** An arXiv / OpenReview reference; with a code .zip it is sent as multipart (`ref` + `code`). */
+  startRef: (body: { source: string; id: string } | { ref: string }, code?: File | null) => {
+    if (code) {
+      const form = new FormData();
+      form.append("ref", "ref" in body ? body.ref : `${body.source}:${body.id}`);
+      form.append("code", code);
+      return request<StartResponse>("/api/analyses", { method: "POST", body: form });
+    }
+    return request<StartResponse>("/api/analyses", {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify(body),
-    }),
-  startUpload: (file: File) => {
+    });
+  },
+  startUpload: (file: File, code?: File | null) => {
     const form = new FormData();
     form.append("file", file);
+    if (code) form.append("code", code);
     return request<StartResponse>("/api/analyses", { method: "POST", body: form });
   },
   dispute: (analysisId: string, body: { claim_id: string; reason: string; contact?: string }) =>

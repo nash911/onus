@@ -92,7 +92,8 @@ export default function Method() {
         <p className="mt-2 text-slate-700">
           The corpus is the Agents4Science 2025 submissions (papers written with AI), split before building into a
           development set and held-out sets. Reviews, scores and decisions are used only to evaluate Onus and to label
-          the corpus table; they are never inputs to an analysis. Live analyses read only the PDF.
+          the corpus table; they are never inputs to an analysis. Live analyses read only the PDF, plus the paper's code
+          when code checks are on.
         </p>
       </section>
 
@@ -101,7 +102,21 @@ export default function Method() {
         <ul className="mt-2 list-disc space-y-1 pl-5 text-slate-700">
           <li>Values plotted in figures are not read; figures are matched by their captions.</li>
           <li>Tables that cannot be parsed are listed in the coverage ledger; claims that depend on them are not checkable.</li>
-          <li>Live analyses run once and without code checks{meta.data ? `, and are limited to ${meta.data.live.max_per_ip_per_hour} per hour` : ""}.</li>
+          <li>Live analyses run once{meta.data ? ` and are limited to ${meta.data.live.max_per_ip_per_hour} per hour` : ""}.</li>
+          {meta.data?.live.code_checks && meta.data.live.code ? (
+            <li>
+              Live code checks run after the report is ready, on a code .zip uploaded with the paper or, failing that,
+              the first {meta.data.live.code.hosts.join(", ")} repository linked in the paper (its default branch on the
+              day of the analysis, which may differ from the code the paper was submitted with). The code is only
+              read on the Onus server; it runs only in an isolated Modal sandbox, for at most{" "}
+              {meta.data.live.code.max_rerun_minutes} minutes, without network access unless the code calls a model
+              provider. Re-runs are limited to {meta.data.live.code.max_reruns_per_day} a day and{" "}
+              {meta.data.live.code.max_reruns_per_ip_per_day} per visitor; past a limit the static code check still
+              runs and the report says the re-run was skipped.
+            </li>
+          ) : (
+            <li>Live analyses on this server do not run code checks.</li>
+          )}
           <li>A flag means the paper does not show the evidence for its wording. It is not a finding of error or misconduct.</li>
         </ul>
       </section>
@@ -110,7 +125,8 @@ export default function Method() {
         <h2 className="text-lg font-semibold">Privacy</h2>
         <p className="mt-2 text-slate-700">
           All model reasoning runs on Berget AI in the EU, which does not train on inputs. Uploaded PDFs are stored on
-          the Onus server to make repeat analyses instant. Rate limits use a salted hash of your IP address, never the
+          the Onus server to make repeat analyses instant. Code for the code checks (uploaded or downloaded) is kept
+          only in a temporary folder while they run and deleted afterwards. Rate limits use a salted hash of your IP address, never the
           address itself. Disputes store only what you type.
         </p>
       </section>

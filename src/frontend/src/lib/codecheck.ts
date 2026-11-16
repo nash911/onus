@@ -84,6 +84,11 @@ const STATUS: Record<string, { label: string; explain: string; tone: Tone }> = {
     explain: "The re-run agent used up its step or time limit before it could finish. This says nothing about the code.",
     tone: "neutral",
   },
+  skipped: {
+    label: "Re-run skipped",
+    explain: "A daily limit for code re-runs on this server was reached, so the code was not run. The static code check still ran.",
+    tone: "neutral",
+  },
   not_run: {
     label: "Not re-run",
     explain: "No re-run was attempted.",

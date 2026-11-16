@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { factLabel, rerunView } from "../src/lib/codecheck.ts";
+import { codeSourceText, codeStageLine, codeStagePending, liveModeLabel } from "../src/lib/codeStage.ts";
 import { LIVE_OFF_TEXT, startErrorText } from "../src/lib/startErrors.ts";
 import { isOlderVersion } from "../src/lib/versions.ts";
 
@@ -100,4 +101,33 @@ test("live switched off (503)", () => {
   assert.equal(startErrorText(503, null).title, "Live analysis is off");
   assert.equal(startErrorText(503, null).body, LIVE_OFF_TEXT);
   assert.equal(startErrorText(413, "The PDF is larger than 20 MB.").body, "The PDF is larger than 20 MB.");
+});
+
+// ---------------------------------------------------------------- Phase 11b: live code checks
+
+test("code source wording", () => {
+  assert.equal(codeSourceText({ status: "done", source: { kind: "upload" } }), "Code uploaded with the submission.");
+  assert.equal(
+    codeSourceText({
+      status: "done",
+      source: { kind: "repo", url: "https://github.com/tensorflow/tensor2tensor", fetched_at: "2026-11-16" },
+    }),
+    "Code from https://github.com/tensorflow/tensor2tensor, default branch as of 2026-11-16; this may differ from the code the paper was submitted with.",
+  );
+  assert.equal(codeSourceText({ status: "no_code", source: { kind: "none" } }), null);
+  assert.equal(codeSourceText(null), null);
+});
+
+test("code stage status lines and polling", () => {
+  assert.equal(codeStagePending({ status: "running" }), true);
+  assert.equal(codeStagePending({ status: "queued" }), true);
+  assert.equal(codeStagePending({ status: "done" }), false);
+  assert.equal(codeStagePending(null), false);
+  assert.match(codeStageLine({ status: "running" })!, /^Code checks running…/);
+  assert.equal(codeStageLine({ status: "failed", message: "The repository was not found." }), "The repository was not found.");
+  assert.equal(codeStageLine({ status: "no_code" }), null); // the existing "No code was submitted" wording stays
+  assert.equal(codeStageLine({ status: "done" }), null);
+  assert.equal(liveModeLabel({ status: "done" }), "Live analysis, 1 run, with code checks");
+  assert.equal(liveModeLabel(undefined), "Live analysis, 1 run, no code checks");
+  assert.equal(rerunView({ status: "skipped", reason: "Skipped: the daily limit" }).label, "Re-run skipped");
 });

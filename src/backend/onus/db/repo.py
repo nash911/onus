@@ -171,6 +171,31 @@ def analysis_headers(s: Session, *, mode: str | None = None, status: str | None 
     return list(s.execute(q))
 
 
+def done_analyses_for_sha(s: Session, pdf_sha256: str, fingerprint: str) -> list[tuple[Analysis, Paper]]:
+    """Every finished analysis of a paper with this PDF hash at this fingerprint (batch first, newest first)."""
+    q = (select(Analysis, Paper).join(Paper, Analysis.paper_id == Paper.id)
+         .where(Paper.pdf_sha256 == pdf_sha256, Analysis.fingerprint == fingerprint, Analysis.status == "done")
+         .order_by(Analysis.mode, Analysis.created_at.desc()))
+    return [(a, p) for a, p in s.execute(q)]
+
+
+def live_progress_since(s: Session, since: datetime) -> list[tuple[str, dict | None]]:
+    """(analysis id, progress) of live analyses created since `since` (code-stage usage counts)."""
+    q = select(Analysis.id, Analysis.progress).where(Analysis.mode == "live", Analysis.created_at >= since)
+    return [(aid, prog) for aid, prog in s.execute(q)]
+
+
+def live_done_with_progress(s: Session) -> list[Analysis]:
+    """Finished live analyses (for recovering code stages left queued or running by a restart)."""
+    return list(s.scalars(select(Analysis).where(Analysis.mode == "live", Analysis.status == "done")))
+
+
+def analysis_ids_for_ip(s: Session, ip_hash: str, since: datetime) -> list[str]:
+    q = select(LiveRequest.analysis_id).where(LiveRequest.ip_hash == ip_hash, LiveRequest.created_at >= since,
+                                              LiveRequest.analysis_id.is_not(None))
+    return [aid for (aid,) in s.execute(q)]
+
+
 def all_papers(s: Session) -> list[Paper]:
     return list(s.scalars(select(Paper)))
 

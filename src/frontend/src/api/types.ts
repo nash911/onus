@@ -3,6 +3,7 @@
  * schema/result.schema.json (`npm run gen:types` -> src/types/result.ts); the rest mirrors
  * onus/api/serialize.py, onus/eval/findings.py and onus/eval/metrics.py (merge-metrics).
  */
+import type { CodeStage } from "../lib/codeStage";
 import type { RunResult, Verdict } from "../types/result";
 
 export type { Verdict };
@@ -76,6 +77,8 @@ export interface PaperDetail extends PaperRow {
 
 export interface AnalysisResponse extends RunResult {
   display: Display | null;
+  /** Live analyses only: the code-check stage that runs after the report is stored. */
+  code_stage?: CodeStage | null;
   analysis: {
     id: string;
     paper_id: string;
@@ -150,6 +153,14 @@ export interface Meta {
     max_pdf_mb: number;
     max_per_ip_per_hour: number;
     max_per_day: number;
+    /** Set when live code checks are on. */
+    code?: {
+      max_zip_mb: number;
+      max_reruns_per_day: number;
+      max_reruns_per_ip_per_day: number;
+      max_rerun_minutes: number;
+      hosts: string[];
+    } | null;
   };
 }
 

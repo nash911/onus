@@ -5,12 +5,13 @@ import { api } from "../api/client";
 import type { AnalysisResponse, Summary } from "../api/types";
 import { ClaimPanel } from "../components/ClaimPanel";
 import { Drawer } from "../components/Drawer";
-import { IconDownload, IconExternal } from "../components/Icons";
+import { IconDownload, IconExternal, IconSpinner } from "../components/Icons";
 import { OlderVersionBadge, VersionBadge, useMeta } from "../components/Layout";
 import { EmptyState, ErrorBox, Loading } from "../components/States";
 import { TabPanel, Tabs } from "../components/Tabs";
 import { AuditBadge, VerdictBadge } from "../components/Verdict";
 import { factLabel, rerunView, type RerunView } from "../lib/codecheck";
+import { codeSourceText, codeStageLine, codeStagePending, liveModeLabel, type CodeStage } from "../lib/codeStage";
 import { CHECK_LABELS, cite, date, humanize, pct } from "../lib/format";
 import { isOlderVersion } from "../lib/versions";
 import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
@@ -33,7 +34,13 @@ export function AnalysisReport() {
 }
 
 function Report({ id }: { id: string }) {
-  const q = useQuery({ queryKey: ["analysis", id], queryFn: () => api.analysis(id), staleTime: Infinity });
+  const q = useQuery({
+    queryKey: ["analysis", id],
+    queryFn: () => api.analysis(id),
+    staleTime: Infinity,
+    // a live report is shown at once; while its code checks run it polls and updates in place
+    refetchInterval: (query) => (codeStagePending(query.state.data?.code_stage) ? 4000 : false),
+  });
   if (q.isPending) return <Loading label="Loading the report…" />;
   if (q.error) {
     return (
@@ -88,7 +95,7 @@ function ReportBody({ r }: { r: AnalysisResponse }) {
           <VersionBadge version={r.onus_version} fingerprint={r.fingerprint} label="report" />
           <OlderVersionBadge fingerprint={r.fingerprint} version={r.onus_version} />
           <span>
-            {r.mode === "live" ? "Live analysis, 1 run, no code checks" : `Batch analysis, ${r.runs} run${r.runs === 1 ? "" : "s"}`}
+            {r.mode === "live" ? liveModeLabel(r.code_stage) : `Batch analysis, ${r.runs} run${r.runs === 1 ? "" : "s"}`}
             {" · "}
             {date(r.created_at)}
           </span>
@@ -102,6 +109,7 @@ function ReportBody({ r }: { r: AnalysisResponse }) {
             new analysis.
           </p>
         )}
+        <CodeStageNote stage={r.code_stage} />
         <ul className="mt-4 flex flex-wrap gap-2" aria-label="Verdict counts">
           {VERDICT_ORDER.map((v) => (
             <li key={v} className="inline-flex items-center gap-1.5">
@@ -135,7 +143,7 @@ function ReportBody({ r }: { r: AnalysisResponse }) {
         <ChecklistTab r={r} />
       </TabPanel>
       <TabPanel idPrefix="report" id="code" active={tab}>
-        <CodeTab r={r} />
+        <CodeTab r={r} stage={r.code_stage ?? null} />
       </TabPanel>
       <TabPanel idPrefix="report" id="coverage" active={tab}>
         <CoverageTab r={r} />
@@ -309,17 +317,38 @@ function ChecklistTab({ r }: { r: RunResult }) {
   );
 }
 
-function CodeTab({ r }: { r: RunResult }) {
+function CodeStageNote({ stage }: { stage: CodeStage | null | undefined }) {
+  const line = codeStageLine(stage);
+  if (!line || !stage) return null;
+  const pending = codeStagePending(stage);
+  return (
+    <p
+      className={`mt-3 inline-flex items-start gap-2 rounded border px-3 py-2 text-sm ${
+        pending ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-slate-50 text-slate-700"
+      }`}
+      role="status"
+      aria-live="polite"
+    >
+      {pending && <IconSpinner />}
+      <span className="break-anywhere">{line}</span>
+    </p>
+  );
+}
+
+function CodeTab({ r, stage }: { r: RunResult; stage: CodeStage | null }) {
   const code = r.code;
   const statics = code.static ?? [];
   const reruns = code.reruns ?? [];
+  const source = codeSourceText(stage);
   return (
     <div className="max-w-prose space-y-3 text-sm text-slate-700">
       <p>
-        {code.available ? `Submitted code: ${code.files} files.` : "No code was submitted with this paper."}
+        {code.available ? `${stage ? "Code" : "Submitted code"}: ${code.files} files.` : "No code was submitted with this paper."}
         {code.code_version ? ` Code checks version ${code.code_version}.` : ""}
       </p>
-      {r.mode === "live" && <p>Live analysis does not run code checks.</p>}
+      {source && <p className="break-anywhere">{source}</p>}
+      {r.mode === "live" && !stage && <p>Live analysis does not run code checks.</p>}
+      {stage && codeStageLine(stage) && <CodeStageNote stage={stage} />}
       {!statics.length && !reruns.length && code.available && r.mode !== "live" && (
         <p>Code checks are not part of this report's version. The coverage ledger lists this.</p>
       )}

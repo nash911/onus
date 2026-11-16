@@ -1,7 +1,10 @@
 """Live-mode PDF fetchers for arXiv and OpenReview (PDF only). (Phase 2)
 
-Only the PDF is ever fetched: never OpenReview notes, reviews or decisions (those would be labels).
-Tests mock HTTP with `httpx.MockTransport`; nothing in the test suite touches the network.
+Only the PDF is ever fetched for analysis: never OpenReview reviews or decisions (those would be labels).
+`fetch_title` reads the display title from the source's metadata (the arXiv API, or the OpenReview submission
+note's `title` field only; every other field is discarded unread). The title is only shown in the app; it is
+never a pipeline input. Tests mock HTTP with `httpx.MockTransport`; nothing in the test suite touches the
+network.
 """
 
 from __future__ import annotations
@@ -15,6 +18,8 @@ import httpx
 
 ARXIV_PDF = "https://arxiv.org/pdf/{id}"
 OPENREVIEW_PDF = "https://openreview.net/pdf?id={id}"
+ARXIV_META = "https://export.arxiv.org/api/query?id_list={id}"
+OPENREVIEW_META = "https://api2.openreview.net/notes?id={id}"
 
 _ARXIV_ID = re.compile(r"^(?:\d{4}\.\d{4,5}|[a-z\-]+(?:\.[A-Z]{2})?/\d{7})(?:v\d+)?$", re.IGNORECASE)
 _OPENREVIEW_ID = re.compile(r"^[A-Za-z0-9_\-]{6,20}$")
@@ -91,6 +96,48 @@ def fetch_pdf(ref: PaperRef, *, max_mb: float = 20, client: httpx.Client | None 
     if not data.startswith(b"%PDF"):
         raise FetchError(f"{ref.paper_id}: response is not a PDF")
     return data
+
+
+def _clean_title(t: object) -> str | None:
+    if not isinstance(t, str):
+        return None
+    t = " ".join(t.split())
+    return t[:500] if t else None
+
+
+def fetch_title(ref: PaperRef, *, client: httpx.Client | None = None, timeout: float = 15.0) -> str | None:
+    """The paper's title from the source's metadata, or None (any error: the caller falls back to the parsed
+    title). arXiv: the Atom feed's entry title. OpenReview: `content.title` of the submission note."""
+    own = client is None
+    client = client or httpx.Client(timeout=timeout, follow_redirects=True,
+                                    headers={"User-Agent": "onus-pdf-fetch/0.1"})
+    try:
+        if ref.source == "arxiv":
+            import xml.etree.ElementTree as ET
+
+            r = client.get(ARXIV_META.format(id=ref.external_id))
+            if r.status_code != 200 or len(r.content) > 2_000_000:
+                return None
+            ns = {"a": "http://www.w3.org/2005/Atom"}
+            entry = ET.fromstring(r.content).find("a:entry", ns)
+            title = entry.find("a:title", ns) if entry is not None else None
+            t = _clean_title(title.text if title is not None else None)
+            return None if t in (None, "Error") else t
+        if ref.source == "openreview":
+            r = client.get(OPENREVIEW_META.format(id=ref.external_id))
+            if r.status_code != 200 or len(r.content) > 2_000_000:
+                return None
+            notes = (r.json() or {}).get("notes") or []
+            if not notes or not isinstance(notes[0], dict):
+                return None
+            title = (notes[0].get("content") or {}).get("title")
+            return _clean_title(title.get("value") if isinstance(title, dict) else title)
+    except (httpx.HTTPError, ValueError, AttributeError, SyntaxError):  # SyntaxError: XML ParseError
+        return None
+    finally:
+        if own:
+            client.close()
+    return None
 
 
 def store_upload(data: bytes, var_dir: Path) -> tuple[Path, str]:

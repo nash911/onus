@@ -7,6 +7,8 @@ from typing import Any
 
 from onus.db.models import Analysis, Paper
 
+CODE_KEY = "+code-"  # as in code_stage.CODE_KEY (kept here so serialize stays import-light)
+
 
 def iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt else None
@@ -14,6 +16,8 @@ def iso(dt: datetime | None) -> str | None:
 
 def source_url(source: str, external_id: str | None) -> str | None:
     """A link to the paper's public page (shown, never fetched by the API)."""
+    if external_id and CODE_KEY in external_id:  # an analysis with uploaded code: same paper page
+        external_id = external_id.split(CODE_KEY, 1)[0]
     if not external_id:
         return None
     if source in ("agents4science", "openreview"):
