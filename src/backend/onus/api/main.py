@@ -61,7 +61,8 @@ def import_dirs(settings: Settings) -> list[Path]:
 
 def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = None,
                fetcher: Fetcher | None = None, fingerprint: str | None = None,
-               frontend_dist: Path | None = None, eval_log: Path | None = None) -> FastAPI:
+               frontend_dist: Path | None = None, eval_log: Path | None = None,
+               frozen_manifest: Path | None = None) -> FastAPI:
     settings = settings or get_settings()
     serving = get_serving_settings()
 
@@ -93,7 +94,8 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
         ctx = AppContext(settings=settings, factory=factory, runner=runner, onus_version=ONUS_VERSION,
                          fingerprint=fp, models=settings.models_config, limits=LiveLimits.from_settings(settings),
                          salt=load_salt(settings.var_dir), import_dirs=dirs, import_report=report,
-                         eval_log=eval_log or serving.eval_log, capabilities_probed_at=probed_at)
+                         eval_log=eval_log or serving.eval_log, capabilities_probed_at=probed_at,
+                         frozen_manifest=frozen_manifest or serving.frozen_manifest)
         app.state.ctx = ctx
         runner.start()
         try:

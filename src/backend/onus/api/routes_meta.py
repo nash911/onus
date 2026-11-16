@@ -1,4 +1,4 @@
-"""/api/health, /api/meta, /api/findings, /api/metrics."""
+"""/api/health, /api/meta, /api/findings, /api/metrics, /api/public/{name}."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import PlainTextResponse
 
 from onus.api.context import AppContext, Ctx
 from onus.api.eval_log import read_eval_runs
@@ -18,6 +19,8 @@ router = APIRouter(prefix="/api")
 
 EMPTY_RESULTS = "Results appear after the held-out runs."
 N_FEATURED = 3
+# docs/public files the Trust page links to (served as text; nothing else in that folder is exposed)
+PUBLIC_DOCS = ("eval_protocol.md", "eval_log.md")
 
 
 @router.get("/health")
@@ -47,6 +50,30 @@ def eval_runs(ctx: AppContext) -> dict[str, Any]:
     return {"count": len(runs), "max": 3, "runs": runs}
 
 
+def freeze_info(ctx: AppContext) -> dict[str, Any] | None:
+    """The freeze manifest's headline fields (frozen.json, written by `onus freeze`), or None before the freeze."""
+    if ctx.frozen_manifest is None:
+        return None
+    try:
+        m = json.loads(ctx.frozen_manifest.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(m, dict) or not m.get("fingerprint"):
+        return None
+    return {
+        "version": m.get("version"),
+        "fingerprint": m.get("fingerprint"),
+        "harness_fingerprint": m.get("harness_fingerprint"),
+        "created_at": m.get("created_at"),
+        "matches_current": m.get("fingerprint") == ctx.fingerprint,
+    }
+
+
+def public_docs(ctx: AppContext) -> list[str]:
+    folder = ctx.eval_log.parent if ctx.eval_log else None
+    return [n for n in PUBLIC_DOCS if folder is not None and (folder / n).is_file()]
+
+
 @router.get("/meta")
 def meta(ctx: Ctx) -> dict[str, Any]:
     with session_scope(ctx.factory) as s:
@@ -57,7 +84,9 @@ def meta(ctx: Ctx) -> dict[str, Any]:
             if p is not None:
                 best = best_analyses(s, [p.id]).get(p.id)
                 featured.append(paper_base(p) | {"analysis_id": best.id if best else None,
-                                                 "summary": best.summary if best else None})
+                                                 "summary": best.summary if best else None,
+                                                 "fingerprint": best.fingerprint if best else None,
+                                                 "onus_version": best.onus_version if best else None})
         if not featured:
             # No curated list: show the corpus papers with the most flagged claims.
             source = "auto"
@@ -75,6 +104,8 @@ def meta(ctx: Ctx) -> dict[str, Any]:
         "corpus_papers": n_papers,
         "versions": versions,
         "eval_runs": eval_runs(ctx),
+        "freeze": freeze_info(ctx),
+        "public_docs": public_docs(ctx),
         "has_findings": ctx.data_file("findings.json") is not None,
         "has_metrics": ctx.data_file("metrics.json") is not None,
         "live": {
@@ -107,3 +138,13 @@ def findings(ctx: Ctx) -> Any:
 @router.get("/metrics")
 def metrics(ctx: Ctx) -> Any:
     return _data(ctx, "metrics.json")
+
+
+@router.get("/public/{name}", response_class=PlainTextResponse)
+def public_doc(name: str, ctx: Ctx) -> PlainTextResponse:
+    """docs/public/eval_protocol.md and eval_log.md as plain text (the Trust page links here)."""
+    if name not in PUBLIC_DOCS or name not in public_docs(ctx):
+        raise HTTPException(404, "No such document.")
+    assert ctx.eval_log is not None
+    text = (ctx.eval_log.parent / name).read_text(encoding="utf-8")
+    return PlainTextResponse(text, media_type="text/plain; charset=utf-8")

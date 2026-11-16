@@ -6,11 +6,13 @@ import type { AnalysisResponse, Summary } from "../api/types";
 import { ClaimPanel } from "../components/ClaimPanel";
 import { Drawer } from "../components/Drawer";
 import { IconDownload, IconExternal } from "../components/Icons";
-import { VersionBadge, useMeta } from "../components/Layout";
+import { OlderVersionBadge, VersionBadge, useMeta } from "../components/Layout";
 import { EmptyState, ErrorBox, Loading } from "../components/States";
 import { TabPanel, Tabs } from "../components/Tabs";
 import { AuditBadge, VerdictBadge } from "../components/Verdict";
+import { factLabel, rerunView, type RerunView } from "../lib/codecheck";
 import { CHECK_LABELS, cite, date, humanize, pct } from "../lib/format";
+import { isOlderVersion } from "../lib/versions";
 import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
 import type { Claim, RunResult, Verdict } from "../types/result";
 
@@ -84,6 +86,7 @@ function ReportBody({ r }: { r: AnalysisResponse }) {
             </a>
           )}
           <VersionBadge version={r.onus_version} fingerprint={r.fingerprint} label="report" />
+          <OlderVersionBadge fingerprint={r.fingerprint} version={r.onus_version} />
           <span>
             {r.mode === "live" ? "Live analysis, 1 run, no code checks" : `Batch analysis, ${r.runs} run${r.runs === 1 ? "" : "s"}`}
             {" · "}
@@ -92,9 +95,11 @@ function ReportBody({ r }: { r: AnalysisResponse }) {
           {r.display?.decision && <span className="capitalize">Decision: {r.display.decision}</span>}
           {r.display?.tier && <span>Code tier: {r.display.tier}</span>}
         </div>
-        {current && current !== r.fingerprint && (
+        {isOlderVersion(r.fingerprint, current) && (
           <p className="mt-2 text-xs text-slate-500">
-            This report was made with pipeline {r.fingerprint}; the current pipeline is {current}.
+            This report was made with v{r.onus_version} (pipeline {r.fingerprint}); this site now runs
+            {meta.data ? ` v${meta.data.onus_version}` : ""} (pipeline {current}). Its verdicts may differ from a
+            new analysis.
           </p>
         )}
         <ul className="mt-4 flex flex-wrap gap-2" aria-label="Verdict counts">
@@ -324,7 +329,8 @@ function CodeTab({ r }: { r: RunResult }) {
           <ul className="mt-1 divide-y divide-slate-100">
             {statics.map((f, i) => (
               <li key={i} className="py-2">
-                <span className="font-medium">{String(f.status ?? "")}</span> {String(f.fact ?? f.statement ?? "")}
+                <span className="font-medium">{factLabel(f.status)}:</span>{" "}
+                <span className="break-anywhere">{String(f.fact ?? f.statement ?? "")}</span>
                 {Array.isArray(f.citations) && f.citations.length > 0 && (
                   <span className="block font-mono text-xs text-slate-500 break-anywhere">{f.citations.join(", ")}</span>
                 )}
@@ -338,20 +344,66 @@ function CodeTab({ r }: { r: RunResult }) {
           <h3 className="font-semibold text-slate-900">Re-runs</h3>
           <ul className="mt-1 divide-y divide-slate-100">
             {reruns.map((x, i) => (
-              <li key={i} className="py-2">
-                <span className="font-medium">{String(x.status ?? "")}</span>
-                {typeof x.minutes === "number" && ` · ${x.minutes.toFixed(1)} min`}
-                {Array.isArray(x.commands) && (
-                  <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-xs break-anywhere">
-                    {x.commands.join("\n")}
-                  </pre>
-                )}
-              </li>
+              <RerunItem key={i} v={rerunView(x as Record<string, unknown>)} />
             ))}
           </ul>
         </section>
       )}
     </div>
+  );
+}
+
+const TONE: Record<RerunView["tone"], string> = {
+  good: "border-emerald-300 bg-emerald-50 text-emerald-900",
+  bad: "border-red-300 bg-red-50 text-red-900",
+  caution: "border-amber-300 bg-amber-50 text-amber-900",
+  neutral: "border-slate-300 bg-slate-50 text-slate-800",
+};
+
+function RerunItem({ v }: { v: RerunView }) {
+  return (
+    <li className="py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`inline-flex rounded border px-1.5 py-0.5 text-xs font-medium ${TONE[v.tone]}`}>{v.label}</span>
+        {!v.known && <span className="text-xs text-slate-500">(status as recorded)</span>}
+        {v.minutes != null && <span className="text-xs text-slate-500">{v.minutes.toFixed(1)} min</span>}
+      </div>
+      {v.explain && <p className="mt-1">{v.explain}</p>}
+      {v.errorLine && (
+        <p className="mt-1">
+          Error: <code className="font-mono text-xs break-anywhere">{v.errorLine}</code>
+        </p>
+      )}
+      {v.reason && !v.errorLine && <p className="mt-1 text-xs text-slate-500 break-anywhere">{v.reason}</p>}
+      {v.modifications.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-blue-900">
+            Changes made to the code ({v.modifications.length} file{v.modifications.length === 1 ? "" : "s"})
+          </summary>
+          <ul className="mt-1 space-y-2">
+            {v.modifications.map((m, j) => (
+              <li key={j}>
+                <p className="font-mono text-xs break-anywhere">{m.path}</p>
+                {m.change && <p className="text-xs text-slate-600 break-anywhere">{m.change}</p>}
+                {m.diff && (
+                  <pre className="mt-1 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-xs break-anywhere">
+                    {m.diff}
+                  </pre>
+                )}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {v.commands.length > 0 && (
+        <details className="mt-2">
+          <summary className="cursor-pointer text-blue-900">Commands ({v.commands.length})</summary>
+          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-xs break-anywhere">
+            {v.commands.join("\n")}
+          </pre>
+        </details>
+      )}
+    </li>
   );
 }
 

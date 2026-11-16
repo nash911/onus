@@ -5,7 +5,8 @@ Read from the process environment (Railway variables), never from `.env`:
 | Variable | Default | Use |
 | --- | --- | --- |
 | ONUS_FRONTEND_DIST | `<repo>/src/frontend/dist` | built SPA to serve |
-| ONUS_EVAL_LOG | `<repo>/docs/public/eval_log.md` | eval-run count on the Trust page |
+| ONUS_EVAL_LOG | `<repo>/docs/public/eval_log.md` | eval-run count on the Trust page; its folder is served at /api/public |
+| ONUS_FROZEN_MANIFEST | `<repo>/frozen.json` | the freeze (version, fingerprints) on the Trust page |
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ class ServingSettings(BaseSettings):
 
     onus_frontend_dist: Path | None = None
     onus_eval_log: Path | None = None
+    onus_frozen_manifest: Path | None = None
 
     @property
     def frontend_dist(self) -> Path:
@@ -31,6 +33,10 @@ class ServingSettings(BaseSettings):
     @property
     def eval_log(self) -> Path:
         return self.onus_eval_log or repo_root() / "docs" / "public" / "eval_log.md"
+
+    @property
+    def frozen_manifest(self) -> Path:
+        return self.onus_frozen_manifest or repo_root() / "frozen.json"
 
 
 @lru_cache(maxsize=1)

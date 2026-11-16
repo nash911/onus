@@ -26,6 +26,9 @@ function Rq1Chart({ s, label }: { s: Rq1Series; label: string }) {
         {label}: ρ = {num(s.rho)}
         {s.ci95 ? ` (95% CI ${ciNum(s.ci95)})` : ""}, n = {s.n}
       </h3>
+      {s.points.length === 0 ? (
+        <p className="mt-2 text-sm text-slate-600">No papers with this score yet.</p>
+      ) : (
       <div className="mt-2 h-60">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 8, right: 12, bottom: 24, left: 0 }}>
@@ -55,6 +58,7 @@ function Rq1Chart({ s, label }: { s: Rq1Series; label: string }) {
           </ScatterChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }
@@ -73,7 +77,7 @@ function Body({ f }: { f: Findings }) {
   return (
     <div className="space-y-10">
       <p className="max-w-prose text-slate-700">
-        From {f.papers ?? "?"} papers
+        From {f.papers ?? 0} paper{f.papers === 1 ? "" : "s"}
         {f.splits ? ` (${Object.entries(f.splits).map(([k, v]) => `${k} ${v}`).join(", ")})` : ""}. Intervals are 95%
         bootstrap intervals{f.bootstrap ? ` (${f.bootstrap} resamples, fixed seed)` : ""}.
       </p>
@@ -119,7 +123,7 @@ function Body({ f }: { f: Findings }) {
           }
           notProven="Acceptance depends on much more than evidence gaps. A difference here does not mean Onus can predict decisions, and no difference does not mean decisions ignore evidence. The sets are balanced 50/50 by design, unlike the full conference."
         >
-          {r2.series && (
+          {r2.series && r2.series.accepted.length + r2.series.rejected.length > 0 && (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
@@ -195,7 +199,7 @@ function Body({ f }: { f: Findings }) {
         </Figure>
       )}
 
-      {r4 && (
+      {r4 && r4.papers > 0 && (
         <Figure
           title="RQ4. How many results can be re-run?"
           summary={r4.note}

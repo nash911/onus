@@ -2,7 +2,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { PaperRow } from "../api/types";
-import { ErrorBox, Loading, PageTitle } from "../components/States";
+import { OlderVersionBadge, useMeta } from "../components/Layout";
+import { EmptyState, ErrorBox, Loading, PageTitle } from "../components/States";
 import { VerdictCounts, VerdictLegend, VerdictMixBar } from "../components/Verdict";
 import { humanize, pct } from "../lib/format";
 import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
@@ -47,10 +48,15 @@ function Row({ p }: { p: PaperRow }) {
         <Link to={`/papers/${encodeURIComponent(p.ref)}`} className="text-blue-900 hover:underline break-anywhere">
           {p.title ?? p.ref}
         </Link>
+        {p.fingerprint && (
+          <div className="mt-1">
+            <OlderVersionBadge fingerprint={p.fingerprint} version={p.onus_version} />
+          </div>
+        )}
         <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-500 md:hidden">
           {d?.decision && <span className="capitalize">{d.decision}</span>}
           {d?.tier && <span>code: {d.tier}</span>}
-          <span>{s?.n_claims ?? "?"} claims</span>
+          <span>{s?.n_claims ?? "—"} claims</span>
         </div>
         <div className="mt-2 md:hidden">
           <VerdictCounts counts={s?.counts} />
@@ -72,6 +78,7 @@ function Row({ p }: { p: PaperRow }) {
 }
 
 export default function Corpus() {
+  const meta = useMeta();
   const [params, setParams] = useSearchParams();
   const sort = (params.get("sort") as SortKey) || "flagged_share";
   const order = (params.get("order") as "asc" | "desc") || (sort === "title" ? "asc" : "desc");
@@ -113,6 +120,7 @@ export default function Corpus() {
   };
 
   const facets = q.data?.facets;
+  const filtered = ["decision", "tier", "has_code", "verdict", "q"].some((k) => params.get(k));
   const select = "rounded border border-slate-300 px-2 py-1 text-sm font-normal";
 
   return (
@@ -169,6 +177,14 @@ export default function Corpus() {
         </label>
       </form>
 
+      {meta.data && !meta.data.has_findings && (
+        <p className="mt-4 max-w-prose text-sm text-slate-600">
+          {meta.data.corpus_papers > 0
+            ? `The corpus lists ${meta.data.corpus_papers} analysed paper${meta.data.corpus_papers === 1 ? "" : "s"} for now. The full set is added with the final results.`
+            : "No papers have been analysed yet. The corpus is added with the final results."}
+        </p>
+      )}
+
       <div className="mt-4">
         <VerdictLegend />
       </div>
@@ -176,6 +192,10 @@ export default function Corpus() {
       {q.error && <ErrorBox error={q.error} />}
       {q.isPending ? (
         <Loading />
+      ) : q.data && q.data.total === 0 ? (
+        <EmptyState title={filtered ? "No papers match these filters." : "No papers have been analysed yet."}>
+          {filtered ? "Clear a filter to see more papers." : "Analysed papers appear here once their reports are loaded."}
+        </EmptyState>
       ) : q.data ? (
         <>
           <p className="mt-4 text-sm text-slate-600" role="status">

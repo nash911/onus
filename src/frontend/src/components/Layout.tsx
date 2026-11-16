@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useEffect, useRef } from "react";
 import { api } from "../api/client";
+import { isOlderVersion } from "../lib/versions";
 
 const NAV = [
   { to: "/corpus", label: "Corpus" },
@@ -29,6 +30,20 @@ export function VersionBadge({ version, fingerprint, label = "pipeline" }: {
         <span className="sr-only">{label} fingerprint </span>
         {fingerprint}
       </span>
+    </span>
+  );
+}
+
+/** Small label for a report made by a pipeline other than the one this app runs. Shown, never hidden. */
+export function OlderVersionBadge({ fingerprint, version }: { fingerprint?: string | null; version?: string | null }) {
+  const meta = useMeta();
+  if (!isOlderVersion(fingerprint, meta.data?.fingerprint)) return null;
+  return (
+    <span
+      className="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-xs text-amber-900"
+      title={`Made with ${version ? `v${version}, ` : ""}pipeline ${fingerprint}; this site runs ${meta.data?.fingerprint}.`}
+    >
+      older version (fingerprint&nbsp;<span className="font-mono">{fingerprint}</span>)
     </span>
   );
 }

@@ -1,12 +1,13 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api } from "../api/client";
+import { ApiError, api } from "../api/client";
 import type { Findings, PaperRow, StartResponse } from "../api/types";
-import { useMeta } from "../components/Layout";
+import { OlderVersionBadge, useMeta } from "../components/Layout";
 import { ErrorBox } from "../components/States";
 import { VerdictCounts, VerdictMixBar } from "../components/Verdict";
 import { pct } from "../lib/format";
+import { LIVE_OFF_TEXT, startErrorText } from "../lib/startErrors";
 
 type Source = "arxiv" | "openreview";
 
@@ -24,6 +25,16 @@ function headline(f: Findings): string | null {
     return `Across ${r1.n} papers, the share of flagged claims and the mean AI reviewer score have Spearman ρ = ${r1.rho.toFixed(2)}.`;
   }
   return null;
+}
+
+function StartError({ error }: { error: unknown }) {
+  const e = error instanceof ApiError ? startErrorText(error.status, error.message) : startErrorText(-1, String(error));
+  return (
+    <div className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900" role="alert">
+      <p className="font-medium">{e.title}</p>
+      <p className="mt-1 break-anywhere">{e.body}</p>
+    </div>
+  );
 }
 
 function StartForm() {
@@ -47,6 +58,7 @@ function StartForm() {
   const byUpload = useMutation({ mutationFn: (f: File) => api.startUpload(f), onSuccess: go });
   const busy = byRef.isPending || byUpload.isPending;
   const live = meta.data?.live;
+  const off = live != null && !live.enabled;
   const maxMb = live?.max_pdf_mb ?? 20;
   const tooBig = file != null && file.size > maxMb * 1024 * 1024;
 
@@ -57,13 +69,19 @@ function StartForm() {
       </h2>
       <p id={ids.help} className="mt-1 text-sm text-slate-600">
         One run, no code checks; usually a few minutes.
-        {live && ` Up to ${live.max_per_ip_per_hour} analyses per hour; PDFs up to ${maxMb} MB.`}
+        {live?.enabled && ` Up to ${live.max_per_ip_per_hour} analyses per hour; PDFs up to ${maxMb} MB.`}
       </p>
-      {live && !live.enabled && (
-        <p className="mt-3 text-sm text-amber-900">
-          Live analysis is switched off on this server. Papers already analysed still open at once.
+      {off && (
+        <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note">
+          {LIVE_OFF_TEXT}{" "}
+          <Link to="/corpus" className="underline">
+            Browse the corpus
+          </Link>
+          .
         </p>
       )}
+      <fieldset disabled={off} className="disabled:opacity-60">
+        <legend className="sr-only">{off ? "Analyse a paper (switched off)" : "Analyse a paper"}</legend>
 
       <form
         className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end"
@@ -138,9 +156,10 @@ function StartForm() {
           {byUpload.isPending ? "Uploading…" : "Upload and analyse"}
         </button>
       </form>
+      </fieldset>
       {tooBig && <p className="mt-2 text-sm text-red-800">That file is larger than {maxMb} MB.</p>}
-      {byRef.error && <ErrorBox title="Could not start the analysis" error={byRef.error} />}
-      {byUpload.error && <ErrorBox title="Could not start the analysis" error={byUpload.error} />}
+      {byRef.error && <StartError error={byRef.error} />}
+      {byUpload.error && <StartError error={byUpload.error} />}
     </section>
   );
 }
@@ -154,9 +173,14 @@ function FeaturedRow({ p }: { p: PaperRow }) {
       </Link>
       <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
         {p.display?.decision && <span className="capitalize">{p.display.decision}</span>}
-        <span>
-          {pct(s?.flagged_share)} of {s?.n_claims ?? "?"} claims flagged
-        </span>
+        {s ? (
+          <span>
+            {pct(s.flagged_share)} of {s.n_claims ?? "—"} claims flagged
+          </span>
+        ) : (
+          <span>No finished analysis yet</span>
+        )}
+        <OlderVersionBadge fingerprint={p.fingerprint} version={p.onus_version} />
         <VerdictCounts counts={s?.counts} />
       </div>
       <div className="mt-2 max-w-sm">
@@ -183,6 +207,21 @@ export default function Home() {
       </section>
 
       <StartForm />
+
+      {meta.data && !meta.data.has_findings && (
+        <section aria-labelledby="finding-h">
+          <h2 id="finding-h" className="text-lg font-semibold">
+            Findings
+          </h2>
+          <p className="mt-2 max-w-prose text-slate-700">
+            The corpus findings and Onus's own error rates are measured once, on the frozen version, over papers it
+            was not tuned on. They appear here after the held-out runs.{" "}
+            <Link to="/method" className="text-blue-900 underline">
+              How the analysis works
+            </Link>
+          </p>
+        </section>
+      )}
 
       {head && (
         <section aria-labelledby="finding-h">

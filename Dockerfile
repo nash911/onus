@@ -21,7 +21,7 @@ RUN npm run build
 # deploy_data/ (author-only, filled at R5), frozen.json (after the freeze) and var/berget_capabilities.json (the
 # probed model capabilities; var/ is git-ignored, so it must be force-added) may be absent. Copying the
 # filtered build context here lets the runtime stage take them when present and an empty folder otherwise.
-FROM python:3.12-slim AS context
+FROM python:3.12-slim AS inputs
 COPY . /ctx
 RUN mkdir -p /ctx/deploy_data /ctx/optional/var \
  && (cp /ctx/frozen.json /ctx/optional/ 2>/dev/null || true) \
@@ -31,9 +31,10 @@ RUN mkdir -p /ctx/deploy_data /ctx/optional/var \
 FROM python:3.12-slim AS deps
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore \
     POETRY_VIRTUALENVS_CREATE=false \
     POETRY_NO_INTERACTION=1
-RUN python -m venv /opt/venv && pip install "poetry>=2.0,<3"
+RUN python -m venv /opt/venv && pip install --root-user-action=ignore "poetry>=2.0,<3"
 ENV VIRTUAL_ENV=/opt/venv PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 COPY pyproject.toml poetry.lock ./
@@ -53,13 +54,13 @@ WORKDIR /app
 # into the pipeline fingerprint, so they are copied exactly as in the repo. frozen.json and
 # var/berget_capabilities.json come along when present; the app copies the latter into $ONUS_VAR_DIR at startup.
 COPY pyproject.toml ./
-COPY --from=context /ctx/optional/ ./
+COPY --from=inputs /ctx/optional/ ./
 COPY src/backend/ src/backend/
 COPY prompts/ prompts/
 COPY rubrics/ rubrics/
 COPY schema/ schema/
 COPY docs/public/ docs/public/
-COPY --from=context /ctx/deploy_data/ deploy_data/
+COPY --from=inputs /ctx/deploy_data/ deploy_data/
 COPY --from=frontend /build/src/frontend/dist/ src/frontend/dist/
 
 EXPOSE 8000

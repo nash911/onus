@@ -27,6 +27,9 @@ from onus.db.session import session_scope
 
 router = APIRouter(prefix="/api")
 
+LIVE_OFF = ("Live analysis is switched off on this server for now. Papers that were already analysed still "
+            "open, and the corpus can be browsed.")
+
 
 def _get_analysis(s, analysis_id: str) -> Analysis:
     a = repo.get_analysis(s, analysis_id)
@@ -87,7 +90,7 @@ def _create(ctx: AppContext, *, source: str, external_id: str | None, data: byte
             return {"analysis_id": existing.id, "status": existing.status, "cached": False}, None
 
         if not ctx.live_enabled:
-            raise HTTPException(503, "Live analysis is not available on this server.")
+            raise HTTPException(503, LIVE_OFF)
         ip_hash = hash_ip(ip, ctx.salt)
         ctx.limits.check(s, ip_hash)
 

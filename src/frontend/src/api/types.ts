@@ -42,8 +42,8 @@ export interface PaperRow {
   display: Display | null;
   analysis_id: string | null;
   summary: Summary | null;
-  fingerprint?: string;
-  onus_version?: string;
+  fingerprint?: string | null;
+  onus_version?: string | null;
   runs?: number;
 }
 
@@ -134,10 +134,19 @@ export interface Meta {
       harness_fingerprint: string | null;
     }[];
   };
+  freeze?: {
+    version: string | null;
+    fingerprint: string;
+    harness_fingerprint: string | null;
+    created_at: string | null;
+    matches_current: boolean;
+  } | null;
+  public_docs?: string[];
   live: {
     enabled: boolean;
     runs: number;
     code_checks: boolean;
+    capabilities_probed_at?: string | null;
     max_pdf_mb: number;
     max_per_ip_per_hour: number;
     max_per_day: number;

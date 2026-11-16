@@ -191,32 +191,101 @@ function CodeAgreement({ name, s }: { name: string; s: SplitMetrics }) {
   );
 }
 
-function EvalRuns({ m }: { m: Metrics }) {
+const DOC_LABELS: Record<string, string> = {
+  "eval_protocol.md": "Evaluation protocol",
+  "eval_log.md": "Run log",
+};
+
+/** Freeze, eval runs, harness fingerprint and the versions behind the reports. From /api/meta only, so it shows
+ * before the held-out metrics exist. */
+function VersionsAndRuns() {
   const meta = useMeta();
-  const er = meta.data?.eval_runs;
-  const count = er?.count ?? m.eval_runs;
+  if (meta.isPending) return <Loading />;
+  if (meta.error) return <ErrorBox error={meta.error} />;
+  const m = meta.data;
+  const fz = m.freeze;
+  const er = m.eval_runs;
   const max = er?.max ?? 3;
+  const harness = fz?.harness_fingerprint ?? er?.runs.at(-1)?.harness_fingerprint ?? null;
+  const docs = m.public_docs ?? [];
   return (
-    <>
-      <p className="text-sm text-slate-700">
-        {count
-          ? `${count} of at most ${max} evaluation runs were used on the held-out eval split before the freeze. Each run is logged before it starts.`
-          : `At most ${max} evaluation runs are allowed before the freeze; the run log is published with the code.`}
+    <section aria-labelledby="versions-h" className="space-y-4">
+      <h2 id="versions-h" className="text-lg font-semibold">
+        Frozen version and evaluation runs
+      </h2>
+      <dl className="grid max-w-prose grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+        <dt className="text-slate-600">This site runs</dt>
+        <dd className="font-mono break-anywhere">
+          v{m.onus_version} · {m.fingerprint}
+        </dd>
+        <dt className="text-slate-600">Frozen</dt>
+        <dd className="break-anywhere">
+          {fz ? (
+            <>
+              <span className="font-mono">
+                {fz.version ? `v${fz.version} · ` : ""}{fz.fingerprint}
+              </span>
+              {fz.created_at && <span className="text-slate-600"> on {date(fz.created_at)}</span>}
+              {!fz.matches_current && <span className="text-amber-900"> (differs from the running pipeline)</span>}
+            </>
+          ) : (
+            "Not frozen yet."
+          )}
+        </dd>
+        <dt className="text-slate-600">Harness</dt>
+        <dd className="font-mono break-anywhere">{harness ?? "—"}</dd>
+      </dl>
+      <p className="max-w-prose text-sm text-slate-700">
+        {er && er.count > 0
+          ? `${er.count} of at most ${max} evaluation runs were used on the held-out eval split before the freeze. Each run is logged before it starts.`
+          : `At most ${max} evaluation runs are allowed before the freeze. Each run is logged before it starts.`}
+        {" "}The pipeline fingerprint hashes the prompts, rubrics, models and pipeline code; the harness fingerprint
+        hashes the code that plants errors and scores them.
       </p>
       {er && er.runs.length > 0 && (
-        <div className="mt-3 overflow-x-auto">
+        <div className="overflow-x-auto">
           <SimpleTable
             head={["Run", "Started (UTC)", "Commit", "Pipeline", "Harness"]}
             rows={er.runs.map((r) => [r.run ?? "—", r.started ?? "—", r.commit ?? "—", r.pipeline_fingerprint ?? "—", r.harness_fingerprint ?? "—"])}
           />
         </div>
       )}
-    </>
+      {docs.length > 0 && (
+        <ul className="flex flex-wrap gap-x-4 text-sm">
+          {docs.map((d) => (
+            <li key={d}>
+              <a href={`/api/public/${d}`} className="text-blue-900 underline">
+                {DOC_LABELS[d] ?? d}
+              </a>{" "}
+              <span className="text-xs text-slate-500">({d}, plain text)</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {m.versions && m.versions.length > 0 && (
+        <div className="overflow-x-auto">
+          <h3 className="text-sm font-medium">Versions behind the reports on this site</h3>
+          <SimpleTable
+            head={["Version", "Fingerprint", "Mode", "Reports", "First", "Last"]}
+            rows={m.versions.map((v) => [
+              v.fingerprint === m.fingerprint ? `v${v.onus_version} (current)` : `v${v.onus_version} (older)`,
+              v.fingerprint,
+              v.mode,
+              v.analyses,
+              date(v.first_seen) || "—",
+              date(v.last_seen) || "—",
+            ])}
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            Reports from an older version stay listed and are labelled as such; they are not re-run automatically.
+          </p>
+        </div>
+      )}
+    </section>
   );
 }
 
 function Body({ m }: { m: Metrics }) {
-  const meta = useMeta();
   const splits = Object.entries(m.splits ?? {});
   return (
     <div className="space-y-10">
@@ -242,24 +311,16 @@ function Body({ m }: { m: Metrics }) {
           <CodeAgreement key={n} name={n} s={s} />
         ))}
       </Figure>
-      <Figure title="Evaluation runs and versions">
-        <EvalRuns m={m} />
-        <div className="mt-3 overflow-x-auto">
-          <SimpleTable
-            head={["Measured on", "Pipeline", "Harness", "Plan", "Date"]}
-            rows={splits.map(([n, s]) => [n, s.fingerprint ?? "—", s.harness_fingerprint ?? "—", s.mutation_plan ?? "—", date(s.created_at)])}
-          />
-        </div>
-        {meta.data?.versions && meta.data.versions.length > 0 && (
-          <div className="mt-4 overflow-x-auto">
-            <h3 className="text-sm font-medium">Versions behind the reports on this site</h3>
+      {splits.length > 0 && (
+        <Figure title="What these numbers were measured on">
+          <div className="overflow-x-auto">
             <SimpleTable
-              head={["Version", "Fingerprint", "Mode", "Reports", "First", "Last"]}
-              rows={meta.data.versions.map((v) => [v.onus_version, v.fingerprint, v.mode, v.analyses, date(v.first_seen), date(v.last_seen)])}
+              head={["Measured on", "Pipeline", "Harness", "Plan", "Date"]}
+              rows={splits.map(([n, s]) => [n, s.fingerprint ?? "—", s.harness_fingerprint ?? "—", s.mutation_plan ?? "—", date(s.created_at) || "—"])}
             />
           </div>
-        )}
-      </Figure>
+        </Figure>
+      )}
     </div>
   );
 }
@@ -285,6 +346,9 @@ export default function Trust() {
           <Body m={q.data} />
         </>
       )}
+      <div className="mt-12 border-t border-slate-200 pt-8">
+        <VersionsAndRuns />
+      </div>
     </div>
   );
 }
