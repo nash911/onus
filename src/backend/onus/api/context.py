@@ -26,6 +26,8 @@ class AppContext:
     salt: bytes
     import_dirs: list[Path] = field(default_factory=list)
     import_report: dict = field(default_factory=dict)
+    eval_log: Path | None = None
+    capabilities_probed_at: str | None = None
 
     @property
     def live_enabled(self) -> bool:

@@ -126,7 +126,7 @@ def client_for(env, pipeline=None, fetched: list | None = None, **kw) -> TestCli
         return PDF + ext.encode()
 
     app = create_app(env["settings"], analyzer=pipeline or FakePipeline(), fetcher=fetcher, fingerprint=FP,
-                     frontend_dist=env["tmp"] / "dist", **kw)
+                     frontend_dist=env["tmp"] / "dist", eval_log=env["tmp"] / "no_eval_log.md", **kw)
     return TestClient(app)
 
 

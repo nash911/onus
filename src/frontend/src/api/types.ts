@@ -123,6 +123,17 @@ export interface Meta {
   has_findings: boolean;
   has_metrics: boolean;
   versions?: VersionRow[];
+  eval_runs?: {
+    count: number;
+    max: number;
+    runs: {
+      run: string | null;
+      started: string | null;
+      commit: string | null;
+      pipeline_fingerprint: string | null;
+      harness_fingerprint: string | null;
+    }[];
+  };
   live: {
     enabled: boolean;
     runs: number;

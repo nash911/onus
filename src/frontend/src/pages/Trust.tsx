@@ -191,6 +191,30 @@ function CodeAgreement({ name, s }: { name: string; s: SplitMetrics }) {
   );
 }
 
+function EvalRuns({ m }: { m: Metrics }) {
+  const meta = useMeta();
+  const er = meta.data?.eval_runs;
+  const count = er?.count ?? m.eval_runs;
+  const max = er?.max ?? 3;
+  return (
+    <>
+      <p className="text-sm text-slate-700">
+        {count
+          ? `${count} of at most ${max} evaluation runs were used on the held-out eval split before the freeze. Each run is logged before it starts.`
+          : `At most ${max} evaluation runs are allowed before the freeze; the run log is published with the code.`}
+      </p>
+      {er && er.runs.length > 0 && (
+        <div className="mt-3 overflow-x-auto">
+          <SimpleTable
+            head={["Run", "Started (UTC)", "Commit", "Pipeline", "Harness"]}
+            rows={er.runs.map((r) => [r.run ?? "—", r.started ?? "—", r.commit ?? "—", r.pipeline_fingerprint ?? "—", r.harness_fingerprint ?? "—"])}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 function Body({ m }: { m: Metrics }) {
   const meta = useMeta();
   const splits = Object.entries(m.splits ?? {});
@@ -219,11 +243,7 @@ function Body({ m }: { m: Metrics }) {
         ))}
       </Figure>
       <Figure title="Evaluation runs and versions">
-        <p className="text-sm text-slate-700">
-          {m.eval_runs != null
-            ? `${m.eval_runs} evaluation run${m.eval_runs === 1 ? "" : "s"} were used before the freeze (at most 3 are allowed).`
-            : "At most 3 evaluation runs are allowed before the freeze; the run log is published with the code."}
-        </p>
+        <EvalRuns m={m} />
         <div className="mt-3 overflow-x-auto">
           <SimpleTable
             head={["Measured on", "Pipeline", "Harness", "Plan", "Date"]}

@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from onus.api.context import AppContext, Ctx
+from onus.api.eval_log import read_eval_runs
 from onus.api.routes_papers import best_analyses, corpus_rows, resolve_paper
 from onus.api.serialize import iso, paper_base
 from onus.db import repo
@@ -40,6 +41,12 @@ def version_history(s) -> list[dict[str, Any]]:
     return sorted(groups.values(), key=lambda g: (g["first_seen"] or "", g["mode"]))
 
 
+def eval_runs(ctx: AppContext) -> dict[str, Any]:
+    """Pre-freeze eval runs from docs/public/eval_log.md (rows whose split is "eval")."""
+    runs = read_eval_runs(ctx.eval_log) if ctx.eval_log else []
+    return {"count": len(runs), "max": 3, "runs": runs}
+
+
 @router.get("/meta")
 def meta(ctx: Ctx) -> dict[str, Any]:
     with session_scope(ctx.factory) as s:
@@ -67,12 +74,14 @@ def meta(ctx: Ctx) -> dict[str, Any]:
         "featured_source": source,
         "corpus_papers": n_papers,
         "versions": versions,
+        "eval_runs": eval_runs(ctx),
         "has_findings": ctx.data_file("findings.json") is not None,
         "has_metrics": ctx.data_file("metrics.json") is not None,
         "live": {
             "enabled": ctx.live_enabled,
             "runs": 1,
             "code_checks": False,
+            "capabilities_probed_at": ctx.capabilities_probed_at,
             "max_pdf_mb": lim.max_pdf_mb,
             "max_per_ip_per_hour": lim.max_per_ip_per_hour,
             "max_per_day": lim.max_per_day,

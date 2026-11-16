@@ -1,17 +1,16 @@
 """Serve the built SPA (`src/frontend/dist`) with an index.html fallback; `/api/*` is never shadowed.
 
-`ONUS_FRONTEND_DIST` overrides the directory (the Docker image copies `dist` elsewhere).
+The directory comes from `onus.api.settings` (`ONUS_FRONTEND_DIST`, default `<repo>/src/frontend/dist`).
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
-from onus.config import repo_root
+from onus.api.settings import get_serving_settings
 
 NO_BUILD = ("<!doctype html><meta charset=utf-8><title>Onus</title>"
             "<p>The frontend is not built. Run <code>npm run build</code> in <code>src/frontend</code>, "
@@ -19,8 +18,7 @@ NO_BUILD = ("<!doctype html><meta charset=utf-8><title>Onus</title>"
 
 
 def frontend_dist() -> Path:
-    env = os.environ.get("ONUS_FRONTEND_DIST")
-    return Path(env) if env else repo_root() / "src" / "frontend" / "dist"
+    return get_serving_settings().frontend_dist
 
 
 def mount_spa(app: FastAPI, dist: Path | None = None) -> None:

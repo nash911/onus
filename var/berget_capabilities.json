@@ -1,0 +1,69 @@
+{
+  "probed_at": "2026-11-14T23:10:08.813967+00:00",
+  "models_listed": [
+    "BAAI/bge-reranker-v2-m3",
+    "Cloudflare/clef-flash",
+    "KBLab/kb-whisper-large",
+    "NbAiLab/nb-whisper-large",
+    "Qwen/Qwen3.5-2B",
+    "Systran/faster-whisper-large-v3",
+    "convaiinnovations/laya",
+    "google/gemma-4-31B-it",
+    "intfloat/multilingual-e5-large",
+    "intfloat/multilingual-e5-large-instruct",
+    "klang/pianissimo",
+    "mistralai/Mistral-Small-3.2-24B-Instruct-2506",
+    "moonshotai/Kimi-K3.1-Pro",
+    "zai-org/GLM-5.3-Flash"
+  ],
+  "roles": {
+    "extract": {
+      "model": "zai-org/GLM-5.3-Flash",
+      "chat": true,
+      "json_schema": true,
+      "json_object": true,
+      "tools": true,
+      "cached_tokens_reported": true,
+      "reasoning_style": null,
+      "embedding": null,
+      "embedding_dim": null,
+      "notes": []
+    },
+    "judge": {
+      "model": "moonshotai/Kimi-K3.1-Pro",
+      "chat": true,
+      "json_schema": true,
+      "json_object": true,
+      "tools": true,
+      "cached_tokens_reported": true,
+      "reasoning_style": "reasoning_effort",
+      "embedding": null,
+      "embedding_dim": null,
+      "notes": []
+    },
+    "fast": {
+      "model": "google/gemma-4-31B-it",
+      "chat": true,
+      "json_schema": true,
+      "json_object": true,
+      "tools": true,
+      "cached_tokens_reported": true,
+      "reasoning_style": null,
+      "embedding": null,
+      "embedding_dim": null,
+      "notes": []
+    },
+    "embed": {
+      "model": "intfloat/multilingual-e5-large-instruct",
+      "chat": false,
+      "json_schema": false,
+      "json_object": false,
+      "tools": null,
+      "cached_tokens_reported": null,
+      "reasoning_style": null,
+      "embedding": true,
+      "embedding_dim": 1024,
+      "notes": []
+    }
+  }
+}
