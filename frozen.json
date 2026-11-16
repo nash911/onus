@@ -94,5 +94,42 @@
     },
     "audit_error_bars": "1fd21cc44d18e61012bb3695f59fc04b616f4cc9775d103acd987a17a3e2e394"
   },
-  "created_at": "2026-11-16T00:43:22.664560+00:00"
+  "created_at": "2026-11-16T00:43:22.664560+00:00",
+  "code": {
+    "version": "1.0.0",
+    "fingerprint": "9a7645ba1379",
+    "models": {
+      "extract": "zai-org/GLM-5.3-Flash",
+      "judge": "moonshotai/Kimi-K3.1-Pro",
+      "fast": "google/gemma-4-31B-it",
+      "embed": "intfloat/multilingual-e5-large-instruct",
+      "judge_reasoning": "high"
+    },
+    "prompts": {
+      "impl_facts.md": "94d85324902ba5dc3bf3841ddc627cc0c6a16636974b53105e4c9d0f09b279d0",
+      "impl_match.md": "a67de615e73e326a5536127d8595f4bdb23285ab79781d2a8311bb29983a399e",
+      "rerun_agent.md": "e088457af0bab4c726ebd9e2ec89803c77be90af9d5905c41c9fac383ad374c2"
+    },
+    "rubrics": {
+      "rerun.yaml": "0f27a690f8cf443a7d6550b644704b44ae0202bbf7a62fcf47a39b89d29a1b6a",
+      "static.yaml": "66c46b8c9fcb8cd064b3532c246845b8fa6f464b7d75ac1139d165ac6fa372ab"
+    },
+    "shared_rubrics": {
+      "tolerances.yaml": "f16b9e600839ce93f375f3c27f6512de552c924059d468091fc3a7988bb370ea"
+    },
+    "source": {
+      "__init__.py": "307004d2115b6625552645889d2d9ccdce7d7280ef4e3e53717a19f602ca73ec",
+      "apply.py": "38eb81a8056d7efda118d1a02ef51cc6d8e3ef0c93a814fd0645d4fed98b1c7e",
+      "cli.py": "cb935778493e6e5020e341990d751bb06730e45acb0a0c35e6ef215c619b6216",
+      "common.py": "82c05e793513cf79b66f2c610778dab1084b7e3a8ad8f523533f7845c5fdbd46",
+      "rerun/__init__.py": "839b807f665ec2ad665b79c85e03b0140fa683aa56a087b5304713a2e1a62e9d",
+      "rerun/agent.py": "c14b3ea68c1f64f8dd60b4be4d17adb6b64fd2daf6b5e0875623a153c6f9eee5",
+      "rerun/compare.py": "2c6af1fb4fde6b305fee6089a2dc5cfe0cc16dc1aab1d76f70b7b0a52dafab6b",
+      "rerun/run.py": "d729898350c2e9e0ffd2ff9a027788359f5fbee4608f625556feb656e368a64e",
+      "rerun/sandbox.py": "a94dd874eacc8216bda06f6abafe28120cb4101a98598252c2f6515e509ddc77",
+      "static.py": "c31e664833a1f2ab2d45b019c7793599a264bb7b474061344c7c6d342ba29843",
+      "version.py": "de6c29dadd553a7d861d9bc311613d02b051d945589918060932839c550ad09b"
+    },
+    "created_at": "2026-11-16T14:07:19.114709+00:00"
+  }
 }
