@@ -66,6 +66,7 @@
         "github.com",
         "*.githubusercontent.com",
         "*.modal.com",
+        "*.modal.host",
         "arxiv.org",
         "export.arxiv.org"
       ]
