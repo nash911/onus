@@ -1,0 +1,27 @@
+# Static paper-code check (code-v1, BUILD_PLAN Phase 10 task 1). Read by onus/codecheck/static.py.
+version: 1
+# Sections whose text impl_facts reads (Document section roles), in this order, capped at max_section_chars.
+section_roles: [method, experiments, results, appendix]
+max_section_chars: 24000
+max_facts: 8
+# Fact kinds that decide the paper-level result. hyperparameter and seed_count are reported but not core:
+# they are often passed on the command line or in config files that the search cannot tie to the paper.
+core_kinds: [model, algorithm, dataset, metric, component]
+# Paper-level mismatch: any core fact `contradicts`, or at least this share of core facts `absent`
+# (needs at least min_core verified core facts).
+absent_share: 0.5
+min_core: 2
+# Code search: per fact, the best windows of +-context lines around matching lines, at most max_snippets,
+# at most max_snippet_chars in all.
+context: 5
+max_snippets: 5
+max_snippet_chars: 5000
+max_file_bytes: 400000
+# Documentation (.md, .txt, .rst) is not searched: it describes the code, it does not implement it.
+source_exts: [.py, .ipynb, .r, .R, .jl, .m, .sh, .js, .ts, .cpp, .c, .h, .java, .go, .rs, .yaml, .yml, .json, .toml, .cfg, .ini]
+# A citation must match the file within this many lines of the cited line (BUILD_PLAN §7.5).
+citation_slack: 2
+# Claims that take a claim-level code_static check: these claim types, when a fact relates to them
+# (the fact's value appears in the claim, or min_shared_terms content words are shared).
+claim_types: [method, result, comparison]
+min_shared_terms: 2

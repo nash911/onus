@@ -197,6 +197,22 @@ yarl = ">=1.25.1,<2.0"
 speedups = ["Brotli (>=1.2) ; platform_python_implementation == \"CPython\" and sys_platform != \"android\" and sys_platform != \"ios\"", "aiodns (>=3.3.0) ; sys_platform != \"android\" and sys_platform != \"ios\"", "backports.zstd ; platform_python_implementation == \"CPython\" and python_version < \"3.14\" and sys_platform != \"android\" and sys_platform != \"ios\"", "brotlicffi (>=1.2) ; platform_python_implementation != \"CPython\""]
 
 [[package]]
+name = "aiohttp-socks"
+version = "0.12.0"
+description = "Proxy connector for aiohttp"
+optional = false
+python-versions = ">=3.9.0"
+groups = ["main"]
+files = [
+    {file = "aiohttp_socks-0.12.0-py3-none-any.whl", hash = "sha256:ba6f95ec775c761d87f8578ab48f137d0457c676da104984202bf75e747d5ee6"},
+    {file = "aiohttp_socks-0.12.0.tar.gz", hash = "sha256:3caf9f5a4164611122d412bc11b2f9114fd29c85e1ba27bb38060d3c236bdc8d"},
+]
+
+[package.dependencies]
+aiohttp = ">=3.10.0"
+python-socks = {version = ">=2.4.3,<4.0.0", extras = ["asyncio"]}
+
+[[package]]
 name = "aiosignal"
 version = "1.4.0"
 description = "aiosignal: a list of registered asynchronous callbacks"
@@ -1800,11 +1816,13 @@ files = [
 
 [package.dependencies]
 aiohttp = "*"
+aiohttp-socks = {version = ">=0.8", optional = true, markers = "extra == \"api-proxy-support\""}
 cbor2 = "*"
 certifi = "*"
 click = ">=8.1,<9.0"
 grpclib = {version = ">=0.4.7,<0.4.10", markers = "python_version < \"3.14\""}
 protobuf = ">=3.19,<4.24.0 || >4.24.0,<8.0"
+python-socks = {version = ">=2.5", extras = ["asyncio"], optional = true, markers = "extra == \"api-proxy-support\""}
 rich = ">=12.0.0"
 synchronicity = ">=0.12.7,<0.13.0"
 toml = "*"
@@ -2943,6 +2961,23 @@ files = [
     {file = "python_multipart-0.0.33-py3-none-any.whl", hash = "sha256:8f16c07b36add9da6b2ee87d3efcaf0a45a6de9c3d0a5dd94e9ccf7675a7bc45"},
     {file = "python_multipart-0.0.33.tar.gz", hash = "sha256:b8112424a6abd162ec08d390565dd113ad699f2fe6fef3c987b8bbcbfe9e390d"},
 ]
+
+[[package]]
+name = "python-socks"
+version = "3.2.1"
+description = "Proxy (SOCKS4, SOCKS5, HTTP CONNECT) client for Python"
+optional = false
+python-versions = ">=3.9.0"
+groups = ["main"]
+files = [
+    {file = "python_socks-3.2.1-py3-none-any.whl", hash = "sha256:db2c37d4f7aeebfbba91d2d7670718b2d516061b34296fa8498c6f671e87c504"},
+    {file = "python_socks-3.2.1.tar.gz", hash = "sha256:d21618ae6c6734d357be83263b3791666d12af59480ace8f48f2b5fcc8edc987"},
+]
+
+[package.extras]
+anyio = ["anyio (>=4.12.1,<5.0.0)"]
+asyncio = ["async-timeout (>=5.0.1) ; python_version < \"3.11\""]
+trio = ["trio (>=0.30.0)"]
 
 [[package]]
 name = "pyyaml"
@@ -4581,4 +4616,4 @@ type = ["pytest-mypy (>=1.0.1) ; platform_python_implementation != \"PyPy\""]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "3178ab13583c7fbd6440343169663519e246a117168603cc45410ef2620dc3af"
+content-hash = "769303daf824f92f5abbae54b97407497b9562c4fed60c6c29bb7550cf645952"

@@ -29,10 +29,13 @@ def test_db_init(tmp_path):
     assert r.exit_code == 0 and (tmp_path / "x.db").is_file()
 
 
-def test_later_phase_commands_say_so():
-    for args in (["codecheck"], ["freeze", "--code-version", "1.0.0"]):
-        r = runner.invoke(app, args)
-        assert r.exit_code == 2 and "Phase" in r.output, (args, r.output)
+def test_codecheck_requires_its_options():
+    # Phase 10 is built; `freeze --code-version` is tested in test_codecheck.py against a temporary frozen.json
+    # (invoking it here would rewrite the real one).
+    r = runner.invoke(app, ["codecheck"])
+    assert r.exit_code == 2 and "--data-root" in r.output, r.output
+    r = runner.invoke(app, ["codecheck", "version"])
+    assert r.exit_code == 0 and "code-v1" in r.output, r.output
 
 
 def test_every_subcommand_group_exists():

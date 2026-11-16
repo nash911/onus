@@ -1,0 +1,33 @@
+# Sandboxed re-runs (code-v1, BUILD_PLAN Phase 10 task 2). Read by onus/codecheck/rerun/.
+version: 1
+max_targets: 3
+max_steps: 25
+# The agent stops when its own Berget spend for the paper reaches this (EUR); the per-paper cap
+# ONUS_MAX_EUR_PER_PAPER applies too.
+max_agent_eur: 0.60
+# Tool limits.
+read_max_lines: 400
+run_max_timeout_s: 900
+tool_output_chars: 3500
+# Older tool outputs are shortened to this many characters once they are more than keep_full_steps back,
+# so the agent's context stays bounded.
+keep_full_steps: 4
+elided_output_chars: 400
+# Phase A (install, network on) wall-clock cap, minutes. Phase B gets what is left of ONUS_RERUN_MAX_MINUTES.
+install_max_minutes: 15
+min_run_minutes: 5
+python_default: "3.11"
+# Paper code that calls these providers gets the matching SANDBOX_* key and only these hosts in phase B.
+provider_hosts:
+  openai: api.openai.com
+  anthropic: api.anthropic.com
+  gemini: generativelanguage.googleapis.com
+# A paper with no numeric target claims still gets a short run (does the main experiment complete?).
+max_steps_no_targets: 10
+# Receipt integrity: /work is a git snapshot. Any change to or deletion of a submitted file is a modification.
+# A new file is a modification when it has one of these (source) extensions or was written with write_file;
+# other new files (results, logs, figures) are outputs of the code.
+modification_exts: [".py", ".sh", ".R", ".r", ".ipynb", ".jl", ".m", ".c", ".cpp", ".h"]
+diff_chars_per_file: 4000
+# Masked tail of the install log kept in every report.
+install_log_chars: 3000
