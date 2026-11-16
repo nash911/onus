@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any
 
@@ -77,3 +78,78 @@ def status_out(a: Analysis) -> dict[str, Any]:
         "created_at": iso(a.created_at),
         "finished_at": iso(a.finished_at),
     }
+
+
+# ---------------------------------------------------------------- display repair: repository links cut by a line break
+
+# An owner-only link ("https://github.com/owner/") that the frozen pipeline kept when the paper's PDF broke the
+# link after the owner. Display only: the stored result is never changed.
+_TRUNCATED_REPO = re.compile(
+    r"https?://(?:www\.)?(?:github\.com|gitlab\.com|huggingface\.co)/[A-Za-z0-9][A-Za-z0-9_.\-]*/(?![A-Za-z0-9_\-])",
+    re.IGNORECASE,
+)
+# Fields whose text is Onus's own wording or a link label; the paper's quotes and justifications stay verbatim.
+_REPAIR_KEYS = ("reason", "caveat", "detail", "label", "snippet")
+
+
+def _paper_texts(result: dict[str, Any]) -> list[str]:
+    out = [c.get("quote") for c in result.get("claims") or [] if isinstance(c, dict)]
+    out += [c.get("justification") for c in result.get("checklist") or [] if isinstance(c, dict)]
+    return [t for t in out if isinstance(t, str) and t]
+
+
+def _full_link(prefix: str, code_stage: dict[str, Any] | None, texts: list[str]) -> str | None:
+    """The full repository URL a truncated link stands for: the code stage's source when the truncated link is a
+    prefix of it, else the one link the paper's own (rejoined) quote text gives with that prefix."""
+    from onus.api.code_stage import parse_repo, rejoin_split_links
+    from onus.ingest.code_index import repo_urls
+
+    p = prefix.lower()
+    src = (code_stage or {}).get("source") or {}
+    url = src.get("url") if isinstance(src, dict) else None
+    if isinstance(url, str) and url.lower().startswith(p) and len(url) > len(prefix):
+        return url
+    found: list[str] = []
+    for t in texts:
+        for u in repo_urls(rejoin_split_links(t)):
+            r = parse_repo(u)
+            if r is not None and r.url.lower().startswith(p) and r.url not in found:
+                found.append(r.url)
+    return found[0] if len(found) == 1 else None  # ambiguous or none: leave the text as stored
+
+
+def repair_repo_links(result: dict[str, Any], code_stage: dict[str, Any] | None = None) -> dict[str, Any]:
+    """A copy of `result` where owner-only repository links in reasons, check details and evidence labels show the
+    full repository URL. Returns `result` itself when nothing needs repair."""
+    prefixes: set[str] = set()
+
+    def scan(o: Any) -> None:
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k in _REPAIR_KEYS and isinstance(v, str):
+                    prefixes.update(m.group(0) for m in _TRUNCATED_REPO.finditer(v))
+                else:
+                    scan(v)
+        elif isinstance(o, list):
+            for v in o:
+                scan(v)
+
+    scan(result)
+    if not prefixes:
+        return result
+    texts = _paper_texts(result)
+    fixes = {t: f for t in prefixes if (f := _full_link(t, code_stage, texts))}
+    if not fixes:
+        return result
+
+    def sub(text: str) -> str:
+        return _TRUNCATED_REPO.sub(lambda m: fixes.get(m.group(0), m.group(0)), text)
+
+    def fix(o: Any) -> Any:
+        if isinstance(o, dict):
+            return {k: sub(v) if k in _REPAIR_KEYS and isinstance(v, str) else fix(v) for k, v in o.items()}
+        if isinstance(o, list):
+            return [fix(v) for v in o]
+        return o
+
+    return fix(result)  # rebuilds every dict and list, so the stored result is never mutated

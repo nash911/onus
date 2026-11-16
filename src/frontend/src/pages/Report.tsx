@@ -404,6 +404,11 @@ function RerunItem({ v }: { v: RerunView }) {
         </p>
       )}
       {v.reason && !v.errorLine && <p className="mt-1 text-xs text-slate-500 break-anywhere">{v.reason}</p>}
+      {v.note && (
+        <p className="mt-1 text-xs text-slate-600 break-anywhere">
+          <span className="font-medium">Re-run agent's note:</span> {v.note}
+        </p>
+      )}
       {v.modifications.length > 0 && (
         <details className="mt-2">
           <summary className="cursor-pointer text-blue-900">

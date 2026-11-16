@@ -256,3 +256,9 @@ src/frontend/dist/
 /.claude/loop.md
 /.claude/scheduled_tasks.json
 /.claude/settings.local.json
+paper/*.aux
+paper/*.log
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.out
+paper/*.blg

@@ -27,7 +27,7 @@ from onus.api.code_stage import CODE_KEY, code_key, public_code_stage, save_uplo
 from onus.api.context import AppContext, Ctx
 from onus.api.jobs import LiveJob
 from onus.api.limits import BadUpload, LimitExceeded, check_code_zip, client_ip, hash_ip
-from onus.api.serialize import paper_base, status_out
+from onus.api.serialize import paper_base, repair_repo_links, status_out
 from onus.db import repo
 from onus.db.models import Analysis
 from onus.db.session import session_scope
@@ -54,10 +54,11 @@ def get_analysis(analysis_id: str, ctx: Ctx) -> dict[str, Any]:
             raise HTTPException(409, f"This analysis is {a.status}; see /api/analyses/{a.id}/status.")
         p = a.paper
         base = paper_base(p)
-        return {**a.result, "display": p.display,
+        stage = public_code_stage(a.progress) if a.mode == "live" else None
+        return {**repair_repo_links(a.result, stage), "display": p.display,
                 "analysis": {"id": a.id, "paper_id": p.id, "paper_ref": base["ref"], "status": a.status,
                              "source_url": base["source_url"], "title": base["title"]},
-                "code_stage": public_code_stage(a.progress) if a.mode == "live" else None}
+                "code_stage": stage}
 
 
 @router.get("/analyses/{analysis_id}/status")

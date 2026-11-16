@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.scripts]
-onus = "onus.cli:app"
+onus = "onus.eval.entry:app"
 
 [tool.poetry]
 packages = [{ include = "onus", from = "src/backend" }]

@@ -2,7 +2,8 @@
 // strips the TypeScript types itself, so no extra dependency is needed).
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { factLabel, rerunView } from "../src/lib/codecheck.ts";
+import { readFileSync } from "node:fs";
+import { factLabel, missingProgram, rerunView } from "../src/lib/codecheck.ts";
 import { codeSourceText, codeStageLine, codeStagePending, liveModeLabel } from "../src/lib/codeStage.ts";
 import { LIVE_OFF_TEXT, startErrorText } from "../src/lib/startErrors.ts";
 import { isOlderVersion } from "../src/lib/versions.ts";
@@ -130,4 +131,31 @@ test("code stage status lines and polling", () => {
   assert.equal(liveModeLabel({ status: "done" }), "Live analysis, 1 run, with code checks");
   assert.equal(liveModeLabel(undefined), "Live analysis, 1 run, no code checks");
   assert.equal(rerunView({ status: "skipped", reason: "Skipped: the daily limit" }).label, "Re-run skipped");
+});
+
+// ---------------------------------------------------------------- Phase 11c: a system program was missing
+
+test("a missing system program is not shown as missing data (fixture 2611.10459)", () => {
+  // Production re-run: every simulation ran; only the final figure failed because latex was not installed.
+  const fx = JSON.parse(readFileSync(new URL("../../../tests/fixtures/live_2611.10459.json", import.meta.url), "utf8"));
+  const x = fx.code.reruns[0];
+  assert.equal(x.status, "missing_data"); // the stored status stays as it is
+  const v = rerunView(x);
+  assert.equal(v.label, "Ran, but a system program the code calls was not installed: latex");
+  assert.equal(v.missingProgram, "latex");
+  assert.doesNotMatch(v.explain, /needs data/);
+  assert.equal(v.errorLine, "FileNotFoundError: [Errno 2] No such file or directory: 'latex'");
+  assert.match(v.note!, /Matplotlib could not find LaTeX/);
+  assert.equal(v.status, "missing_data");
+});
+
+test("a missing file is still missing data", () => {
+  assert.equal(missingProgram("FileNotFoundError: [Errno 2] No such file or directory: 'data/train.csv'"), null);
+  assert.equal(missingProgram("FileNotFoundError: [Errno 2] No such file or directory: 'weights.pt'"), null);
+  assert.equal(missingProgram("FileNotFoundError: [Errno 2] No such file or directory: '/usr/bin/ffmpeg'"), null);
+  assert.equal(missingProgram('FileNotFoundError: [Errno 2] No such file or directory: "ffmpeg"'), "ffmpeg");
+  assert.equal(missingProgram(null), null);
+  const v = rerunView({ status: "missing_data", as_shipped: { error_line: "FileNotFoundError: [Errno 2] No such file or directory: 'data/x.csv'" }, agent_note: "n" });
+  assert.equal(v.label, "Data not included");
+  assert.equal(v.note, null);
 });

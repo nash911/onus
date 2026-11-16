@@ -16,6 +16,10 @@ export interface RerunView {
   /** The line the unmodified code crashed on (fails_as_shipped, missing_data), when recorded. */
   errorLine: string | null;
   reason: string | null;
+  /** A system program (not a file) the code called that the sandbox lacks, read from the error line. */
+  missingProgram: string | null;
+  /** The re-run agent's own note, shown with the missing-program wording. */
+  note: string | null;
   minutes: number | null;
   commands: string[];
   modifications: { path: string; change: string; diff: string }[];
@@ -112,6 +116,20 @@ function errorLine(x: Record<string, unknown>): string | null {
   return null;
 }
 
+// "FileNotFoundError: [Errno 2] No such file or directory: 'latex'": a bare program name (no "/" and no file
+// extension) means a system program the code calls, such as latex or ffmpeg, was not installed.
+const MISSING_PROGRAM = /FileNotFoundError: \[Errno 2\] No such file or directory: ['"]([^'"\/.\s]+)['"]/;
+
+/** The program name when the error line says a bare program was not found, else null. Display only. */
+export function missingProgram(line: string | null): string | null {
+  const m = line ? MISSING_PROGRAM.exec(line) : null;
+  return m ? m[1]! : null;
+}
+
+const MISSING_PROGRAM_EXPLAIN =
+  "The code ran, but stopped when it called a system program that is not installed in the re-run sandbox. " +
+  "This is not missing data, and it is not an error in the code's results.";
+
 function commandText(c: unknown): string | null {
   if (typeof c === "string") return c;
   if (c && typeof c === "object") {
@@ -130,14 +148,19 @@ export function rerunView(x: Record<string, unknown>): RerunView {
   const known = Object.hasOwn(STATUS, key);
   const s = known ? STATUS[key]! : { label: status, explain: "", tone: "neutral" as Tone };
   const mods = Array.isArray(x.modifications) ? x.modifications : [];
+  const err = key === "fails_as_shipped" || key === "missing_data" ? errorLine(x) : null;
+  // Display wording only: the stored status (often missing_data) is left as it is.
+  const program = missingProgram(err);
   return {
     status,
-    label: s.label,
-    explain: s.explain,
-    tone: s.tone,
+    label: program ? `Ran, but a system program the code calls was not installed: ${program}` : s.label,
+    explain: program ? MISSING_PROGRAM_EXPLAIN : s.explain,
+    tone: program ? "neutral" : s.tone,
     known,
-    errorLine: key === "fails_as_shipped" || key === "missing_data" ? errorLine(x) : null,
+    errorLine: err,
     reason: str(x.reason),
+    missingProgram: program,
+    note: program ? str(x.agent_note) : null,
     minutes: typeof x.minutes === "number" && Number.isFinite(x.minutes) ? x.minutes : null,
     commands: (Array.isArray(x.commands) ? x.commands : []).map(commandText).filter((c): c is string => c != null),
     modifications: mods

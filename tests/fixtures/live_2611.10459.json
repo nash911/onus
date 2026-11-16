@@ -1,0 +1,644 @@
+{
+ "_note": "Trimmed from the production result for arXiv 2611.10459 (public paper), Phase 11c display tests.",
+ "schema_version": "1",
+ "onus_version": "1.0.0",
+ "fingerprint": "9ad544b97609",
+ "mode": "live",
+ "runs": 1,
+ "paper": {
+  "id": "arxiv:2611.10459",
+  "source": "arxiv",
+  "external_id": "2611.10459",
+  "title": "Riemannian Ordinary Least Squares",
+  "pdf_sha256": "c60bd32e7b412df6104b2801d97e3e653e809d31125433847df1f2e757120e9e",
+  "pages": 46
+ },
+ "claims": [
+  {
+   "id": "f804874d3a62",
+   "type": "checklist",
+   "quote": "The ROLS code is released at https://github.com/XiaoyuChenPub/ ROLS under the CC BY-NC 4.0 license, with installation instructions and a usage example.",
+   "location": {
+    "page": 45,
+    "paragraph": 17,
+    "sentence": 1,
+    "line_start": null,
+    "line_end": null,
+    "section": "NeurIPS Paper Checklist",
+    "start": 155209,
+    "end": 155360
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "fail",
+     "severity": "none",
+     "detail": "The paper only states that the code is available at a URL and never mentions the CC BY-NC 4.0 license, installation instructions, or a usage example claimed in the justification.",
+     "data": {
+      "status": "unbacked",
+      "answer": "Yes"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "untraced",
+   "reason": "The paper only states that the code is available at a URL and never mentions the CC BY-NC 4.0 license, installation instructions, or a usage example claimed in the justification.",
+   "caveat": null,
+   "risk": 2,
+   "stability": null,
+   "checklist_key": "new_assets",
+   "rule_verdict": "untraced",
+   "adjudication": null
+  },
+  {
+   "id": "895ace1b389f",
+   "type": "availability",
+   "quote": "The source code is available at https://github.com/XiaoyuChenPub/ ROLS.",
+   "location": {
+    "page": 1,
+    "paragraph": 4,
+    "sentence": 2,
+    "line_start": null,
+    "line_end": null,
+    "section": "Abstract",
+    "start": 1510,
+    "end": 1581
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev25",
+     "kind": "text",
+     "label": "https://github.com/XiaoyuChenPub/",
+     "snippet": "https://github.com/XiaoyuChenPub/",
+     "location": {
+      "page": 1,
+      "paragraph": 4,
+      "sentence": 2,
+      "line_start": null,
+      "line_end": null,
+      "section": "Abstract",
+      "start": 1542,
+      "end": 1575
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "1 supporting and 0 partial evidence item(s): https://github.com/XiaoyuChenPub/.",
+     "data": {
+      "supports": 1,
+      "partial": 0,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev25"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "availability claim (the rubric covers results)",
+     "data": {
+      "reason": "availability claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by https://github.com/XiaoyuChenPub/.",
+   "caveat": null,
+   "risk": 0,
+   "stability": null,
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "f9410351c701",
+   "type": "checklist",
+   "quote": "The model and data-generating process are specified in Eq. (1) (Model) and described in detail in Appendix H.1 with all parameter values. Section 3.1 gives the complete estimation procedure. Appendix H provides full experimental details for all simulations and Appendix I for all case studies, including data sources, preprocessing, and hyperparameters.",
+   "location": {
+    "page": 41,
+    "paragraph": 15,
+    "sentence": 1,
+    "line_start": null,
+    "line_end": null,
+    "section": "NeurIPS Paper Checklist",
+    "start": 140882,
+    "end": 141235
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "absolute",
+    "scope": "universal",
+    "markers": [
+     "all",
+     "for all case"
+    ]
+   },
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "text",
+     "label": "https://github.com/XiaoyuChenPub/",
+     "snippet": "https://github.com/XiaoyuChenPub/",
+     "location": {
+      "page": 1,
+      "paragraph": 4,
+      "sentence": 2,
+      "line_start": null,
+      "line_end": null,
+      "section": "Abstract",
+      "start": 1542,
+      "end": 1575
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "The paper links a code repository (https://github.com/XiaoyuChenPub/).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-open_access-2"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "The paper links a code repository (https://github.com/XiaoyuChenPub/).",
+   "caveat": null,
+   "risk": 0,
+   "stability": null,
+   "checklist_key": "reproducibility",
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "b3dcd97c0917",
+   "type": "checklist",
+   "quote": "The core computer programs implementing ROLS are provided at https: //github.com/XiaoyuChenPub/ROLS. The paper provides algorithmic details and experimental settings in the main text and appendix, and all datasets used are publicly available and cited.",
+   "location": {
+    "page": 42,
+    "paragraph": 5,
+    "sentence": 1,
+    "line_start": null,
+    "line_end": null,
+    "section": "NeurIPS Paper Checklist",
+    "start": 143810,
+    "end": 144062
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "absolute",
+    "scope": "specific",
+    "markers": [
+     "all"
+    ]
+   },
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "text",
+     "label": "https://github.com/XiaoyuChenPub/",
+     "snippet": "https://github.com/XiaoyuChenPub/",
+     "location": {
+      "page": 1,
+      "paragraph": 4,
+      "sentence": 2,
+      "line_start": null,
+      "line_end": null,
+      "section": "Abstract",
+      "start": 1542,
+      "end": 1575
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "The paper links a code repository (https://github.com/XiaoyuChenPub/).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-open_access-2"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "The paper links a code repository (https://github.com/XiaoyuChenPub/).",
+   "caveat": null,
+   "risk": 0,
+   "stability": null,
+   "checklist_key": "open_access",
+   "rule_verdict": "supported",
+   "adjudication": null
+  }
+ ],
+ "checklist": [
+  {
+   "key": "claims",
+   "title": "Claims",
+   "answer": "Yes",
+   "justification": "The abstract and introduction state the cut-locus well-definedness condition (Theorem 3.4), a closed-form estimator (Theorem 3.3), convergence rates (Theorem 4.2), and asymptotic inference (Theorem 4.5). All are proved in the appendix and validated empirically in Sections 5–6.",
+   "status": "backed",
+   "reason": "No main claim in the abstract is contradicted by the paper's results.",
+   "evidence": []
+  },
+  {
+   "key": "limitations",
+   "title": "Limitations",
+   "answer": "Yes",
+   "justification": "Sections 3–7 discuss limitations including the scalar coefficient restriction (αj ∈R rather than a full linear map), the injectivity and tangent-linearity assumptions, the need for a fixed transport convention, and the requirement for closed-form geometric primitives, together with the same-manifold restriction, retraction-based approximations, multimodal responses, fixed dimension, and batch updates.",
+   "status": "unbacked",
+   "reason": "Answered Yes, but no limitations section or limitations paragraph was found.",
+   "evidence": []
+  },
+  {
+   "key": "theory",
+   "title": "Theory assumptions and proofs",
+   "answer": "Yes",
+   "justification": "All theorems are stated with explicit assumptions (Assumption 4.1 and conditions in each theorem statement). Complete proofs are given in the appendix.",
+   "status": "backed",
+   "reason": "Found \"Theorem 3\" in p. 2, ¶ 10 (1 Introduction).",
+   "evidence": [
+    {
+     "id": "ck-theory-1",
+     "kind": "text",
+     "label": "p. 2, ¶ 10 (1 Introduction)",
+     "snippet": "• We clarify when tangent-space linearization is geometrically valid by characterizing the local support and injectivity conditions required for estimation and inference, and by quantifying how cut-locus branching compromises identifiability outside this neighborhood (Theorem 3.4).",
+     "location": {
+      "page": 2,
+      "paragraph": 10,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 6794,
+      "end": 7076
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "reproducibility",
+   "title": "Experimental result reproducibility",
+   "answer": "Yes",
+   "justification": "The model and data-generating process are specified in Eq. (1) (Model) and described in detail in Appendix H.1 with all parameter values. Section 3.1 gives the complete estimation procedure. Appendix H provides full experimental details for all simulations and Appendix I for all case studies, including data sources, preprocessing, and hyperparameters.",
+   "status": "backed",
+   "reason": "The paper links a code repository (https://github.com/XiaoyuChenPub/).",
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "text",
+     "label": "https://github.com/XiaoyuChenPub/",
+     "snippet": "https://github.com/XiaoyuChenPub/",
+     "location": {
+      "page": 1,
+      "paragraph": 4,
+      "sentence": 2,
+      "line_start": null,
+      "line_end": null,
+      "section": "Abstract",
+      "start": 1542,
+      "end": 1575
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "open_access",
+   "title": "Open access to data and code",
+   "answer": "Yes",
+   "justification": "The core computer programs implementing ROLS are provided at https: //github.com/XiaoyuChenPub/ROLS. The paper provides algorithmic details and experimental settings in the main text and appendix, and all datasets used are publicly available and cited.",
+   "status": "backed",
+   "reason": "The paper links a code repository (https://github.com/XiaoyuChenPub/).",
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "text",
+     "label": "https://github.com/XiaoyuChenPub/",
+     "snippet": "https://github.com/XiaoyuChenPub/",
+     "location": {
+      "page": 1,
+      "paragraph": 4,
+      "sentence": 2,
+      "line_start": null,
+      "line_end": null,
+      "section": "Abstract",
+      "start": 1542,
+      "end": 1575
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "experimental_details",
+   "title": "Experimental setting/details",
+   "answer": "Yes",
+   "justification": "Section 5 specifies default parameters (n, p, q, τ, true coefficients). Appendix I details data splits (subject-blocked, repeated, and blocked-temporal CV as appropriate) and all preprocessing steps.",
+   "status": "backed",
+   "reason": "Found \"η = 1\" in p. 3, ¶ 8 (2 Notation and Preliminaries).",
+   "evidence": [
+    {
+     "id": "ck-experimental_details-3",
+     "kind": "text",
+     "label": "p. 3, ¶ 8 (2 Notation and Preliminaries)",
+     "snippet": "Curvature controls the distortion between tangent-space and manifold geometry. Let κ−≤ Sec(M) ≤κ+ denote sectional curvature bounds. The Hessian and Rauch comparison theorems [Cordero-Erausquin et al., 2001] introduce two distortion factors (explicit formulas in Appendix A): η(κ+, r) ∈(0, 1], which contracts distances on positively curved manifolds, and ̃η(κ−, r) ≥1, which expands distances on negatively curved ones. On non-negatively curved manifolds (S2, SO(3)), neither factor inflates (η ≤1,…",
+     "location": {
+      "page": 3,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "2 Notation and Preliminaries",
+      "start": 10427,
+      "end": 10963
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "error_bars",
+   "title": "Experiment statistical significance",
+   "answer": "Yes",
+   "justification": "Simulation results report mean ± standard deviation across Monte Carlo trials, with 100 trials for the prediction-accuracy and convergence-rate experiments (Tables 5, 6), 500 trials for Type I error and power, 300 trials for the bootstrap calibration (Table 7), and 30 trials for the misspecification probe. Case study RMSEs in Table 2 report mean ± standard deviation across cross-validation folds. Error bars in Figure 2 are ±1 Monte Carlo standard deviation across trials.",
+   "status": "backed",
+   "reason": "Table 2 reports spreads (±, CI or std) in its cells.",
+   "evidence": [
+    {
+     "id": "ck-error_bars-4",
+     "kind": "table",
+     "label": "Table 2",
+     "snippet": "Table 2: Real-data case studies: Fréchet RMSE (mean ± std across CV folds). Bold: lowest mean RMSE.\n |  |  |  | Scalar-only baselines |  |  | Manifold-aware methods | \nDataset | Manifold | Fr. mean | Geodesic | Fr. reg | SI-Fr. | NL-Fr. | ROLS (m) | ROLS\nDTI-CC | Sym+(3) | 1.138±.011 | 1.129±.012 | 1.130±.012 | 1.128±.012 | 1.134±.012 | .400±.017 | .400±.017\nProtein backbone T2 |  | 1.779±.009 | 1.215±.014 | 1.357±.014 | 1.220±.014 | 1.494±.014 | 1.395±.016 | 1.177±.016\nWind | S2 | .546±.114 | .447±.040 | .462±.071 | .456±.041 | .414±.078 | .098±.009 | .095±.005",
+     "location": {
+      "page": 9,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "6 Real-Data Case Studies",
+      "start": 33011,
+      "end": 33110
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "compute",
+   "title": "Experiments compute resources",
+   "answer": "No",
+   "justification": "The paper does not report specific compute resources. All experiments are lightweight (closed-form linear algebra on small-to-moderate datasets) and run on a standard laptop CPU in minutes. No GPU is required. Single-threaded timings of one ROLS fit are reported in Appendix H.8.",
+   "status": "not_applicable",
+   "reason": "Answered No.",
+   "evidence": []
+  },
+  {
+   "key": "ethics",
+   "title": "Code of ethics",
+   "answer": "Yes",
+   "justification": "The research is theoretical and methodological with no human subjects, no personally identifiable data, and no foreseeable negative societal impact.",
+   "status": "not_checkable",
+   "reason": "The passages describe data sources and analysis methods but contain no ethics statement or discussion from which conformance with the NeurIPS Code of Ethics could be judged, and P5's use of human MRI data even undercuts the justification's claim of no human subjects.",
+   "evidence": []
+  },
+  {
+   "key": "broader_impacts",
+   "title": "Broader impacts",
+   "answer": "NA",
+   "justification": "This is foundational statistical methodology for regression on Riemannian manifolds. It is not tied to a specific application that poses foreseeable societal risks. The case studies use publicly available scientific datasets.",
+   "status": "not_applicable",
+   "reason": "Answered NA.",
+   "evidence": []
+  },
+  {
+   "key": "safeguards",
+   "title": "Safeguards",
+   "answer": "NA",
+   "justification": "The paper does not release pre-trained models, generative models, or scraped datasets. The method is a statistical estimator with no dual-use risk.",
+   "status": "not_applicable",
+   "reason": "Answered NA.",
+   "evidence": []
+  },
+  {
+   "key": "licenses",
+   "title": "Licenses for existing assets",
+   "answer": "Yes",
+   "justification": "All datasets are cited with original references or public repositories (ABIDE- II diffusion MRI, Protein Data Bank, NCEP/NCAR Reanalysis 1). Data sources and preprocessing are provided in Appendix I.",
+   "status": "unbacked",
+   "reason": "The passages show the datasets are credited via citations (ABIDE-II, PDB, NCEP/NCAR) and describe preprocessing, but nowhere do they explicitly mention licenses or terms of use, which the checklist question requires.",
+   "evidence": []
+  },
+  {
+   "key": "new_assets",
+   "title": "New assets",
+   "answer": "Yes",
+   "justification": "The ROLS code is released at https://github.com/XiaoyuChenPub/ ROLS under the CC BY-NC 4.0 license, with installation instructions and a usage example.",
+   "status": "unbacked",
+   "reason": "The paper only states that the code is available at a URL and never mentions the CC BY-NC 4.0 license, installation instructions, or a usage example claimed in the justification.",
+   "evidence": []
+  },
+  {
+   "key": "human_subjects",
+   "title": "Crowdsourcing and research with human subjects",
+   "answer": "NA",
+   "justification": "The paper does not involve crowdsourcing or research with human subjects.",
+   "status": "not_applicable",
+   "reason": "Answered NA.",
+   "evidence": []
+  },
+  {
+   "key": "llm_usage",
+   "title": "Declaration of LLM usage",
+   "answer": "NA",
+   "justification": "LLMs are not used as a component of the core methodology.",
+   "status": "not_applicable",
+   "reason": "Answered NA.",
+   "evidence": []
+  }
+ ],
+ "code": {
+  "available": true,
+  "files": 37,
+  "static": [],
+  "reruns": [
+   {
+    "status": "missing_data",
+    "reason": "python -m simulations.run_all --quick --workers 4 -> FileNotFoundError: [Errno 2] No such file or directory: 'latex'",
+    "agent_status": "failed",
+    "agent_note": "Ran the submitted main entry point unmodified with the README's smoke-test budget: `python -m simulations.run_all --quick --workers 4`. All ten simulation modules completed and wrote their quick results, but the overall command exited 1 during final Figure 2 assembly (`simulations.headline --quick`) because Matplotlib could not find LaTeX: `RuntimeError: Failed to process string with tex because latex could not be found`. The README explicitly notes that headline requires a LaTeX installation.",
+    "commands": [
+     "$ python -m simulations.run_all --quick --workers 4   # exit 1, 308.1 s"
+    ],
+    "modifications": [],
+    "modified": false,
+    "as_shipped": {
+     "outcome": "missing_data",
+     "cmd": "python -m simulations.run_all --quick --workers 4",
+     "rc": 1,
+     "error_line": "FileNotFoundError: [Errno 2] No such file or directory: 'latex'",
+     "runs_ok": 0,
+     "crashed": 0,
+     "missing_data": 1
+    },
+    "minutes": 6.66,
+    "run_status": "missing_data",
+    "command_log": [
+     {
+      "cmd": "python -m simulations.run_all --quick --workers 4",
+      "rc": 1,
+      "seconds": 308.1,
+      "timed_out": false,
+      "entry": true,
+      "modified_before": false,
+      "modified_after": false,
+      "error_line": "subprocess.CalledProcessError: Command '['/usr/local/bin/python', '-m', 'simulations.headline', '--quick']' returned non-zero exit status 1."
+     }
+    ],
+    "install_failed": false
+   }
+  ],
+  "code_version": "1.0.0+9a7645ba1379"
+ },
+ "summary": {
+  "counts": {
+   "contradicted": 0,
+   "overstated": 0,
+   "untraced": 3,
+   "not_checkable": 2,
+   "supported": 26
+  },
+  "n_claims": 31,
+  "n_checklist_claims": 10,
+  "flagged_share": 0.0968,
+  "main_flagged_share": 0.0,
+  "n_main": 5,
+  "checklist": {
+   "backed": 6,
+   "unbacked": 3,
+   "not_applicable": 5,
+   "not_checkable": 1
+  },
+  "stability_mean": null,
+  "adjudicated": 2,
+  "downgraded": 1,
+  "code": {
+   "static": {
+    "status": "done",
+    "reason": "6 of 7 core facts not found in the code",
+    "core_facts": 7,
+    "present": 1,
+    "absent": 6,
+    "contradicts": 0,
+    "facts": 8,
+    "unverified": 0,
+    "mismatch": true,
+    "dropped": {}
+   },
+   "reruns": [
+    {
+     "status": "missing_data",
+     "run_status": "missing_data",
+     "agent_status": "failed",
+     "minutes": 6.66,
+     "extracted": 0
+    }
+   ],
+   "verdicts_changed": 0
+  }
+ },
+ "code_stage": {
+  "status": "done",
+  "source": {
+   "kind": "repo",
+   "url": "https://github.com/XiaoyuChenPub/ROLS",
+   "host": "github",
+   "fetched_at": "2026-11-16"
+  },
+  "files": 37,
+  "static": {
+   "status": "done",
+   "reason": ""
+  },
+  "rerun": {
+   "attempted": true,
+   "minutes": 6.66,
+   "status": "missing_data"
+  },
+  "started_at": "2026-11-16T20:22:40+00:00",
+  "finished_at": "2026-11-16T20:31:28+00:00"
+ }
+}
