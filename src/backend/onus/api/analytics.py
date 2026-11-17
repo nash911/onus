@@ -91,11 +91,27 @@ def opted_out(request: Request) -> bool:
     return request.headers.get("dnt") == "1" or request.headers.get("sec-gpc") == "1"
 
 
+# Substrings of crawler, scraper, preview and HTTP-library user agents (lower case).
+BOT_UA_MARKERS = (
+    "bot", "crawl", "spider", "slurp", "scrape", "fetcher", "preview", "headless", "phantomjs", "puppeteer",
+    "playwright", "selenium", "lighthouse", "pagespeed", "facebookexternalhit", "embedly", "exauser", "exa.ai",
+    "perplexity", "chatgpt", "gptbot", "anthropic", "claude-web", "ccbot", "bytespider", "petalbot", "ahrefs",
+    "semrush", "dataforseo", "mj12", "zgrab", "masscan", "nmap", "nuclei", "censys", "shodan", "expanse",
+    "curl", "wget", "python", "httpx", "aiohttp", "go-http-client", "okhttp", "java/", "node-fetch", "axios",
+    "undici", "libwww", "scrapy", "httpclient", "postman", "insomnia",
+)
+# How long a visitor stays a bot after a crawler user agent was seen from it: crawlers often render the page
+# with an ordinary-looking browser from the same address a moment later.
+BOT_MEMORY_S = 600.0
+
+
 def client_kind(user_agent: str) -> str:
-    ua = user_agent.lower()
+    ua = user_agent.lower().strip()
     if not ua:
         return "unknown"
-    if any(b in ua for b in ("bot", "crawl", "spider", "slurp", "curl", "wget", "python", "httpx", "headless")):
+    if any(b in ua for b in BOT_UA_MARKERS):
+        return "bot"
+    if not ua.startswith("mozilla/") and not ua.startswith("opera/"):  # every real browser sends Mozilla/5.0
         return "bot"
     if any(m in ua for m in ("mobile", "android", "iphone", "ipad")):
         return "mobile"
@@ -193,6 +209,21 @@ class AnalyticsSink:
         self._task: asyncio.Task | None = None
         self._last_purge = 0.0
         self.dropped = 0
+        self._bot_seen: dict[str, float] = {}  # visitor -> monotonic time a crawler user agent was last seen
+
+    def classify(self, visitor: str, user_agent: str, now: float | None = None) -> str:
+        """`client_kind`, except that a visitor seen with a crawler user agent in the last `BOT_MEMORY_S` seconds
+        stays a bot (a crawler's page renderer looks like a browser)."""
+        now = time.monotonic() if now is None else now
+        kind = client_kind(user_agent)
+        with self._lock:
+            if kind == "bot":
+                self._bot_seen[visitor] = now
+                if len(self._bot_seen) > 10_000:
+                    self._bot_seen = {k: t for k, t in self._bot_seen.items() if now - t < BOT_MEMORY_S}
+            elif now - self._bot_seen.get(visitor, -1e18) < BOT_MEMORY_S:
+                kind = "bot"
+        return kind
 
     def add(self, row: Event | RequestLog) -> None:
         if not self.enabled:
@@ -273,12 +304,13 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
                     m = re.match(r"^/analyses/([A-Za-z0-9-]{1,36})/?$", path)
                     aid = m.group(1) if m else None
                     template = "page:/" if path == "/" else ("page:/analyses/{id}" if aid else f"page:{path[:60]}")
-                sink.add(RequestLog(visitor=visitor_id(request, ctx.salt), method=request.method,
+                visitor = visitor_id(request, ctx.salt)
+                sink.add(RequestLog(visitor=visitor, method=request.method,
                                     route=str(template)[:128], path=path[:255], status=response.status_code,
                                     ms=round((time.perf_counter() - t0) * 1000, 1),
                                     analysis_id=aid if isinstance(aid, str) and ID_RE.match(aid) else None,
                                     referrer_host=referrer_host(request),
-                                    client=client_kind(request.headers.get("user-agent", ""))))
+                                    client=sink.classify(visitor, request.headers.get("user-agent", ""))))
         except Exception as e:  # noqa: BLE001 - analytics must never break the app
             log.debug("analytics: request not logged: %s", type(e).__name__)
         return response

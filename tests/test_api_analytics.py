@@ -70,6 +70,7 @@ def test_request_log_records_api_and_pages_but_not_polling(env, tmp_path):  # no
     dist.mkdir()
     (dist / "index.html").write_text("<html></html>")
     with client_for(env) as c:
+        c.headers["User-Agent"] = "Mozilla/5.0 (X11; Linux x86_64) Chrome/140"  # a browser, not the test client
         aid = c.get("/api/papers").json()["items"][0]["analysis_id"]
         c.get(f"/api/analyses/{aid}", headers={"Referer": "https://news.example.org/post",
                                                "User-Agent": "Mozilla/5.0 (iPhone)"})
@@ -157,7 +158,26 @@ def test_purge_and_failed_writes_never_raise(tmp_path):
 
 def test_helpers():
     assert client_kind("Mozilla/5.0 (X11; Linux x86_64) Chrome/140") == "desktop"
+    assert client_kind("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1") == "mobile"
     assert client_kind("Googlebot/2.1") == "bot" and client_kind("") == "unknown"
+    assert client_kind("Mozilla/5.0 (compatible; ExaUser/1.0; +https://exauser.crawler.exa.ai)") == "bot"
+    assert client_kind("chtraba9a/0.1") == "bot"  # not a browser at all
+    assert client_kind("Go-http-client/1.1") == "bot"
+
+
+def test_a_crawlers_renderer_is_remembered_as_a_bot(tmp_path):
+    from onus.db.session import init_db, make_engine, make_sessionmaker
+
+    engine = make_engine(f"sqlite:///{tmp_path}/b.db")
+    init_db(engine)
+    sink = AnalyticsSink(make_sessionmaker(engine))
+    chrome = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+    assert sink.classify("v1", chrome, now=0) == "desktop"
+    assert sink.classify("v2", "Mozilla/5.0 (compatible; ExaUser/1.0)", now=10) == "bot"
+    assert sink.classify("v2", chrome, now=11) == "bot"  # same address, a moment later
+    assert sink.classify("v2", chrome, now=10 + 601) == "desktop"  # memory expired
+    assert sink.classify("v1", chrome, now=12) == "desktop"
+    engine.dispose()
     assert clean_events({"session": SID, "events": [{"type": "tab_switch", "props": {"tab": "code"}}]}) == \
         (SID, [{"type": "tab_switch", "ago_ms": 0, "path": None, "analysis_id": None, "props": {"tab": "code"}}])
     _, ev = clean_events({"session": SID, "events": [{"type": "heartbeat", "ago": 9e9}, {"type": "heartbeat", "ago": -5}]})
