@@ -3,7 +3,7 @@
 **Claim-to-evidence maps for research papers, with a measured error rate.**
 
 **Live app: [www.onuscheck.com](https://www.onuscheck.com)** · Paper: [`paper/onus.pdf`](paper/onus.pdf) ·
-Evaluation protocol: [`docs/public/eval_protocol.md`](docs/public/eval_protocol.md) ·
+One-pager: [`paper/onepager.pdf`](paper/onepager.pdf) · Evaluation protocol: [`docs/public/eval_protocol.md`](docs/public/eval_protocol.md) ·
 Run log: [`docs/public/eval_log.md`](docs/public/eval_log.md)
 
 Built by **[Avinash Ranganath](https://avinashranganath.com)** for the AI4MetaScience Hackathon 2026, Task 3 (claim-to-evidence
@@ -107,8 +107,37 @@ cd src/frontend && npm ci && npm run dev
 docker build -t onus . && docker run -p 8000:8000 -e PORT=8000 --env-file .env onus
 ```
 
+At startup the API imports the result bundles in `ONUS_RESULTS_IMPORT_DIR` (default `./deploy_data`); point it at
+an empty folder to serve only your own analyses.
+
+To open your command-line results in the two-pane report view (PDF on the left, claims on the right), import
+them as local analyses with their PDFs. This writes only to the SQLite database inside `ONUS_VAR_DIR` and prints
+each report's URL:
+
+```bash
+poetry run onus dev-seed --results results --split-root mypaper --papers 1
+```
+
+Other commands (all without model calls):
+
+| Command | What |
+| --- | --- |
+| `onus anchors-eval --results … --split-root … --out anchors.json` | How well PDF highlights land: page, method and token F1 for each claim and evidence item |
+| `onus export-numbers --metrics … --findings … [--labels …] --out numbers.md` | Every headline number with its 95% interval, n, source file and command |
+
 Tests: `poetry run pytest` (no network; live tests are opt-in with `-m live`). The corpus data is not
 redistributed here; the Agents4Science submissions are public on OpenReview.
+
+Serving settings (rate limits, live code checks, analytics) are read from the environment; the full table is in
+[`src/backend/onus/api/settings.py`](src/backend/onus/api/settings.py).
+
+## Privacy
+
+The web app records anonymous usage so the author can see how reports are read: one row per request, and
+interaction events such as opening a claim or clicking evidence. There are no cookies and no free text. The
+session id is random per browser tab, and visitors are identified only by a truncated, salted hash of their IP.
+Requests with `DNT: 1` or `Sec-GPC: 1` are not recorded, and rows are deleted after 90 days
+(`ANALYTICS_RETENTION_DAYS`). Set `ONUS_ANALYTICS=0` to turn it off. Uploaded PDFs are stored to serve the report.
 
 ## Repository layout
 
@@ -121,7 +150,7 @@ redistributed here; the Agents4Science submissions are public on OpenReview.
 | `frozen.json` | The frozen version and fingerprints |
 | `docs/public/` | Evaluation protocol, run log, submission numbers |
 | `evals/` | Aggregate tables of the pre-freeze eval runs |
-| `paper/` | Workshop paper (LaTeX) |
+| `paper/` | The paper and a one-pager (LaTeX source and PDF) |
 | `deploy_data/` | Result bundles, metrics and findings imported by the app at startup |
 
 ## Author
