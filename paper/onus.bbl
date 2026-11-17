@@ -1,0 +1,130 @@
+\begin{thebibliography}{16}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Bianchi et~al.(2025)Bianchi, Queen, Thakkar, Sun, and
+  Zou]{bianchi2025agents4science}
+Federico Bianchi, Owen Queen, Nitya Thakkar, Eric Sun, and James Zou.
+\newblock Exploring the use of {AI} authors and reviewers at {Agents4Science}.
+\newblock \emph{arXiv preprint arXiv:2511.15534}, 2025.
+
+\bibitem[Brown and Heathers(2017)]{brown2017grim}
+Nicholas J.~L. Brown and James A.~J. Heathers.
+\newblock The {GRIM} test: A simple technique detects numerous anomalies in the
+  reporting of results in psychology.
+\newblock \emph{Social Psychological and Personality Science}, 8\penalty0
+  (4):\penalty0 363--369, 2017.
+\newblock \doi{10.1177/1948550616673876}.
+
+\bibitem[DeMillo et~al.(1978)DeMillo, Lipton, and Sayward]{demillo1978hints}
+Richard~A. DeMillo, Richard~J. Lipton, and Frederick~G. Sayward.
+\newblock Hints on test data selection: Help for the practicing programmer.
+\newblock \emph{Computer}, 11\penalty0 (4):\penalty0 34--41, 1978.
+\newblock \doi{10.1109/C-M.1978.218136}.
+
+\bibitem[Liang et~al.(2024)Liang, Zhang, Cao, Wang, Ding, Yang,
+  et~al.]{liang2024can}
+Weixin Liang, Yuhui Zhang, Hancheng Cao, Binglu Wang, Daisy~Yi Ding, Xinyu
+  Yang, et~al.
+\newblock Can large language models provide useful feedback on research papers?
+  {A} large-scale empirical analysis.
+\newblock \emph{NEJM AI}, 1\penalty0 (8), 2024.
+\newblock \doi{10.1056/AIoa2400196}.
+
+\bibitem[Lipton and Steinhardt(2019)]{lipton2019troubling}
+Zachary~C. Lipton and Jacob Steinhardt.
+\newblock Troubling trends in machine learning scholarship.
+\newblock \emph{Queue}, 17\penalty0 (1):\penalty0 45--77, 2019.
+\newblock \doi{10.1145/3317287.3328534}.
+
+\bibitem[Lu et~al.(2024)Lu, Lu, Lange, Foerster, Clune, and
+  Ha]{lu2024aiscientist}
+Chris Lu, Cong Lu, Robert~Tjarko Lange, Jakob Foerster, Jeff Clune, and David
+  Ha.
+\newblock The {AI} scientist: Towards fully automated open-ended scientific
+  discovery.
+\newblock \emph{arXiv preprint arXiv:2408.06292}, 2024.
+
+\bibitem[Nuijten et~al.(2016)Nuijten, Hartgerink, van Assen, Epskamp, and
+  Wicherts]{nuijten2016prevalence}
+Mich{\`e}le~B. Nuijten, Chris H.~J. Hartgerink, Marcel A. L.~M. van Assen,
+  Sacha Epskamp, and Jelte~M. Wicherts.
+\newblock The prevalence of statistical reporting errors in psychology
+  (1985--2013).
+\newblock \emph{Behavior Research Methods}, 48\penalty0 (4):\penalty0
+  1205--1226, 2016.
+\newblock \doi{10.3758/s13428-015-0664-2}.
+
+\bibitem[Pineau et~al.(2020)Pineau, Vincent-Lamarre, Sinha, Larivi{\`e}re,
+  Beygelzimer, d'Alch{\'e} Buc, et~al.]{pineau2021improving}
+Joelle Pineau, Philippe Vincent-Lamarre, Koustuv Sinha, Vincent Larivi{\`e}re,
+  Alina Beygelzimer, Florence d'Alch{\'e} Buc, et~al.
+\newblock Improving reproducibility in machine learning research (a report from
+  the {NeurIPS} 2019 reproducibility program).
+\newblock \emph{arXiv preprint arXiv:2003.12206}, 2020.
+
+\bibitem[Robertson and Zaragoza(2009)]{robertson2009bm25}
+Stephen Robertson and Hugo Zaragoza.
+\newblock The probabilistic relevance framework: {BM25} and beyond.
+\newblock \emph{Foundations and Trends in Information Retrieval}, 4\penalty0
+  (1--2):\penalty0 1--174, 2009.
+\newblock \doi{10.1561/1500000019}.
+
+\bibitem[Shen et~al.(2026)Shen, Wu, Liu, Qi, and Chen]{shen2026beyond}
+Qiuhong Shen, Benlong Wu, Hanjin Liu, Yuang Qi, and Kejiang Chen.
+\newblock Beyond the text: Verifying that agent-written papers are backed by
+  their artifacts.
+\newblock \emph{arXiv preprint arXiv:2609.22111}, 2026.
+
+\bibitem[Siegel et~al.(2024)Siegel, Kapoor, Nadgir, Stroebl, and
+  Narayanan]{siegel2024corebench}
+Zachary~S. Siegel, Sayash Kapoor, Nitya Nadgir, Benedikt Stroebl, and Arvind
+  Narayanan.
+\newblock {CORE-Bench}: Fostering the credibility of published research through
+  a computational reproducibility agent benchmark.
+\newblock \emph{arXiv preprint arXiv:2409.11363}, 2024.
+
+\bibitem[Starace et~al.(2025)Starace, Jaffe, Sherburn, Aung, Chan, Maksin,
+  et~al.]{starace2025paperbench}
+Giulio Starace, Oliver Jaffe, Dane Sherburn, James Aung, Jun~Shern Chan, Leon
+  Maksin, et~al.
+\newblock {PaperBench}: Evaluating {AI}'s ability to replicate {AI} research.
+\newblock \emph{arXiv preprint arXiv:2504.01848}, 2025.
+
+\bibitem[Thorne et~al.(2018)Thorne, Vlachos, Christodoulopoulos, and
+  Mittal]{thorne2018fever}
+James Thorne, Andreas Vlachos, Christos Christodoulopoulos, and Arpit Mittal.
+\newblock {FEVER}: a large-scale dataset for fact extraction and
+  {VER}ification.
+\newblock In \emph{Proceedings of the 2018 Conference of the North American
+  Chapter of the Association for Computational Linguistics: Human Language
+  Technologies, Volume 1 (Long Papers)}, pages 809--819, 2018.
+\newblock \doi{10.18653/v1/N18-1074}.
+
+\bibitem[Wadden et~al.(2020)Wadden, Lin, Lo, Wang, van Zuylen, Cohan,
+  et~al.]{wadden2020fact}
+David Wadden, Shanchuan Lin, Kyle Lo, Lucy~Lu Wang, Madeleine van Zuylen, Arman
+  Cohan, et~al.
+\newblock Fact or fiction: Verifying scientific claims.
+\newblock In \emph{Proceedings of the 2020 Conference on Empirical Methods in
+  Natural Language Processing (EMNLP)}, pages 7534--7550, 2020.
+\newblock \doi{10.18653/v1/2020.emnlp-main.609}.
+
+\bibitem[Wang et~al.(2024)Wang, Yang, Huang, Yang, Majumder, and
+  Wei]{wang2024multilingual}
+Liang Wang, Nan Yang, Xiaolong Huang, Linjun Yang, Rangan Majumder, and Furu
+  Wei.
+\newblock Multilingual {E5} text embeddings: A technical report.
+\newblock \emph{arXiv preprint arXiv:2402.05672}, 2024.
+
+\bibitem[Wilson(1927)]{wilson1927probable}
+Edwin~B. Wilson.
+\newblock Probable inference, the law of succession, and statistical inference.
+\newblock \emph{Journal of the American Statistical Association}, 22\penalty0
+  (158):\penalty0 209--212, 1927.
+\newblock \doi{10.1080/01621459.1927.10502953}.
+
+\end{thebibliography}

@@ -56,7 +56,7 @@ code/     ─► (text,    (quotes   (explicit    (numbers,   (precedence
 
 ## How we know how well it works
 
-Onus was built by AI coding agents that could only see a 10-paper development split. The evaluation followed a
+All development and tuning used only a 10-paper development split. The evaluation followed a
 protocol written before any held-out data was touched:
 
 - **Corpus:** the 247 Agents4Science 2025 submissions, split once with a fixed seed into dev / eval / test_1 /
@@ -66,12 +66,22 @@ protocol written before any held-out data was touched:
 - **Freeze:** after two eval runs the pipeline was frozen at v1.0.0 (fingerprint `9ad544b97609`); a test fails
   on any drift. The two test splits were then run once each, and every run was logged before it started.
 - **Measures:** recall on five kinds of planted errors, against a single-prompt baseline, with each system's flag
-  rate on unmutated papers alongside; precision on a blind, labelled sample of flags; stability across three runs;
+  rate on unmutated papers alongside; precision on a blind, labelled sample of flags (AI-drafted, author-reviewed); stability across three runs;
   agreement of code checks with the conference's code audit. All proportions carry Wilson 95% intervals.
 
-Headline numbers: [`docs/public/submission_numbers.md`](docs/public/submission_numbers.md) and the
-[paper](paper/onus.pdf). Pre-freeze go/no-go run (eval #2): planted-error
-recall 83% [66–93%] vs. 80% [63–90%] for the baseline, while flagging 21% of claims on unmutated papers vs. 31%.
+Held-out results (frozen v1.0.0, test_1 / test_2, three runs per paper; full tables in
+[`docs/public/submission_numbers.md`](docs/public/submission_numbers.md) and the [paper](paper/onus.pdf)):
+
+| | Onus | Single-prompt baseline |
+| --- | --- | --- |
+| Planted-error recall | 70% [58–80] / 75% [62–84] | 76% [64–85] / 78% [66–87] |
+| Claims flagged on unmutated papers | 15% / 15% | 29% / 32% |
+| Precision on blind labels (test_1) | 67% [54–78] | 89% [72–96] |
+| Same verdict in all three runs | 84% / 84% | — |
+
+Onus reaches recall within the baseline's interval while flagging half as many claims, but its flags are less
+precise; the `untraced` verdict is the main source of wrong flags. Precision labels were drafted by an AI
+assistant blind to the system and reviewed by the author (none changed).
 
 ## Run it locally
 

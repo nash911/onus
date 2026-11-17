@@ -1,0 +1,113 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,top=1.4cm,bottom=1.3cm,left=1.6cm,right=1.6cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[scaled=0.88]{helvet}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage[hidelinks]{hyperref}
+\pagestyle{empty}
+\setlist{nosep,leftmargin=1.1em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{3pt}
+\setlength{\columnsep}{0.55cm}
+\definecolor{ink}{HTML}{1B2A41}
+\definecolor{acc}{HTML}{B4462B}
+\newcommand{\onus}{\textsc{Onus}}
+\newcommand{\hd}[1]{\vspace{3pt}{\sffamily\bfseries\color{ink}#1}\par\vspace{1pt}}
+\newcommand{\vd}[1]{\textsf{\small #1}}
+
+\begin{document}
+{\sffamily\color{ink}{\LARGE\bfseries \onus{}}\hfill{\small\href{https://www.onuscheck.com}{www.onuscheck.com} \;·\;
+\href{https://github.com/nash911/onus}{github.com/nash911/onus}}\par
+\vspace{2pt}{\large Claim-to-evidence maps for research papers, with a measured error rate}\par
+\vspace{1pt}{\small Avinash Ranganath \;·\; \href{https://avinashranganath.com}{avinashranganath.com} \;·\;
+AI4MetaScience Hackathon 2026, Task 3}\par}
+\vspace{2pt}{\color{ink}\rule{\linewidth}{0.8pt}}
+
+\begin{multicols}{2}
+\hd{The problem}
+Reviewers rarely trace each claim to the evidence behind it, so confident wording passes for support. A
+method ``consistently outperforms'' on two of five datasets; an abstract number differs from its table; a
+checklist says ``Yes'' to error bars that are not there; code is promised but missing. Fluent AI-written
+papers make this cheaper to produce and harder to spot.
+
+\hd{What \onus{} returns}
+Give it an arXiv or OpenReview id, or a PDF (optionally with code). It returns a \textbf{claim map}: every
+major claim quoted verbatim and located, linked to the table cells, passages, checklist answers and code
+lines that bear on it, and given one verdict with a reason: \vd{supported}, \vd{overstated},
+\vd{untraced}, \vd{contradicted} or \vd{not\_checkable}. A ledger states what was \emph{not} checked and why.
+The report shows the PDF beside the claims; clicking a claim or a piece of evidence highlights it in the paper.
+There is no overall score.
+
+\hd{How it works}
+\begin{itemize}
+  \item \textbf{Code computes, the model points.} Language models extract claims and choose evidence from
+    verified candidates. Every quote is checked against the text and every evidence id must come from the
+    candidate list. Arithmetic, table comparisons, checklist rules and verdict precedence are plain code.
+  \item \textbf{Code checks.} If code is linked or uploaded, \onus{} matches the paper's implementation facts
+    to code lines and re-runs the code in an isolated, network-off sandbox.
+  \item \textbf{Cheap and fast.} About \texteuro0.10 and 5--8 minutes for a 15-page paper.
+\end{itemize}
+
+\hd{How we measured it}
+247 Agents4Science 2025 papers, split into dev (10), eval (20) and two test splits (30 each). All
+development and tuning used only dev data. The eval split was the pre-freeze go/no-go; the version
+was then frozen and fingerprinted, and each test split was run once, three runs per paper. Recall uses
+errors planted in held-out papers (five types), against a single-prompt baseline given the same claims.
+The protocol and every run are logged publicly in the repository.
+
+\end{multicols}
+
+\vfill
+\hd{Results on held-out papers}
+\begin{center}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+ & \multicolumn{2}{c}{test\_1 (frozen, run once)} & \multicolumn{2}{c}{test\_2 (frozen, run once)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+ & \onus{} & Baseline & \onus{} & Baseline \\
+\midrule
+\textbf{Claims flagged, unmutated papers} & \textbf{15\%} [12--18] & 29\% [25--33] & \textbf{15\%} [13--18] & 32\% [29--36] \\
+Planted-error recall & 70\% [58--80] & 76\% [64--85] & 75\% [62--84] & 78\% [66--87] \\
+Collateral flags & 2\% [1--3] & 6\% [5--8] & 3\% [2--4] & 4\% [3--6] \\
+Precision, blind labels & 67\% [54--78] & 89\% [72--96] & --- & --- \\
+Same verdict in all 3 runs & 84\% & --- & 84\% & --- \\
+\bottomrule
+\end{tabular}\\[3pt]
+{\footnotesize 30 papers per split; Wilson 95\% intervals. Pre-freeze eval split (20 papers): recall 83\% vs.\
+80\%, flags 21\% vs.\ 31\%.}
+\end{center}
+
+\vspace{-2pt}\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{\textbf{Half the flags, similar
+recall.} On every split \onus{} flags about half as many claims as the baseline, with recall inside the
+baseline's interval. For a reviewer, that is attention spent on fewer claims.}}
+
+\vspace{3pt}Its flags are not yet more precise: \vd{untraced} is right only 18 of 31 times, and it misses more
+changed abstract numbers (4 of 11 vs.\ 10 of 11 on test\_1). Those are the next things to fix.
+
+\vfill
+\begin{multicols}{2}
+\hd{Across 90 Agents4Science papers}
+\begin{itemize}
+  \item Checklist ``Yes'' answers the paper does not back: theory 12 of 18, broader impacts 35 of 69,
+    compute 18 of 56, limitations 19 of 81.
+  \item 68 papers have code; re-runs were attempted on 48 and only 3 reproduced the paper's values.
+  \item A paper's flagged share is unrelated to its review scores ($\rho=-0.05$ AI, $0.10$ human) and to
+    acceptance ($p=0.82$).
+\end{itemize}
+\columnbreak
+\hd{Limits}
+About 60 planted errors per split (about $\pm$11 points). Planted errors are text-level, five types.
+Precision labels were AI-drafted and reviewed by one author. Re-runs are CPU-only and time-capped; live
+analyses run once.
+
+\hd{Try it}
+\href{https://www.onuscheck.com}{www.onuscheck.com} \;·\; code, protocol and run log:
+\href{https://github.com/nash911/onus}{github.com/nash911/onus}
+\end{multicols}
+\end{document}

@@ -1,0 +1,252 @@
+\documentclass[10pt,twocolumn,twoside,letterpaper]{article}
+
+% ---------------------------------------------------------------- layout (workshop style, two columns)
+\usepackage[letterpaper,top=0.9in,bottom=0.9in,left=0.75in,right=0.75in,columnsep=0.25in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage[scaled=0.86]{helvet}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage[font=small,labelfont=bf,skip=4pt]{caption}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage[hidelinks]{hyperref}
+
+\titleformat{\section}{\normalfont\large\bfseries}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\normalfont\normalsize\bfseries}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.0ex plus 0.4ex}{0.6ex}
+\titlespacing*{\subsection}{0pt}{0.8ex plus 0.3ex}{0.4ex}
+\setlist{nosep,leftmargin=*}
+\setlength{\parskip}{0pt}
+\setlength{\bibsep}{1pt}
+\renewcommand{\bibfont}{\footnotesize}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\footnotesize\thepage}
+\fancyhead[RE,LO]{\footnotesize\textit{Onus: claim-to-evidence maps for research papers}}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% placeholders for numbers that are not in yet (held-out test runs)
+\newcommand{\TBD}[1]{\textcolor{red}{\textbf{[#1]}}}
+\newcommand{\onus}{\textsc{Onus}}
+\newcommand{\verdict}[1]{\texttt{#1}}
+
+\title{\vspace{-2.2em}\Large\bfseries \onus{}: Claim-to-Evidence Maps for Research Papers,\\with a Measured Error Rate}
+\author{Avinash Ranganath\\[1pt]{\small \href{https://avinashranganath.com}{avinashranganath.com} \quad AI4MetaScience Hackathon 2026, Task 3 (claim-to-evidence linker)}}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\maketitle
+\thispagestyle{fancy}
+
+% ================================================================ abstract
+\begin{abstract}
+\noindent
+Reviewers rarely trace each claim in a paper to the evidence behind it, so confident wording passes for
+support. We present \onus{}, which turns a paper (PDF, arXiv or OpenReview identifier) into a \emph{claim
+map}: every major claim is quoted verbatim with its location, linked to the table cells, passages, checklist
+answers and code lines that bear on it, and given one of five verdicts (\verdict{supported},
+\verdict{overstated}, \verdict{untraced}, \verdict{contradicted}, \verdict{not\_checkable}) with a reason.
+Language models only \emph{point}; arithmetic, table comparisons, checklist rules and verdict precedence are
+code. Where code is available, \onus{} matches the paper's implementation facts to code lines and re-runs the
+code in a sandbox. We evaluate on the 247 Agents4Science 2025 submissions with a frozen, fingerprinted
+version and held-out test sets run once. On held-out papers, \onus{} flags half as many claims as a
+single-prompt baseline (15\% vs.\ 29--32\% of claims on unmutated papers) at statistically similar recall of
+planted errors: 70\% [58--80] vs.\ 76\% [64--85] on test\_1 and 75\% [62--84] vs.\ 78\% [66--87] on the
+replication set test\_2. Its flags are less precise on blind labels (67\% vs.\ 89\%), mostly because of
+\verdict{untraced} verdicts. A deployed web app analyses a 15-page paper in 5--8 minutes for about
+\texteuro0.10.
+\end{abstract}
+
+% ================================================================ 1 introduction
+\section{Introduction}
+Peer review assumes that a paper's claims are backed by its own results. In practice, wording often outruns
+evidence: a method ``consistently outperforms'' baselines on two of five datasets, an abstract number differs
+from its table, or promised code is missing \citep{lipton2019troubling}. The problem grows as language models
+make fluent papers cheap. At Agents4Science 2025, where AI agents were primary authors \emph{and} reviewers
+\citep{bianchi2025agents4science}, 42 of 247 submissions point to code that is not there, and the
+conference's audit of its 48 accepted papers found 6 critical paper--code mismatches.
+
+\onus{} produces a claim map that a reviewer can inspect and dispute, not a score to trust. Our
+contributions: (i) a claim map that joins text, numbers, checklist and code, with located evidence, the
+checks that ran, a verdict with a reason, stability across runs and a ledger of what was \emph{not} checked;
+(ii) a ``code computes, the model points'' design in which every model quote, evidence identifier and cited
+code line is verified; (iii) an evaluation that could not be tuned on its test data, reporting recall,
+precision, a baseline and stability as they came out; and (iv) a deployed system for arXiv, OpenReview or
+uploaded papers, with live code checks.
+
+\textbf{Related work.} Rule-based tools recompute one error type at scale: statcheck for $p$-values
+\citep{nuijten2016prevalence}, GRIM for impossible means \citep{brown2017grim}. Reproducibility work produced
+checklists and code policies \citep{pineau2021improving}, benchmarks for reproducing results from code or
+papers \citep{siegel2024corebench,starace2025paperbench}, and repository-level audits of agent-written papers
+\citep{shen2026beyond}. FEVER and SciFact frame verification as retrieving and labelling evidence
+\citep{thorne2018fever,wadden2020fact}; LLM reviewers overlap with human reviews \citep{liang2024can}, and
+automated pipelines now write and review papers \citep{lu2024aiscientist}. \onus{} recomputes rather than
+judges, works per claim across error types, and uses the paper's own tables, checklist and code as the
+evidence base.
+
+% ================================================================ 2 system
+\section{The \onus{} System}
+\label{sec:system}
+
+\begin{figure*}[t]
+\centering
+\begin{tikzpicture}[
+  node distance=0.30cm,
+  box/.style={draw, rounded corners=2pt, align=center, font=\footnotesize, minimum height=1.0cm,
+              text width=1.95cm, fill=#1},
+  box/.default={gray!8},
+  arr/.style={-{Stealth[length=4pt]}, thick}]
+\node[box=blue!6]   (in)  {\textbf{Paper}\\PDF / arXiv /\\OpenReview\\+ code};
+\node[box, right=of in]  (ing) {\textbf{Ingest}\\text, sections,\\tables, captions,\\checklist};
+\node[box, right=of ing] (cl)  {\textbf{Claims}\\LLM extracts;\\quotes verified;\\typed, located};
+\node[box, right=of cl]  (ev)  {\textbf{Evidence}\\explicit refs +\\BM25 $\cup$ embed.;\\LLM selects};
+\node[box, right=of ev]  (ck)  {\textbf{Checks}\\numbers, dominance,\\strength, scope,\\checklist, code};
+\node[box, right=of ck]  (vd)  {\textbf{Verdicts}\\precedence rules;\\adjudicator may\\only downgrade};
+\node[box=green!7, right=of vd]  (out) {\textbf{Claim map}\\3 runs $\to$\\stability +\\coverage ledger};
+\foreach \a/\b in {in/ing,ing/cl,cl/ev,ev/ck,ck/vd,vd/out} \draw[arr] (\a) -- (\b);
+\node[draw, dashed, rounded corners=2pt, font=\footnotesize, align=center, text width=4.4cm,
+      below=0.3cm of ck, xshift=-1.2cm] (code)
+      {\textbf{Code checks (code-v1)}: implementation facts vs.\ code lines;
+       re-run in an isolated sandbox};
+\draw[arr, dashed] (code.north) -- ([xshift=-1.2cm]ck.south);
+\end{tikzpicture}
+\caption{The \onus{} pipeline. Solid boxes are the frozen pipeline (v1.0.0); the dashed box is the separately
+versioned code-check stage. Model calls are limited to extraction, selection, a few classifications and
+adjudication; all comparisons and verdict rules are code.}
+\label{fig:pipeline}
+\end{figure*}
+
+\textbf{Claims and evidence.} The PDF is parsed into sections, sentences, tables (as cells), captions and the
+venue checklist. An extraction model lists claims from the abstract, introduction and conclusion as verbatim
+quotes; a quote not found in the text is dropped. Every checklist answer becomes a claim without a model call.
+Explicit references (``Table~3'') are resolved first, and an unresolved one is recorded as \emph{dangling};
+BM25 \citep{robertson2009bm25} and an embedding model \citep{wang2024multilingual} add candidates, and a model
+labels each as supporting, partial or refuting, citing only identifiers it was shown.
+
+\textbf{Checks and verdicts.} \emph{Numbers}: the model maps each number in a claim to table cells and an
+operation; code computes and compares within a precision-aware tolerance. \emph{Dominance}: code checks that
+``ours'' beats every listed baseline in every listed cell. \emph{Strength} and \emph{scope}: rules require
+evidence proportional to wording (``significantly'' needs a test; ``robust'' needs two or more settings) and
+check strong claims against stated limitations. \emph{Checklist audit}: each ``Yes'' is tested against the
+paper. A precedence table maps outcomes to verdicts; a reasoning model then reviews every flag but may only
+confirm or downgrade it, citing evidence. In batch mode the pipeline runs three times; the majority verdict
+wins and agreement is reported as \emph{stability}.
+
+\textbf{Code checks.} Up to eight implementation facts (datasets, algorithms, metrics, hyperparameters) are
+extracted with verified quotes and rated present, absent or contradicted against the code, citing
+\texttt{path:line} references that are checked against the files. An agent re-runs the code in a sandbox
+(network on for installation with no secrets, off for the run), capped in steps, minutes and cost; reported
+values are compared with the paper's numbers by code.
+
+\textbf{Models and serving.} An extraction model (GLM-5.3-Flash), a judge (Kimi-K3.1-Pro), a fast classifier
+(Gemma-4-31B) and multilingual-e5-large-instruct embeddings. The app (FastAPI, React) uses Berget AI, an EU
+provider that does not train on inputs; its report places the PDF beside the claim list and highlights each
+quote and evidence item in the paper. Held-out batches used the same models through a second provider because
+of credit limits; on dev papers both paths gave the same flagged/not-flagged decision on 34 of 34 matched
+claims.
+
+\begin{table*}[t]
+\centering\footnotesize
+\setlength{\tabcolsep}{4pt}
+\resizebox{\textwidth}{!}{\begin{tabular}{@{}lcccccc@{}}
+\toprule
+ & \multicolumn{2}{c}{eval (pre-freeze, run \#2)} & \multicolumn{2}{c}{test\_1 (frozen, once)} &
+   \multicolumn{2}{c}{test\_2 (frozen, once)} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Measure & \onus{} & Baseline & \onus{} & Baseline & \onus{} & Baseline \\
+\midrule
+\textbf{Flag rate, unmutated papers} & \textbf{21\%} [17--25] & 31\% [26--35] & \textbf{15\%} [12--18] & 29\% [25--33] & \textbf{15\%} [13--18] & 32\% [29--36] \\
+Recall, planted errors & 25/30 (83\%) [66--93] & 24/30 (80\%) [63--90] &
+  44/63 (70\%) [58--80] & 48/63 (76\%) [64--85] & 44/59 (75\%) [62--84] & 46/59 (78\%) [66--87] \\
+Collateral flag rate        & 2\% [1--3]   & 4\% [3--6]   & 2\% [1--3] & 6\% [5--8] & 3\% [2--4] & 4\% [3--6] \\
+Precision (labelled flags)  & ---          & ---          & 39/58 (67\%) [54--78] & 24/27 (89\%) [72--96] & --- & --- \\
+Stability (3 runs) & \multicolumn{2}{c}{1 run} & \multicolumn{2}{c}{84\% [81--87]} &
+  \multicolumn{2}{c}{84\% [81--87]} \\
+\bottomrule
+\end{tabular}}
+\caption{Flag rates, planted-error recall and precision (Wilson 95\% intervals). Eval: 20 papers, 1 run;
+test: 30 papers each, frozen version, 3 runs. Test numbers are reported as they came out.}
+\label{tab:results}
+\end{table*}
+
+% ================================================================ 3 evaluation
+\section{Evaluation Protocol}
+\label{sec:protocol}
+
+The 247 Agents4Science 2025 submissions (48 accepted) were split once with a fixed seed, before any pipeline
+code existed, into dev (10), eval (20), test\_1 (30), test\_2 (30) and a remainder. Development and tuning used
+only dev; held-out splits stayed in an encrypted archive outside the repository. After two eval runs (of at
+most three) the version was frozen with a fingerprint over models, prompts, rubrics and pipeline source, and
+each test split was run once; every held-out run was logged publicly before it started.
+
+\textbf{Measures.} (1)~\emph{Recall on planted errors} \citep{demillo1978hints}: five mutation types are
+planted where detectable: a changed abstract number (caught if \verdict{contradicted}), a checklist answer
+flipped to ``Yes'', a deleted table, a specific claim widened to a universal one, and deleted error bars.
+The \emph{collateral flag rate} counts new flags away from the mutation. (2)~\emph{A single-prompt baseline}
+judges the same claims with the same judge model; since recall flatters a system that flags a lot, each
+system's flag rate on unmutated papers is reported beside it. (3)~\emph{Precision}: a blind, shuffled sample
+of 60 \onus{} and 30 baseline flags from test\_1, labelled correct or incorrect. Labels were drafted by an AI
+assistant from the paper text, blind to the system, with a reason each; the author reviewed all 90 and
+changed none. (4)~\emph{Stability} across three runs. Intervals are Wilson 95\% \citep{wilson1927probable}.
+
+% ================================================================ 4 results
+\section{Results}
+
+
+\textbf{Main result.} On every split, eval included, \onus{} flags roughly half as many claims as the baseline
+at recall within the baseline's interval (Table~\ref{tab:results}): 44 of 63 planted errors vs.\ 48 of 63 on
+test\_1, and 44 of 59 vs.\ 46 of 59 on test\_2, with a third of the baseline's collateral flags on test\_1. We
+do not claim a recall difference at this sample size; the baseline reaches its recall by flagging about twice
+as many claims. 84\% of claims had the same verdict in all three runs.
+
+\textbf{Where it falls short.} Precision does not favour \onus{}: 39 of 58 flags are correct against 24 of 27
+for the baseline. By verdict, \verdict{overstated} is right 19 of 23 times, \verdict{contradicted} 2 of 4 and
+\verdict{untraced} only 18 of 31, the main source of wrong flags. By mutation type, \onus{} matches or beats
+the baseline on deleted error bars, flipped checklist answers and widened scope, but catches fewer changed
+abstract numbers on test\_1 (4/11 vs.\ 10/11); deleted tables are rarely caught by either system (2 of 9 and 1
+of 9). \onus{} is the more conservative system, not the more precise one.
+
+\textbf{Code checks and corpus findings.} On dev, the static check agreed with the conference's code audit on
+all three labelled papers with a verdict; in one, a claim about a real patient cohort was contradicted by the
+code's own docstring (``Synthetic dataset generation''). Across 90 analysed papers, 68 have code; re-runs were
+attempted on 48 and 3 reproduced the paper's values. Checklist ``Yes'' answers are often unbacked: 12 of 18 for
+theory, 35 of 69 for broader impacts, 18 of 56 for compute, 19 of 81 for limitations. A paper's flagged share is
+unrelated to its review scores (Spearman $\rho=-0.05$ AI, $0.10$ human) and to acceptance (difference 0.9
+points, $p=0.82$).
+
+\textbf{Cost and examples.} An analysis costs about \texteuro0.10 per run (15--30 claims per paper). On
+\emph{Attention Is All You Need}, \onus{} marked the claim of a new state of the art ``after being trained for
+as little as twelve hours'' as \verdict{overstated}: the twelve-hour figure belongs to the base model, the
+state-of-the-art score to the larger one. On a 2026 arXiv paper, it found the repository through a link broken
+across lines and reported that the code covers the simulations but none of the three real-data case studies.
+
+% ================================================================ 5 limitations + conclusion
+\section{Limitations and Conclusion}
+About 60 planted errors per test split give recall intervals of about $\pm$11 points. Planted errors are
+text-level and cover five types. Precision labels were AI-drafted and reviewed by one author, without
+inter-rater agreement. Accepted papers are camera-ready versions. Re-runs are CPU-only and time-capped, and
+live analyses run once.
+
+\onus{} shows that a claim-level map joining text, tables, checklists and code can be produced cheaply, and
+that its error rate can be measured honestly. It flags half as many claims as a single-prompt baseline at
+similar recall, but its flags are less precise, mostly because of \verdict{untraced}, which is the first
+thing to improve. It is meant to route a reviewer's attention, not replace the reviewer. Code, protocol and
+run log: \url{https://github.com/nash911/onus}; live app: \url{https://www.onuscheck.com}.
+
+{\small
+\bibliographystyle{plainnat}
+\bibliography{refs}
+}
+
+\end{document}
