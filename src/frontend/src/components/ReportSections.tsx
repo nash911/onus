@@ -104,9 +104,9 @@ export function ChecklistSection({ r, selectedKey, selectedEvidence, onSelect, o
 // ---------------------------------------------------------------- code
 
 const TONE: Record<RerunView["tone"], string> = {
-  good: "border-emerald-300 bg-emerald-50 text-emerald-900",
-  bad: "border-red-300 bg-red-50 text-red-900",
-  caution: "border-amber-300 bg-amber-50 text-amber-900",
+  good: "border-v-supported/30 bg-v-supported-bg text-v-supported",
+  bad: "border-v-contradicted/30 bg-v-contradicted-bg text-v-contradicted",
+  caution: "border-v-overstated/30 bg-v-overstated-bg text-v-overstated",
   neutral: "border-slate-300 bg-slate-50 text-slate-800",
 };
 

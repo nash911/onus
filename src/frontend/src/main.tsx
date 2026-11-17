@@ -1,3 +1,5 @@
+import "@fontsource-variable/inter";
+import "@fontsource-variable/source-serif-4";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";

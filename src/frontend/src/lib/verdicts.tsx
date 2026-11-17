@@ -1,6 +1,7 @@
 /**
  * Verdict and checklist-status styling. Every verdict is shown with colour, label and icon together
- * (never colour alone): supported green, overstated amber, untraced slate, contradicted red, not checkable grey.
+ * (never colour alone): supported green, overstated burnt orange, untraced violet, contradicted vermilion, not checkable grey
+ * (the "Journal" brand colours, defined in index.css).
  */
 import type { ComponentType, SVGProps } from "react";
 import {
@@ -31,36 +32,36 @@ export const VERDICTS: Record<Verdict, Style> = {
   supported: {
     label: "Supported",
     Icon: IconSupported,
-    badge: "text-green-800 bg-green-50 ring-green-700/30",
-    fill: "#15803d",
+    badge: "text-v-supported bg-v-supported-bg ring-v-supported/30",
+    fill: "#067647",
     description: "Evidence found and as strong as the claim's wording.",
   },
   overstated: {
     label: "Overstated",
     Icon: IconOverstated,
-    badge: "text-amber-900 bg-amber-50 ring-amber-700/40",
-    fill: "#d97706",
+    badge: "text-v-overstated bg-v-overstated-bg ring-v-overstated/35",
+    fill: "#b54708",
     description: "Evidence found but weaker than the wording.",
   },
   untraced: {
     label: "Untraced",
     Icon: IconUntraced,
-    badge: "text-slate-800 bg-slate-100 ring-slate-600/40",
-    fill: "#475569",
+    badge: "text-v-untraced bg-v-untraced-bg ring-v-untraced/30",
+    fill: "#6941c6",
     description: "No evidence located in the paper or its code.",
   },
   contradicted: {
     label: "Contradicted",
     Icon: IconContradicted,
-    badge: "text-red-800 bg-red-50 ring-red-700/30",
-    fill: "#b91c1c",
+    badge: "text-v-contradicted bg-v-contradicted-bg ring-v-contradicted/30",
+    fill: "#b42318",
     description: "The paper's own evidence disagrees with the claim.",
   },
   not_checkable: {
     label: "Not checkable",
     Icon: IconNotCheckable,
-    badge: "text-zinc-700 bg-zinc-100 ring-zinc-500/30",
-    fill: "#a1a1aa",
+    badge: "text-v-notcheckable bg-v-notcheckable-bg ring-v-notcheckable/30",
+    fill: "#667085",
     description: "Needs something Onus cannot access or parse, with the reason.",
   },
 };
@@ -74,7 +75,7 @@ export const AUDIT_STATUS: Record<AuditStatus, Style> = {
   not_applicable: {
     label: "Not applicable",
     Icon: IconMinus,
-    badge: "text-zinc-600 bg-white ring-zinc-400/40",
+    badge: "text-slate-600 bg-white ring-slate-300",
     fill: "#d4d4d8",
     description: "Answered No or NA; nothing to back.",
   },

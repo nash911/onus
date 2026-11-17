@@ -346,7 +346,7 @@ const PdfPage = memo(function PdfPage({ doc, n, size, scale, render, marks, sele
   }, [render, page, vp]);
 
   const view: ViewportLike = vp ?? plainViewport(size, scale);
-  const fill = selectedVerdict ? VERDICTS[selectedVerdict].fill : "#1d4ed8";
+  const fill = selectedVerdict ? VERDICTS[selectedVerdict].fill : "#1f4e8c";
 
   return (
     <div
@@ -371,7 +371,7 @@ const PdfPage = memo(function PdfPage({ doc, n, size, scale, render, marks, sele
             <div
               key={`e${i}`}
               className="absolute rounded-sm"
-              style={{ left: b.left - 2, top: b.top - 1, width: b.width + 4, height: b.height + 2, background: "rgb(100 116 139 / 0.14)", outline: "2px dashed #334155", outlineOffset: 1 }}
+              style={{ left: b.left - 2, top: b.top - 1, width: b.width + 4, height: b.height + 2, background: "rgb(27 35 51 / 0.08)", outline: "2px dashed #1b2333", outlineOffset: 1 }}
             />
           );
         })}

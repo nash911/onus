@@ -488,7 +488,7 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
                   aria-expanded={open}
                   aria-current={isSel ? "true" : undefined}
                   onClick={() => (open ? setExpanded(false) : selectClaim(c, { expand: true, toPaper: true }))}
-                  className={`grid w-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-2 py-2.5 text-left hover:bg-slate-50 ${isSel ? "shadow-[inset_3px_0_0_0_#0f172a]" : ""}`}
+                  className={`grid w-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-2 py-2.5 text-left hover:bg-slate-50 ${isSel ? "shadow-[inset_3px_0_0_0_#1b2333]" : ""}`}
                 >
                   <VerdictBadge verdict={c.verdict} />
                   <span className="min-w-0">

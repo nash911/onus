@@ -1,8 +1,49 @@
 @import "tailwindcss";
 
+/*
+ * Brand: "Journal". Ivory paper, navy ink, one vermilion accent; Source Serif 4 for headings, Inter for text.
+ * The slate and blue scales are redefined here so every existing utility (text-slate-600, text-blue-900, ...)
+ * takes the brand colours. Every text shade passes 4.5:1 on paper, white and slate-50.
+ * Fonts are self-hosted (@fontsource-variable, imported in main.tsx): no request leaves for a font CDN.
+ */
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif;
+  --font-serif: "Source Serif 4 Variable", "Source Serif Pro", Georgia, "Times New Roman", serif;
+
+  --color-paper: #fbfaf6;
+  --color-vermilion: #b42318;
+
+  /* navy-ink neutrals */
+  --color-slate-50: #f4f2ec;
+  --color-slate-100: #ece9e1;
+  --color-slate-200: #e4e2da;
+  --color-slate-300: #c9c6bc;
+  --color-slate-400: #848b98;
+  --color-slate-500: #5f6878;
+  --color-slate-600: #545d6c;
+  --color-slate-700: #3e4757;
+  --color-slate-800: #2a3242;
+  --color-slate-900: #1b2333;
+  --color-slate-950: #121826;
+
+  /* link blue */
+  --color-blue-50: #eef3fa;
+  --color-blue-200: #c4d4ea;
+  --color-blue-800: #1a4277;
+  --color-blue-900: #1f4e8c;
+
+  /* verdicts: text on tint passes 5:1; fill is for marks on the PDF */
+  --color-v-supported: #067647;
+  --color-v-supported-bg: #e8f5ee;
+  --color-v-overstated: #93370d;
+  --color-v-overstated-bg: #fef0e6;
+  --color-v-untraced: #5b3ba8;
+  --color-v-untraced-bg: #f1edfb;
+  --color-v-notcheckable: #475467;
+  --color-v-notcheckable-bg: #f0f1f3;
+  --color-v-contradicted: #b42318;
+  --color-v-contradicted-bg: #fdecea;
 }
 
 html {
@@ -10,12 +51,19 @@ html {
 }
 
 body {
-  @apply bg-white text-slate-900 antialiased;
+  @apply bg-paper text-slate-900 antialiased;
   overflow-x: hidden;
 }
 
+h1,
+h2 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
 :focus-visible {
-  outline: 2px solid #1d4ed8;
+  outline: 2px solid var(--color-blue-900);
   outline-offset: 2px;
 }
 

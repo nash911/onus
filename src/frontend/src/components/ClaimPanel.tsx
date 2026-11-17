@@ -9,10 +9,10 @@ import { track } from "../lib/track";
 import { VerdictBadge } from "./Verdict";
 
 const OUTCOME: Record<string, { label: string; cls: string }> = {
-  pass: { label: "pass", cls: "text-green-800" },
-  fail: { label: "fail", cls: "text-red-800 font-medium" },
-  inconclusive: { label: "inconclusive", cls: "text-zinc-600" },
-  not_run: { label: "not run", cls: "text-zinc-500" },
+  pass: { label: "pass", cls: "text-v-supported" },
+  fail: { label: "fail", cls: "text-v-contradicted font-medium" },
+  inconclusive: { label: "inconclusive", cls: "text-slate-600" },
+  not_run: { label: "not run", cls: "text-slate-500" },
 };
 
 const RELATION: Record<string, string> = {
@@ -77,7 +77,7 @@ function EvidenceRow({ e, place, selected, onSelect }: {
       <span className="font-mono text-xs text-slate-500">{e.id}</span>
       <span className={`font-medium break-anywhere ${code ? "font-mono text-xs" : ""}`}>{e.label}</span>
       {e.relation && (
-        <span className={e.relation === "contradicts" ? "text-red-800" : "text-slate-600"}>
+        <span className={e.relation === "contradicts" ? "text-v-contradicted" : "text-slate-600"}>
           {RELATION[e.relation] ?? e.relation}
         </span>
       )}

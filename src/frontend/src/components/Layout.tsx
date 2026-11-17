@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { api } from "../api/client";
 import { installTracking, referrerHost, screenBucket, track } from "../lib/track";
 import { isOlderVersion } from "../lib/versions";
+import { Logo } from "./Logo";
 
 export function useMeta() {
   return useQuery({ queryKey: ["meta"], queryFn: api.meta, staleTime: 60_000 });
@@ -84,10 +85,10 @@ export function Layout() {
       >
         Skip to content
       </a>
-      <header className="shrink-0 border-b border-slate-200">
-        <div className={`flex items-baseline px-4 py-2.5 ${full ? "" : "mx-auto max-w-5xl"}`}>
-          <Link to="/" className="text-lg font-semibold tracking-tight text-slate-900">
-            Onus
+      <header className="shrink-0 border-b border-slate-200 bg-paper">
+        <div className={`flex items-center px-4 py-2 ${full ? "" : "mx-auto max-w-5xl"}`}>
+          <Link to="/" aria-label="Onus, home" className="rounded">
+            <Logo size={26} />
           </Link>
         </div>
       </header>

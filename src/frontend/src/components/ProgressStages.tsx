@@ -50,7 +50,7 @@ export function ProgressStages({ s, codeChecks }: { s: AnalysisStatus; codeCheck
           const active = s.status === "running" && i === currentIdx;
           return (
             <li key={st} className="flex items-start gap-3">
-              <span className={`mt-0.5 ${done ? "text-green-700" : active ? "text-slate-900" : "text-slate-400"}`}>
+              <span className={`mt-0.5 ${done ? "text-v-supported" : active ? "text-slate-900" : "text-slate-400"}`}>
                 {done ? <IconSupported /> : active ? <IconSpinner /> : <IconCircle />}
               </span>
               <span className={done ? "text-slate-700" : active ? "font-medium text-slate-900" : "text-slate-600"}>
