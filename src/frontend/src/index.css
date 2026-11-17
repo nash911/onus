@@ -36,14 +36,19 @@
   /* verdicts: text on tint passes 5:1; fill is for marks on the PDF */
   --color-v-supported: #067647;
   --color-v-supported-bg: #e8f5ee;
+  --color-v-supported-line: #bfe3ce;
   --color-v-overstated: #93370d;
   --color-v-overstated-bg: #fef0e6;
+  --color-v-overstated-line: #f7cfaf;
   --color-v-untraced: #5b3ba8;
   --color-v-untraced-bg: #f1edfb;
+  --color-v-untraced-line: #d6ccf2;
   --color-v-notcheckable: #475467;
   --color-v-notcheckable-bg: #f0f1f3;
+  --color-v-notcheckable-line: #d5d9df;
   --color-v-contradicted: #b42318;
   --color-v-contradicted-bg: #fdecea;
+  --color-v-contradicted-line: #f5c2bc;
 }
 
 html {
@@ -55,11 +60,14 @@ body {
   overflow-x: hidden;
 }
 
-h1,
-h2 {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+/* In the base layer, so a utility class on a heading (font-sans, ...) still wins. */
+@layer base {
+  h1,
+  h2 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
 }
 
 :focus-visible {

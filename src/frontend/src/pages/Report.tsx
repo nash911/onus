@@ -214,7 +214,7 @@ function SplitLayout({ wide, pdf, report, onPaper, setOnPaper, canGoBack }: {
     return (
       <div className="grid h-full min-h-0 grid-cols-[58fr_42fr]">
         <section aria-label="Paper" className="min-h-0 border-r border-slate-200">{pdf}</section>
-        <section aria-label="Report" className="min-h-0 overflow-y-auto" id="report-pane">{report}</section>
+        <section aria-label="Report" className="min-h-0 overflow-y-auto border-l border-slate-200 bg-white" id="report-pane">{report}</section>
       </div>
     );
   }
@@ -241,7 +241,7 @@ function SplitLayout({ wide, pdf, report, onPaper, setOnPaper, canGoBack }: {
       <div id="view-panel-paper" role="tabpanel" aria-labelledby="view-tab-paper" className={`min-h-0 flex-1 ${onPaper ? "" : "hidden"}`}>
         {pdf}
       </div>
-      <div id="view-panel-report" role="tabpanel" aria-labelledby="view-tab-report" className={`min-h-0 flex-1 overflow-y-auto ${onPaper ? "hidden" : ""}`}>
+      <div id="view-panel-report" role="tabpanel" aria-labelledby="view-tab-report" className={`min-h-0 flex-1 overflow-y-auto bg-white ${onPaper ? "hidden" : ""}`}>
         {report}
       </div>
       {onPaper && canGoBack && (
@@ -594,7 +594,7 @@ function ReportHeader({ r, claims, filter, setFilter }: {
         <div className="flex flex-wrap gap-1.5">
           {ALL_VERDICTS.map((v) => {
             const on = filter.verdicts.has(v);
-            const { Icon, label, fill } = VERDICTS[v];
+            const { label } = VERDICTS[v];
             return (
               <button
                 key={v}
@@ -604,12 +604,12 @@ function ReportHeader({ r, claims, filter, setFilter }: {
                   track("filter", { kind: "verdict", value: v, on: !on });
                   setFilter({ ...filter, verdicts: toggleVerdict(filter.verdicts, v) });
                 }}
-                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs ${
-                  on ? "border-slate-400 bg-white text-slate-900" : "border-dashed border-slate-300 bg-slate-50 text-slate-500 line-through"
+                className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-[13px] font-semibold leading-5 ${
+                  on ? VERDICTS[v].badge : "border-dashed border-slate-300 bg-white text-slate-500 line-through"
                 }`}
                 title={on ? `Hide ${label.toLowerCase()} claims` : `Show ${label.toLowerCase()} claims`}
               >
-                <Icon style={{ color: on ? fill : undefined }} />
+                <span className="h-2 w-2 shrink-0 rounded-full bg-current" aria-hidden="true" />
                 {label}
                 <span className="tabular-nums font-medium">{counts[v] ?? 0}</span>
               </button>
@@ -625,7 +625,7 @@ function ReportHeader({ r, claims, filter, setFilter }: {
             value={filter.text}
             onChange={(e) => setFilter({ ...filter, text: e.target.value })}
             placeholder="Search quotes"
-            className="w-full min-w-0 rounded border border-slate-300 px-2 py-1 text-sm"
+            className="w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm placeholder:text-slate-500"
           />
         </label>
         <label className="inline-flex items-center gap-2 text-sm">
@@ -664,7 +664,7 @@ function ExportMenu({ r, title }: { r: AnalysisResponse; title: string }) {
   const item = "block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-slate-100";
   return (
     <details ref={ref} className="relative shrink-0">
-      <summary className="cursor-pointer list-none rounded border border-slate-300 px-2.5 py-1 text-sm hover:bg-slate-50">Export</summary>
+      <summary className="cursor-pointer list-none rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium hover:bg-slate-50">Export</summary>
       <div className="absolute right-0 z-20 mt-1 w-52 rounded border border-slate-200 bg-white p-1 shadow-lg">
         <button
           type="button"

@@ -1,14 +1,12 @@
 import type { Verdict } from "../types/result";
 import { AUDIT_STATUS, VERDICT_ORDER, VERDICTS, type AuditStatus, type Style } from "../lib/verdicts";
 
+/** The Journal chip: tinted ground, hairline border, a dot in the verdict colour, and the name (never colour alone). */
 function Badge({ style, children, size = "sm" }: { style: Style; children?: React.ReactNode; size?: "sm" | "md" }) {
-  const { Icon } = style;
-  const pad = size === "md" ? "px-2 py-1 text-sm" : "px-1.5 py-0.5 text-xs";
+  const pad = size === "md" ? "px-2.5 py-1 text-sm" : "px-2 py-0.5 text-[13px]";
   return (
-    <span
-      className={`inline-flex items-center gap-1 whitespace-nowrap rounded font-medium ring-1 ring-inset ${pad} ${style.badge}`}
-    >
-      <Icon className="shrink-0" />
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded border font-semibold leading-5 ${pad} ${style.badge}`}>
+      <span className="h-2 w-2 shrink-0 rounded-full bg-current" aria-hidden="true" />
       {style.label}
       {children}
     </span>
@@ -24,17 +22,17 @@ export function AuditBadge({ status }: { status: string }) {
   return <Badge style={style} />;
 }
 
-/** Compact per-verdict counts: icon + number, each with an accessible label; zero counts are omitted. */
+/** Compact per-verdict counts as small chips (dot + number), each with an accessible label; zero counts are omitted. */
 export function VerdictCounts({ counts }: { counts: Partial<Record<Verdict, number>> | undefined }) {
   const items = VERDICT_ORDER.filter((v) => (counts?.[v] ?? 0) > 0);
   if (!items.length) return <span className="text-slate-500">—</span>;
   return (
-    <ul className="flex flex-wrap gap-x-2.5 gap-y-1 text-sm">
+    <ul className="flex flex-wrap gap-1.5 text-[13px]">
       {items.map((v) => {
-        const { Icon, label, fill } = VERDICTS[v];
+        const { label, badge } = VERDICTS[v];
         return (
-          <li key={v} className="inline-flex items-center gap-0.5 tabular-nums" title={label}>
-            <Icon style={{ color: fill }} />
+          <li key={v} className={`inline-flex items-center gap-1 rounded border px-1.5 font-semibold leading-5 tabular-nums ${badge}`} title={label}>
+            <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />
             <span className="sr-only">{label}: </span>
             {counts?.[v]}
           </li>

@@ -5,7 +5,7 @@ import { ApiError, api } from "../api/client";
 import type { PaperRow, StartResponse } from "../api/types";
 import { OlderVersionBadge, useMeta } from "../components/Layout";
 import { ErrorBox } from "../components/States";
-import { VerdictCounts } from "../components/Verdict";
+import { VerdictBadge, VerdictCounts } from "../components/Verdict";
 import { LIVE_OFF_TEXT, startErrorText } from "../lib/startErrors";
 import { track } from "../lib/track";
 import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
@@ -37,7 +37,7 @@ function CodeInput({ id, maxMb, onChange }: { id: string; maxMb: number; onChang
         accept=".zip,application/zip,application/x-zip-compressed"
         aria-describedby={helpId}
         onChange={(e) => onChange(e.target.files?.[0] ?? null)}
-        className="w-full min-w-0 text-sm file:mr-3 file:rounded file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm"
+        className="w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-900 hover:file:bg-slate-50"
       />
       <span id={helpId} className="text-xs text-slate-500">
         A .zip up to {maxMb} MB
@@ -99,15 +99,22 @@ function StartForm() {
   const pdfCodeProblem = codeOn ? codeProblem(pdfCode, codeMb) : null;
 
   return (
-    <section aria-labelledby="start-h" className="rounded border border-slate-200 p-4 sm:p-6">
-      <h2 id="start-h" className="text-lg font-semibold">
-        Analyse a paper
-      </h2>
-      <p id={ids.help} className="mt-1 text-sm text-slate-600">
+    <section aria-labelledby="start-h" className="overflow-hidden rounded-[10px] border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-slate-200 px-4 py-3 sm:px-5">
+        <h2 id="start-h" className="text-[22px] leading-tight">
+          Analyse a paper
+        </h2>
+        {live?.enabled && (
+          <span className="text-[13px] text-slate-600">
+            Up to {live.max_per_ip_per_hour} per hour · PDFs up to {maxMb} MB
+          </span>
+        )}
+      </div>
+      <div className="px-4 py-4 sm:px-5">
+      <p id={ids.help} className="text-sm text-slate-600">
         {codeOn
           ? `One run; usually a few minutes. Code checks run after the report is ready, on the code you add or the paper's ${live?.code?.hosts.join(", ") ?? ""} link.`
           : "One run, no code checks; usually a few minutes."}
-        {live?.enabled && ` Up to ${live.max_per_ip_per_hour} analyses per hour; PDFs up to ${maxMb} MB.`}
       </p>
       {off && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note">
@@ -132,7 +139,7 @@ function StartForm() {
             id={ids.source}
             value={source}
             onChange={(e) => setSource(e.target.value as Source)}
-            className="rounded border border-slate-300 px-2 py-2 text-sm"
+            className="h-10 rounded-md border border-slate-300 bg-white px-2 text-sm"
           >
             <option value="arxiv">arXiv</option>
             <option value="openreview">OpenReview</option>
@@ -148,7 +155,7 @@ function StartForm() {
             onChange={(e) => setIdent(e.target.value)}
             placeholder={source === "arxiv" ? "2401.01234 or https://arxiv.org/abs/…" : "forum id or https://openreview.net/forum?id=…"}
             aria-describedby={ids.help}
-            className="w-full min-w-0 rounded border border-slate-300 px-3 py-2 text-sm"
+            className="h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 text-sm placeholder:text-slate-500"
             autoComplete="off"
             spellCheck={false}
           />
@@ -157,14 +164,14 @@ function StartForm() {
         <button
           type="submit"
           disabled={busy || !ident.trim() || !!refCodeProblem}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="h-10 shrink-0 rounded-md bg-slate-900 px-[18px] text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-slate-900"
         >
           Analyse
         </button>
       </form>
 
       <form
-        className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-end"
+        className="mt-5 flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-end"
         onSubmit={(e) => {
           e.preventDefault();
           if (file && !tooBig && !pdfCodeProblem) byUpload.mutate(file);
@@ -180,14 +187,14 @@ function StartForm() {
             type="file"
             accept="application/pdf,.pdf"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full min-w-0 text-sm file:mr-3 file:rounded file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm"
+            className="w-full min-w-0 text-sm file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-900 hover:file:bg-slate-50"
           />
         </div>
         {codeOn && <CodeInput id={ids.pdfCode} maxMb={codeMb} onChange={setPdfCode} />}
         <button
           type="submit"
           disabled={busy || !file || tooBig || !!pdfCodeProblem}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="h-10 shrink-0 rounded-md bg-slate-900 px-[18px] text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-slate-900"
         >
           {byUpload.isPending ? "Uploading…" : "Upload and analyse"}
         </button>
@@ -201,33 +208,33 @@ function StartForm() {
       )}
       {byRef.error && <StartError error={byRef.error} />}
       {byUpload.error && <StartError error={byUpload.error} />}
+      </div>
     </section>
   );
 }
 
-/** One line per verdict, in risk order. Colour is never the only signal: icon and name sit next to it. */
+/** One line per verdict, in risk order. Colour is never the only signal: the chip carries the name. */
 function VerdictRow() {
   return (
-    <ul className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-5" aria-label="The five verdicts">
-      {VERDICT_ORDER.map((v) => {
-        const { Icon, label, fill, description } = VERDICTS[v];
-        return (
+    <section aria-labelledby="verdicts-h">
+      <h2 id="verdicts-h" className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+        Five verdicts
+      </h2>
+      <ul className="mt-3 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-5">
+        {VERDICT_ORDER.map((v) => (
           <li key={v} className="min-w-0">
-            <span className="inline-flex items-center gap-1 font-medium text-slate-900">
-              <Icon style={{ color: fill }} />
-              {label}
-            </span>
-            <span className="block text-slate-600">{description}</span>
+            <VerdictBadge verdict={v} />
+            <span className="mt-1.5 block text-slate-600">{VERDICTS[v].description}</span>
           </li>
-        );
-      })}
-    </ul>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 function ExampleCard({ p }: { p: PaperRow & { analysis_id: string } }) {
   return (
-    <li className="flex min-w-0 flex-col rounded border border-slate-200 p-4">
+    <li className="flex min-w-0 flex-col rounded-[10px] border border-slate-200 bg-white p-4 hover:border-slate-300">
       <p className="font-medium text-slate-900 break-anywhere line-clamp-3">{p.title ?? p.ref}</p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <VerdictCounts counts={p.summary?.counts} />
@@ -252,8 +259,8 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <section>
-        <h1 className="text-3xl font-semibold tracking-tight">Check a paper's claims against its evidence</h1>
-        <p className="mt-3 max-w-prose text-slate-700">
+        <h1 className="text-[34px] leading-[1.05] sm:text-[44px]">Check a paper's claims against its evidence</h1>
+        <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-slate-600">
           Onus finds the claims in a paper, links each one to the passage, table, figure or code behind it, and gives
           each claim one of five verdicts that you can read against the paper itself.
         </p>
@@ -263,7 +270,7 @@ export default function Home() {
 
       <StartForm />
 
-      <details className="max-w-prose rounded border border-slate-200 px-4 py-3 text-sm text-slate-700">
+      <details className="max-w-prose rounded-[10px] border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
         <summary className="cursor-pointer font-medium text-slate-900">How it works</summary>
         <p className="mt-2">
           The model points and code computes: a language model finds claims and candidate evidence, and every count,
@@ -277,7 +284,7 @@ export default function Home() {
       {meta.error && <ErrorBox error={meta.error} />}
       {examples.length > 0 && (
         <section aria-labelledby="examples-h">
-          <h2 id="examples-h" className="text-lg font-semibold">
+          <h2 id="examples-h" className="font-sans text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
             Try an example
           </h2>
           <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
