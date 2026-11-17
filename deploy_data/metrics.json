@@ -1,0 +1,777 @@
+{
+ "splits": {
+  "test_1": {
+   "fingerprint": "9ad544b97609",
+   "harness_fingerprint": "b6018f89f149",
+   "created_at": "2026-11-16T23:49:29.536356+00:00",
+   "seed": 7,
+   "mutation_plan": "30x5",
+   "runs": [
+    3
+   ],
+   "results_fingerprints_other": 0,
+   "labels": {
+    "papers_labelled": 30
+   },
+   "distributions": {
+    "papers": 30,
+    "claims": 583,
+    "non_checklist_claims": 350,
+    "verdicts": {
+     "contradicted": 4,
+     "overstated": 24,
+     "untraced": 57,
+     "not_checkable": 57,
+     "supported": 441
+    },
+    "flagged": {
+     "k": 85,
+     "n": 583,
+     "rate": 0.1457975986277873,
+     "ci95": [
+      0.11946933268952471,
+      0.1767632452326948
+     ],
+     "papers": 30
+    },
+    "main_flagged": {
+     "k": 18,
+     "n": 133,
+     "rate": 0.13533834586466165,
+     "ci95": [
+      0.08735194240933154,
+      0.20379928645674428
+     ],
+     "papers": 30
+    },
+    "checklist": {
+     "backed": 163,
+     "unbacked": 42,
+     "contradicted": 2,
+     "not_checkable": 26,
+     "not_applicable": 56
+    },
+    "baseline": {
+     "papers": 30,
+     "labels": {
+      "supported": 415,
+      "not_supported": 168
+     },
+     "not_supported": {
+      "k": 168,
+      "n": 583,
+      "rate": 0.2881646655231561,
+      "ci95": [
+       0.25288091549272274,
+       0.3262218611338831
+      ],
+      "papers": 30
+     }
+    }
+   },
+   "stability": {
+    "runs": 3,
+    "claims": 583,
+    "papers": 30,
+    "full_agreement": {
+     "k": 491,
+     "n": 583,
+     "rate": 0.8421955403087479,
+     "ci95": [
+      0.8103746039033841,
+      0.8695362953920986
+     ],
+     "papers": 30
+    },
+    "mean_agreement": 0.9433962264150944,
+    "matrix": {
+     "overstated": {
+      "overstated": 63,
+      "supported": 3
+     },
+     "untraced": {
+      "untraced": 162,
+      "not_checkable": 2,
+      "supported": 4
+     },
+     "not_checkable": {
+      "not_checkable": 164,
+      "untraced": 2,
+      "supported": 1
+     },
+     "supported": {
+      "supported": 1249,
+      "untraced": 3,
+      "overstated": 9,
+      "not_checkable": 16,
+      "contradicted": 1
+     },
+     "contradicted": {
+      "contradicted": 12
+     }
+    }
+   },
+   "code_agreement": {
+    "labelled": 11,
+    "excluded": 19,
+    "audit_classes": {
+     "ERROR": 2,
+     "missing": 15,
+     "PARTIAL": 3,
+     "PASSED": 7,
+     "CRITICAL": 1,
+     "NO CODEBASE": 2
+    },
+    "na": "n/a (no code-check results yet)"
+   },
+   "mutations": {
+    "recall": {
+     "abstract_number": {
+      "attempted": 11,
+      "applied": 11,
+      "papers": 11,
+      "target_missing": 0,
+      "onus": {
+       "k": 4,
+       "n": 11,
+       "rate": 0.36363636363636365,
+       "ci95": [
+        0.15166223614131383,
+        0.6462032231083628
+       ],
+       "papers": 11
+      },
+      "baseline": {
+       "k": 10,
+       "n": 11,
+       "rate": 0.9090909090909091,
+       "ci95": [
+        0.6226353745137962,
+        0.9837682477371741
+       ],
+       "papers": 11
+      }
+     },
+     "checklist_flip": {
+      "attempted": 7,
+      "applied": 7,
+      "papers": 7,
+      "target_missing": 0,
+      "onus": {
+       "k": 6,
+       "n": 7,
+       "rate": 0.8571428571428571,
+       "ci95": [
+        0.48686549668097007,
+        0.9743210440510253
+       ],
+       "papers": 7
+      },
+      "baseline": {
+       "k": 5,
+       "n": 7,
+       "rate": 0.7142857142857143,
+       "ci95": [
+        0.35892909014821267,
+        0.9177828342909844
+       ],
+       "papers": 7
+      }
+     },
+     "remove_table": {
+      "attempted": 5,
+      "applied": 5,
+      "papers": 5,
+      "target_missing": 1,
+      "onus": {
+       "k": 1,
+       "n": 5,
+       "rate": 0.2,
+       "ci95": [
+        0.03622316096978745,
+        0.6244717358814613
+       ],
+       "papers": 5
+      },
+      "baseline": {
+       "k": 0,
+       "n": 5,
+       "rate": 0.0,
+       "ci95": [
+        0.0,
+        0.43449149475208104
+       ],
+       "papers": 5
+      }
+     },
+     "widen_scope": {
+      "attempted": 24,
+      "applied": 24,
+      "papers": 24,
+      "target_missing": 2,
+      "onus": {
+       "k": 17,
+       "n": 24,
+       "rate": 0.7083333333333334,
+       "ci95": [
+        0.508319363412903,
+        0.8508553966583573
+       ],
+       "papers": 24
+      },
+      "baseline": {
+       "k": 18,
+       "n": 24,
+       "rate": 0.75,
+       "ci95": [
+        0.5510017468789357,
+        0.8800079652065766
+       ],
+       "papers": 24
+      }
+     },
+     "delete_errorbars": {
+      "attempted": 16,
+      "applied": 16,
+      "papers": 16,
+      "target_missing": 0,
+      "onus": {
+       "k": 16,
+       "n": 16,
+       "rate": 1.0,
+       "ci95": [
+        0.8063865817272802,
+        1.0
+       ],
+       "papers": 16
+      },
+      "baseline": {
+       "k": 15,
+       "n": 16,
+       "rate": 0.9375,
+       "ci95": [
+        0.7167073163197013,
+        0.9888809426916687
+       ],
+       "papers": 16
+      }
+     },
+     "all": {
+      "attempted": 63,
+      "applied": 63,
+      "papers": 28,
+      "target_missing": 3,
+      "onus": {
+       "k": 44,
+       "n": 63,
+       "rate": 0.6984126984126984,
+       "ci95": [
+        0.5763939457458815,
+        0.7976246295126401
+       ],
+       "papers": 28
+      },
+      "baseline": {
+       "k": 48,
+       "n": 63,
+       "rate": 0.7619047619047619,
+       "ci95": [
+        0.6436410519607181,
+        0.8500634673805303
+       ],
+       "papers": 28
+      }
+     }
+    },
+    "collateral": {
+     "onus": {
+      "k": 23,
+      "n": 1191,
+      "rate": 0.019311502938706968,
+      "ci95": [
+       0.012902183782723332,
+       0.028811797384320065
+      ],
+      "papers": 28
+     },
+     "baseline": {
+      "k": 74,
+      "n": 1191,
+      "rate": 0.06213266162888329,
+      "ci95": [
+       0.04978052999775479,
+       0.07730041529239914
+      ],
+      "papers": 28
+     }
+    },
+    "failed": 0
+   },
+   "baseline_failed": 0,
+   "cost": {
+    "eur": 19.56769828,
+    "minutes": 68.02025333378309,
+    "estimate_eur": 14.295921866666673
+   }
+  },
+  "test_2": {
+   "fingerprint": "9ad544b97609",
+   "harness_fingerprint": "b6018f89f149",
+   "created_at": "2026-11-17T00:28:16.221396+00:00",
+   "seed": 7,
+   "mutation_plan": "30x5",
+   "runs": [
+    3
+   ],
+   "results_fingerprints_other": 0,
+   "labels": {
+    "papers_labelled": 30
+   },
+   "distributions": {
+    "papers": 30,
+    "claims": 584,
+    "non_checklist_claims": 380,
+    "verdicts": {
+     "contradicted": 9,
+     "overstated": 38,
+     "untraced": 42,
+     "not_checkable": 42,
+     "supported": 453
+    },
+    "flagged": {
+     "k": 89,
+     "n": 584,
+     "rate": 0.1523972602739726,
+     "ci95": [
+      0.12552589186090873,
+      0.18381186171080166
+     ],
+     "papers": 30
+    },
+    "main_flagged": {
+     "k": 26,
+     "n": 146,
+     "rate": 0.1780821917808219,
+     "ci95": [
+      0.12452375102480434,
+      0.24814712275123652
+     ],
+     "papers": 30
+    },
+    "checklist": {
+     "backed": 154,
+     "unbacked": 31,
+     "contradicted": 5,
+     "not_checkable": 14,
+     "not_applicable": 56
+    },
+    "baseline": {
+     "papers": 30,
+     "labels": {
+      "supported": 395,
+      "not_supported": 189
+     },
+     "not_supported": {
+      "k": 189,
+      "n": 584,
+      "rate": 0.3236301369863014,
+      "ci95": [
+       0.2869433443775666,
+       0.3626221167942865
+      ],
+      "papers": 30
+     }
+    }
+   },
+   "stability": {
+    "runs": 3,
+    "claims": 584,
+    "papers": 30,
+    "full_agreement": {
+     "k": 493,
+     "n": 584,
+     "rate": 0.8441780821917808,
+     "ci95": [
+      0.8125231534344625,
+      0.8713345388418242
+     ],
+     "papers": 30
+    },
+    "mean_agreement": 0.9452054794520548,
+    "matrix": {
+     "overstated": {
+      "overstated": 99,
+      "supported": 9,
+      "contradicted": 1
+     },
+     "not_checkable": {
+      "not_checkable": 117,
+      "supported": 5
+     },
+     "supported": {
+      "supported": 1292,
+      "not_checkable": 17,
+      "overstated": 12,
+      "untraced": 1,
+      "contradicted": 1
+     },
+     "untraced": {
+      "untraced": 122,
+      "not_checkable": 3
+     },
+     "contradicted": {
+      "contradicted": 26
+     }
+    }
+   },
+   "code_agreement": {
+    "labelled": 12,
+    "excluded": 18,
+    "audit_classes": {
+     "NO CODEBASE": 3,
+     "CRITICAL": 1,
+     "missing": 15,
+     "PASSED": 7,
+     "PARTIAL": 4
+    },
+    "na": "n/a (no code-check results yet)"
+   },
+   "mutations": {
+    "recall": {
+     "abstract_number": {
+      "attempted": 6,
+      "applied": 6,
+      "papers": 6,
+      "target_missing": 0,
+      "onus": {
+       "k": 5,
+       "n": 6,
+       "rate": 0.8333333333333334,
+       "ci95": [
+        0.43649056343635395,
+        0.9699474141282697
+       ],
+       "papers": 6
+      },
+      "baseline": {
+       "k": 6,
+       "n": 6,
+       "rate": 1.0,
+       "ci95": [
+        0.6096569663469354,
+        0.9999999999999999
+       ],
+       "papers": 6
+      }
+     },
+     "checklist_flip": {
+      "attempted": 8,
+      "applied": 8,
+      "papers": 8,
+      "target_missing": 0,
+      "onus": {
+       "k": 4,
+       "n": 8,
+       "rate": 0.5,
+       "ci95": [
+        0.21521252682444186,
+        0.7847874731755582
+       ],
+       "papers": 8
+      },
+      "baseline": {
+       "k": 4,
+       "n": 8,
+       "rate": 0.5,
+       "ci95": [
+        0.21521252682444186,
+        0.7847874731755582
+       ],
+       "papers": 8
+      }
+     },
+     "remove_table": {
+      "attempted": 4,
+      "applied": 4,
+      "papers": 4,
+      "target_missing": 1,
+      "onus": {
+       "k": 0,
+       "n": 4,
+       "rate": 0.0,
+       "ci95": [
+        0.0,
+        0.48990002040399916
+       ],
+       "papers": 4
+      },
+      "baseline": {
+       "k": 1,
+       "n": 4,
+       "rate": 0.25,
+       "ci95": [
+        0.045586062644636216,
+        0.6993639475573634
+       ],
+       "papers": 4
+      }
+     },
+     "widen_scope": {
+      "attempted": 25,
+      "applied": 25,
+      "papers": 25,
+      "target_missing": 0,
+      "onus": {
+       "k": 19,
+       "n": 25,
+       "rate": 0.76,
+       "ci95": [
+        0.5656994004476144,
+        0.8850384226967327
+       ],
+       "papers": 25
+      },
+      "baseline": {
+       "k": 19,
+       "n": 25,
+       "rate": 0.76,
+       "ci95": [
+        0.5656994004476144,
+        0.8850384226967327
+       ],
+       "papers": 25
+      }
+     },
+     "delete_errorbars": {
+      "attempted": 16,
+      "applied": 16,
+      "papers": 16,
+      "target_missing": 0,
+      "onus": {
+       "k": 16,
+       "n": 16,
+       "rate": 1.0,
+       "ci95": [
+        0.8063865817272802,
+        1.0
+       ],
+       "papers": 16
+      },
+      "baseline": {
+       "k": 16,
+       "n": 16,
+       "rate": 1.0,
+       "ci95": [
+        0.8063865817272802,
+        1.0
+       ],
+       "papers": 16
+      }
+     },
+     "all": {
+      "attempted": 59,
+      "applied": 59,
+      "papers": 29,
+      "target_missing": 1,
+      "onus": {
+       "k": 44,
+       "n": 59,
+       "rate": 0.7457627118644068,
+       "ci95": [
+        0.6220361301768266,
+        0.8394416170479418
+       ],
+       "papers": 29
+      },
+      "baseline": {
+       "k": 46,
+       "n": 59,
+       "rate": 0.7796610169491526,
+       "ci95": [
+        0.6586705755334912,
+        0.8664592747567625
+       ],
+       "papers": 29
+      }
+     }
+    },
+    "collateral": {
+     "onus": {
+      "k": 31,
+      "n": 1137,
+      "rate": 0.027264731750219876,
+      "ci95": [
+       0.01927324977088804,
+       0.03843993319859695
+      ],
+      "papers": 29
+     },
+     "baseline": {
+      "k": 49,
+      "n": 1137,
+      "rate": 0.04309586631486367,
+      "ci95": [
+       0.032750330727096336,
+       0.05651850378945705
+      ],
+      "papers": 29
+     }
+    },
+    "failed": 0
+   },
+   "baseline_failed": 0,
+   "cost": {
+    "eur": 20.18113782,
+    "minutes": 66.6448027160659,
+    "estimate_eur": 13.903932333333325
+   }
+  }
+ },
+ "pooled": {
+  "recall": {
+   "abstract_number": {
+    "onus": {
+     "k": 9,
+     "n": 17,
+     "rate": 0.5294117647058824,
+     "ci95": [
+      0.30962897311549487,
+      0.738351988039119
+     ],
+     "papers": 17
+    },
+    "baseline": {
+     "k": 16,
+     "n": 17,
+     "rate": 0.9411764705882353,
+     "ci95": [
+      0.730174547964372,
+      0.9895398693548358
+     ],
+     "papers": 17
+    }
+   },
+   "checklist_flip": {
+    "onus": {
+     "k": 10,
+     "n": 15,
+     "rate": 0.6666666666666666,
+     "ci95": [
+      0.41713125151212976,
+      0.8482389930530876
+     ],
+     "papers": 15
+    },
+    "baseline": {
+     "k": 9,
+     "n": 15,
+     "rate": 0.6,
+     "ci95": [
+      0.357464427565077,
+      0.8017577191740534
+     ],
+     "papers": 15
+    }
+   },
+   "remove_table": {
+    "onus": {
+     "k": 1,
+     "n": 9,
+     "rate": 0.1111111111111111,
+     "ci95": [
+      0.019890371327130535,
+      0.4350062147680601
+     ],
+     "papers": 9
+    },
+    "baseline": {
+     "k": 1,
+     "n": 9,
+     "rate": 0.1111111111111111,
+     "ci95": [
+      0.019890371327130535,
+      0.4350062147680601
+     ],
+     "papers": 9
+    }
+   },
+   "widen_scope": {
+    "onus": {
+     "k": 36,
+     "n": 49,
+     "rate": 0.7346938775510204,
+     "ci95": [
+      0.5973744384734165,
+      0.8378886875485057
+     ],
+     "papers": 49
+    },
+    "baseline": {
+     "k": 37,
+     "n": 49,
+     "rate": 0.7551020408163265,
+     "ci95": [
+      0.619134127396842,
+      0.8539779661052471
+     ],
+     "papers": 49
+    }
+   },
+   "delete_errorbars": {
+    "onus": {
+     "k": 32,
+     "n": 32,
+     "rate": 1.0,
+     "ci95": [
+      0.8928172849426366,
+      1.0
+     ],
+     "papers": 32
+    },
+    "baseline": {
+     "k": 31,
+     "n": 32,
+     "rate": 0.96875,
+     "ci95": [
+      0.8425539219962727,
+      0.9944622826374491
+     ],
+     "papers": 32
+    }
+   },
+   "all": {
+    "onus": {
+     "k": 88,
+     "n": 122,
+     "rate": 0.7213114754098361,
+     "ci95": [
+      0.6359280121345974,
+      0.7931828701173766
+     ],
+     "papers": 57
+    },
+    "baseline": {
+     "k": 94,
+     "n": 122,
+     "rate": 0.7704918032786885,
+     "ci95": [
+      0.6882989938199642,
+      0.8361698622657816
+     ],
+     "papers": 57
+    }
+   }
+  },
+  "collateral": {
+   "k": 54,
+   "n": 2328,
+   "rate": 0.023195876288659795,
+   "ci95": [
+    0.017821458478853823,
+    0.030141319095746445
+   ],
+   "papers": 57
+  }
+ },
+ "labels": null
+}
