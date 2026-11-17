@@ -773,5 +773,72 @@
    "papers": 57
   }
  },
- "labels": null
+ "labels": {
+  "systems": {
+   "baseline": {
+    "all": {
+     "correct": 24,
+     "incorrect": 3,
+     "unsure": 3,
+     "precision": 0.8888888888888888,
+     "ci95": [
+      0.7194181745602705,
+      0.9614803521050127
+     ]
+    },
+    "not_supported": {
+     "correct": 24,
+     "incorrect": 3,
+     "unsure": 3,
+     "precision": 0.8888888888888888,
+     "ci95": [
+      0.7194181745602705,
+      0.9614803521050127
+     ]
+    }
+   },
+   "onus": {
+    "all": {
+     "correct": 39,
+     "incorrect": 19,
+     "unsure": 2,
+     "precision": 0.6724137931034483,
+     "ci95": [
+      0.5442381364257336,
+      0.779168761196579
+     ]
+    },
+    "contradicted": {
+     "correct": 2,
+     "incorrect": 2,
+     "unsure": 0,
+     "precision": 0.5,
+     "ci95": [
+      0.15003570882017148,
+      0.8499642911798285
+     ]
+    },
+    "overstated": {
+     "correct": 19,
+     "incorrect": 4,
+     "unsure": 1,
+     "precision": 0.8260869565217391,
+     "ci95": [
+      0.6286194521470433,
+      0.9302145964938723
+     ]
+    },
+    "untraced": {
+     "correct": 18,
+     "incorrect": 13,
+     "unsure": 1,
+     "precision": 0.5806451612903226,
+     "ci95": [
+      0.40765964352020967,
+      0.7358469692645074
+     ]
+    }
+   }
+  }
+ }
 }
