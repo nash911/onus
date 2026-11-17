@@ -137,6 +137,42 @@ class LiveRequest(Base):
     analysis_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("analyses.id", ondelete="SET NULL"))
 
 
+class Event(Base):
+    """A product-analytics event sent by the web app (`POST /api/events`). No cookies, no free text: the session
+    id is random per browser tab, the visitor is a truncated salted IP hash, and `props` holds only whitelisted
+    keys (`onus.api.analytics.EVENT_TYPES`)."""
+
+    __tablename__ = "events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    ts: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
+    session_id: Mapped[str] = mapped_column(String(36), index=True)
+    visitor: Mapped[str] = mapped_column(String(16), index=True)
+    type: Mapped[str] = mapped_column(String(32), index=True)
+    path: Mapped[str | None] = mapped_column(String(255))
+    analysis_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    props: Mapped[dict | None] = mapped_column(JSONType)
+
+
+class RequestLog(Base):
+    """One row per page or API request (server side, written by `onus.api.analytics`), so usage is visible even
+    when the browser sends no events. Polling, static assets and the events endpoint itself are not logged."""
+
+    __tablename__ = "request_log"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    ts: Mapped[datetime] = mapped_column(UTCDateTime(), default=utcnow, index=True)
+    visitor: Mapped[str] = mapped_column(String(16), index=True)
+    method: Mapped[str] = mapped_column(String(8))
+    route: Mapped[str] = mapped_column(String(128), index=True)
+    path: Mapped[str] = mapped_column(String(255))
+    status: Mapped[int] = mapped_column(Integer)
+    ms: Mapped[float] = mapped_column(Float)
+    analysis_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    referrer_host: Mapped[str | None] = mapped_column(String(128))
+    client: Mapped[str | None] = mapped_column(String(16))
+
+
 def postgres_ddl() -> str:
     """CREATE TABLE / CREATE INDEX statements for Postgres, compiled from the same metadata."""
     from sqlalchemy.dialects import postgresql

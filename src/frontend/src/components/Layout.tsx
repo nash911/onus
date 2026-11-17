@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useMatch } from "react-router-dom";
 import { useEffect, useRef } from "react";
 import { api } from "../api/client";
+import { installTracking, referrerHost, screenBucket, track } from "../lib/track";
 import { isOlderVersion } from "../lib/versions";
 
 export function useMeta() {
@@ -51,6 +52,19 @@ export function Layout() {
   // the report fills the viewport: two panes that scroll on their own
   const full = !!useMatch("/analyses/:id");
 
+  // Analytics: one page_view per route (the referrer only on the first page of the visit)
+  const firstView = useRef(true);
+  useEffect(() => {
+    installTracking();
+    const route = /^\/analyses\/[^/]+/.test(loc.pathname) ? "/analyses/:id" : loc.pathname;
+    track("page_view", {
+      route,
+      referrer: firstView.current ? referrerHost(document.referrer, window.location.hostname) : undefined,
+      screen: screenBucket(window.innerWidth),
+    });
+    firstView.current = false;
+  }, [loc.pathname]);
+
   // Move focus to the page on navigation so keyboard and screen-reader users land on the new content.
   const first = useRef(true);
   useEffect(() => {
@@ -91,6 +105,9 @@ export function Layout() {
           <a href={PAPER_URL} className="hover:text-slate-900 hover:underline">Paper</a>
           <a href={CODE_URL} className="hover:text-slate-900 hover:underline">Code</a>
           <a href="https://avinashranganath.com" className="hover:text-slate-900 hover:underline">Made by Avinash Ranganath</a>
+          <span className="text-slate-500" title="Anonymous usage counts (pages, clicks, time on page) to improve Onus. No cookies; turned off when your browser sends Do Not Track or Global Privacy Control.">
+            No cookies; anonymous usage stats
+          </span>
         </div>
       </footer>
     </div>

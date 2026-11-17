@@ -5,6 +5,7 @@ import type { CheckResult, Claim, Evidence1 } from "../types/result";
 import { CHECK_LABELS, LINK_METHOD_LABELS, cite, humanize } from "../lib/format";
 import { VERDICTS, isVerdict } from "../lib/verdicts";
 import { ErrorBox } from "./States";
+import { track } from "../lib/track";
 import { VerdictBadge } from "./Verdict";
 
 const OUTCOME: Record<string, { label: string; cls: string }> = {
@@ -131,7 +132,10 @@ function DisputeForm({ analysisId, claimId }: { analysisId: string; claimId: str
   const [contact, setContact] = useState("");
   const ids = { reason: useId(), contact: useId() };
   const m = useMutation({
-    mutationFn: () => api.dispute(analysisId, { claim_id: claimId, reason, contact: contact || undefined }),
+    mutationFn: () => {
+      track("dispute_submit", { claim_id: claimId, with_contact: !!contact });
+      return api.dispute(analysisId, { claim_id: claimId, reason, contact: contact || undefined });
+    },
   });
   if (m.isSuccess) {
     return (
@@ -145,7 +149,10 @@ function DisputeForm({ analysisId, claimId }: { analysisId: string; claimId: str
     return (
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true);
+          track("dispute_open", { claim_id: claimId });
+        }}
         className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
       >
         Dispute this verdict

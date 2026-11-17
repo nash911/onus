@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session, sessionmaker
@@ -14,6 +14,9 @@ from onus.api.jobs import JobRunner
 from onus.api.limits import LiveLimits
 from onus.api.settings import ServingSettings
 from onus.config import Settings
+
+if TYPE_CHECKING:
+    from onus.api.analytics import AnalyticsSink
 
 
 @dataclass
@@ -33,6 +36,7 @@ class AppContext:
     capabilities_probed_at: str | None = None
     serving: ServingSettings = field(default_factory=ServingSettings)
     code: CodeRunner | None = None
+    analytics: AnalyticsSink | None = None
 
     @property
     def live_enabled(self) -> bool:

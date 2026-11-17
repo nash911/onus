@@ -21,7 +21,8 @@ def factory(tmp_path):
 def test_sqlite_create_tables_and_wal(tmp_path):
     engine = make_engine(f"sqlite:///{tmp_path / 'a' / 'onus.db'}")
     init_db(engine)
-    assert set(inspect(engine).get_table_names()) == {"papers", "analyses", "disputes", "live_usage", "live_requests"}
+    assert set(inspect(engine).get_table_names()) == {"papers", "analyses", "disputes", "live_usage", "live_requests",
+                                                       "events", "request_log"}
     with engine.connect() as conn:
         assert conn.exec_driver_sql("PRAGMA journal_mode").scalar() == "wal"
         assert conn.exec_driver_sql("PRAGMA foreign_keys").scalar() == 1

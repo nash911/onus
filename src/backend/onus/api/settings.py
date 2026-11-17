@@ -12,6 +12,9 @@ Read from the process environment (Railway variables), never from `.env`:
 | LIVE_MAX_MODAL_MINUTES_PER_DAY | 120 | Modal minutes per UTC day, all visitors |
 | LIVE_MAX_RERUNS_PER_IP_PER_DAY | 2 | code re-runs per visitor (salted IP hash) per UTC day |
 | LIVE_MAX_CODE_ZIP_MB | 25 | largest code .zip a visitor may upload (default in `limits.py`) |
+| ONUS_ANALYTICS | on | `0` turns off the request log and `POST /api/events` (see `analytics.py`) |
+| ANALYTICS_RETENTION_DAYS | 90 | analytics rows older than this are deleted |
+| ANALYTICS_TOKEN | unset | bearer token for `GET /api/admin/analytics` (the author's dashboard); unset = 404 |
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from onus.api.limits import CODE_ZIP_MAX_MB
@@ -38,6 +42,11 @@ class ServingSettings(BaseSettings):
     live_max_modal_minutes_per_day: float = 120.0
     live_max_reruns_per_ip_per_day: int = 2
     live_max_code_zip_mb: int = CODE_ZIP_MAX_MB
+
+    # Product analytics (no cookies; see onus.api.analytics)
+    onus_analytics: bool = True
+    analytics_retention_days: int = 90
+    analytics_token: SecretStr | None = None
 
     @property
     def frontend_dist(self) -> Path:

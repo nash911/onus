@@ -7,6 +7,7 @@ import { OlderVersionBadge, useMeta } from "../components/Layout";
 import { ErrorBox } from "../components/States";
 import { VerdictCounts } from "../components/Verdict";
 import { LIVE_OFF_TEXT, startErrorText } from "../lib/startErrors";
+import { track } from "../lib/track";
 import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
 
 type Source = "arxiv" | "openreview";
@@ -64,16 +65,29 @@ function StartForm() {
   const ids = { input: useId(), source: useId(), file: useId(), help: useId(), refCode: useId(), pdfCode: useId() };
 
   // the report page shows the progress while the analysis runs
-  const go = (r: StartResponse) => navigate(`/analyses/${r.analysis_id}`);
+  const go = (r: StartResponse) => {
+    track("submit_result", { status: r.status, cached: r.cached });
+    navigate(`/analyses/${r.analysis_id}`);
+  };
+  const failed = (e: Error) => track("submit_result", { status: "error", http: e instanceof ApiError ? e.status : -1 });
   const byRef = useMutation({
     mutationFn: () => {
       const v = ident.trim();
       const body = /^https?:\/\//i.test(v) || v.includes(":") ? { ref: v } : { source, id: v };
+      track("submit", { kind: "ref", source: "ref" in body ? "url" : source, ref: v, has_code: codeOn && !!refCode });
       return api.startRef(body, codeOn ? refCode : null);
     },
     onSuccess: go,
+    onError: failed,
   });
-  const byUpload = useMutation({ mutationFn: (f: File) => api.startUpload(f, codeOn ? pdfCode : null), onSuccess: go });
+  const byUpload = useMutation({
+    mutationFn: (f: File) => {
+      track("submit", { kind: "upload", source: "upload", has_code: codeOn && !!pdfCode, pdf_kb: Math.round(f.size / 1024) });
+      return api.startUpload(f, codeOn ? pdfCode : null);
+    },
+    onSuccess: go,
+    onError: failed,
+  });
   const busy = byRef.isPending || byUpload.isPending;
   const live = meta.data?.live;
   const off = live != null && !live.enabled;
@@ -219,7 +233,11 @@ function ExampleCard({ p }: { p: PaperRow & { analysis_id: string } }) {
         <VerdictCounts counts={p.summary?.counts} />
         <OlderVersionBadge fingerprint={p.fingerprint} version={p.onus_version} />
       </div>
-      <Link to={`/analyses/${encodeURIComponent(p.analysis_id)}`} className="mt-auto pt-3 text-sm font-medium text-blue-900 underline">
+      <Link
+        to={`/analyses/${encodeURIComponent(p.analysis_id)}`}
+        onClick={() => track("example_click", { ref: p.ref })}
+        className="mt-auto pt-3 text-sm font-medium text-blue-900 underline"
+      >
         Open report
         <span className="sr-only">: {p.title ?? p.ref}</span>
       </Link>

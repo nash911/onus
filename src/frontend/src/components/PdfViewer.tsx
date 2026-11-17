@@ -13,6 +13,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { plainViewport, scrollTopFor, toViewportBox, type Rect, type ViewportLike } from "../lib/anchors";
 import { VERDICTS } from "../lib/verdicts";
 import type { Verdict } from "../types/result";
+import { track } from "../lib/track";
 import { IconSpinner } from "./Icons";
 
 GlobalWorkerOptions.workerSrc = workerUrl;
@@ -199,13 +200,24 @@ export default function PdfViewer(props: PdfViewerProps) {
     return m;
   }, [props.marks, props.selected, props.evidence]);
 
-  const zoomBy = (f: number) =>
-    setZoom(Math.round(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale * f)) * 100) / 100);
+  const zoomBy = (f: number) => {
+    const z = Math.round(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, scale * f)) * 100) / 100;
+    setZoom(z);
+    track("pdf_zoom", { zoom: z, mode: f > 1 ? "in" : "out" });
+  };
+  // deepest page reached, reported once per new maximum
+  const deepest = useRef(1);
+  useEffect(() => {
+    if (current > deepest.current && sizes.length) {
+      deepest.current = current;
+      track("pdf_page", { page: current, pages: sizes.length });
+    }
+  }, [current, sizes.length]);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-slate-100">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-3 py-1.5 text-sm" role="toolbar" aria-label="Paper view">
-        <button type="button" onClick={() => setZoom("fit")} aria-pressed={zoom === "fit"} className={`rounded px-2 py-1 ${zoom === "fit" ? "bg-slate-200 font-medium" : "hover:bg-slate-100"}`}>
+        <button type="button" onClick={() => (setZoom("fit"), track("pdf_zoom", { mode: "fit" }))} aria-pressed={zoom === "fit"} className={`rounded px-2 py-1 ${zoom === "fit" ? "bg-slate-200 font-medium" : "hover:bg-slate-100"}`}>
           Fit width
         </button>
         <button type="button" onClick={() => zoomBy(1 / 1.2)} aria-label="Zoom out" className="h-7 w-7 rounded hover:bg-slate-100">

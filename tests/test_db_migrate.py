@@ -47,7 +47,8 @@ def test_copy_all_and_rerun(tmp_path, mig):
         mig.copy_all(src, dst, log=lambda *_: None)
     rep = mig.copy_all(src, dst, create=True, log=lambda *_: None)
     assert {k: v["copied"] for k, v in rep.items()} == {"papers": 1, "analyses": 1, "disputes": 1,
-                                                        "live_usage": 1, "live_requests": 1}
+                                                        "live_usage": 1, "live_requests": 1,
+                                                        "events": 0, "request_log": 0}
     again = mig.copy_all(src, dst, log=lambda *_: None)
     assert all(v["copied"] == 0 and v["skipped"] == v["source"] for v in again.values())
     f = make_sessionmaker(dst)

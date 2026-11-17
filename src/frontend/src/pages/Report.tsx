@@ -37,6 +37,7 @@ import {
   type ReportTab,
   type Selection,
 } from "../lib/reportView";
+import { setTrackedAnalysis, track } from "../lib/track";
 import { VERDICTS } from "../lib/verdicts";
 import type { ChecklistAudit, Claim, Evidence1, Verdict } from "../types/result";
 
@@ -75,12 +76,29 @@ export default function ReportPage() {
   });
   const anchors = useQuery({ queryKey: ["anchors", id], queryFn: () => api.anchors(id), enabled: done, staleTime: Infinity });
   const [pdfProblem, setPdfProblem] = useState<"missing" | "error" | null>(null);
+  const opened = useRef<string | null>(null);
+  useEffect(() => {
+    const r = report.data;
+    if (!r || opened.current === id) return;
+    opened.current = id;
+    const flagged = (r.claims ?? []).filter((c) => c.verdict === "overstated" || c.verdict === "untraced" || c.verdict === "contradicted").length;
+    track("report_open", { status: "done", mode: r.mode, n_claims: (r.claims ?? []).length, flagged, has_code: !!r.code?.available });
+  }, [report.data, id]);
   const wide = useMediaQuery("(min-width: 1024px)");
 
   // While running, a 404 from /pdf only means "not downloaded yet": try again when the stage moves on.
   const stage = status.data?.progress?.stage ?? status.data?.status ?? "";
   useEffect(() => {
     if (!done) setPdfProblem(null);
+  }, [stage, done]);
+
+  // analytics: every event on this page carries the analysis id; the progress screen reports its stages
+  useEffect(() => {
+    setTrackedAnalysis(id);
+    return () => setTrackedAnalysis(undefined);
+  }, [id]);
+  useEffect(() => {
+    if (stage && !done) track("progress_view", { stage });
   }, [stage, done]);
 
   const a = anchors.data ?? EMPTY_ANCHORS;
@@ -254,6 +272,11 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
   const claims = useMemo(() => r.claims ?? [], [r.claims]);
   const [filter, setFilter] = useState<ClaimFilter>(DEFAULT_FILTER);
   const shown = useMemo(() => filterClaims(claims, filter), [claims, filter]);
+  useEffect(() => {
+    if (!filter.text.trim()) return;
+    const t = window.setTimeout(() => track("search", { length: filter.text.trim().length, results: shown.length }), 1200);
+    return () => window.clearTimeout(t);
+  }, [filter.text, shown.length]);
   const [expanded, setExpanded] = useState<boolean>(() => !!sel.claim);
   const [onPaper, setOnPaper] = useState(false);
   const [scroll, setScroll] = useState<ScrollRequest | null>(null);
@@ -298,7 +321,8 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
 
   // ---- actions
   const selectClaim = useCallback(
-    (c: Claim, opts: { expand?: boolean; toPaper?: boolean } = {}) => {
+    (c: Claim, opts: { expand?: boolean; toPaper?: boolean; via?: string } = {}) => {
+      track("claim_open", { claim_id: c.id, verdict: c.verdict, is_main: !!c.is_main, via: opts.via ?? "list" });
       update({ claim: c.id, tab: "claims" });
       setExpanded(opts.expand ?? true);
       scrollTo(items[c.id], c.location.page);
@@ -307,17 +331,20 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
     [update, scrollTo, items, wide, pdfOn],
   );
   const selectEvidence = (c: Claim, e: Evidence1) => {
+    track("evidence_click", { claim_id: c.id, evidence_id: e.id, kind: e.kind, method: evAnchors(c, e)?.[0]?.method });
     update({ claim: c.id, ev: e.id });
     scrollTo(evAnchors(c, e), e.location?.page);
     if (!wide) setOnPaper(true);
   };
   const selectChecklist = (a: ChecklistAudit) => {
+    track("claim_open", { claim_id: `checklist:${a.key}`, verdict: a.status, via: "checklist" });
     update({ claim: `checklist:${a.key}`, tab: "checklist" });
     const c = byChecklistKey.get(a.key);
     scrollTo(checklistAnchors(a), c?.location.page);
     if (!wide) setOnPaper(true);
   };
   const selectChecklistEvidence = (a: ChecklistAudit, e: Evidence1) => {
+    track("evidence_click", { claim_id: `checklist:${a.key}`, evidence_id: e.id, kind: e.kind, method: checklistEvAnchors(a, e)?.[0]?.method });
     update({ claim: `checklist:${a.key}`, ev: e.id, tab: "checklist" });
     scrollTo(checklistEvAnchors(a, e), e.location?.page);
     if (!wide) setOnPaper(true);
@@ -353,7 +380,7 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
         const c = shown.find((x) => x.id === next);
         if (c) {
           ev.preventDefault();
-          selectClaim(c, { expand: false });
+          selectClaim(c, { expand: false, via: "keyboard" });
           rowRefs.current.get(c.id)?.querySelector("button")?.focus({ preventScroll: true });
           rowRefs.current.get(c.id)?.scrollIntoView({ block: "nearest" });
         }
@@ -411,7 +438,8 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
         onMark={(cid) => {
           const c = claims.find((x) => x.id === cid);
           if (!c) return;
-          selectClaim(c, { expand: true });
+          track("margin_mark_click", { claim_id: c.id, verdict: c.verdict });
+          selectClaim(c, { expand: true, via: "margin" });
           requestAnimationFrame(() => rowRefs.current.get(c.id)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
         }}
         active={wide || onPaper}
@@ -426,7 +454,10 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
         <Tabs
           idPrefix="report"
           active={sel.tab}
-          onChange={(t) => update({ tab: t as ReportTab, claim: null })}
+          onChange={(t) => {
+            track("tab_switch", { tab: t });
+            update({ tab: t as ReportTab, claim: null });
+          }}
           tabs={[
             { id: "claims", label: "Claims", count: claims.length },
             { id: "checklist", label: "Checklist", count: (r.checklist ?? []).length },
@@ -545,7 +576,7 @@ function ReportHeader({ r, claims, filter, setFilter }: {
       {authors && <p className="mt-1 text-sm text-slate-700 break-anywhere">{authors}</p>}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
         {r.analysis.source_url && (
-          <a href={r.analysis.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-900 underline">
+          <a href={r.analysis.source_url} target="_blank" rel="noreferrer" onClick={() => track("outbound_click", { target: "source" })} className="inline-flex items-center gap-1 text-blue-900 underline">
             Source <IconExternal />
             <span className="sr-only">(opens in a new tab)</span>
           </a>
@@ -569,7 +600,10 @@ function ReportHeader({ r, claims, filter, setFilter }: {
                 key={v}
                 type="button"
                 aria-pressed={on}
-                onClick={() => setFilter({ ...filter, verdicts: toggleVerdict(filter.verdicts, v) })}
+                onClick={() => {
+                  track("filter", { kind: "verdict", value: v, on: !on });
+                  setFilter({ ...filter, verdicts: toggleVerdict(filter.verdicts, v) });
+                }}
                 className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs ${
                   on ? "border-slate-400 bg-white text-slate-900" : "border-dashed border-slate-300 bg-slate-50 text-slate-500 line-through"
                 }`}
@@ -595,7 +629,14 @@ function ReportHeader({ r, claims, filter, setFilter }: {
           />
         </label>
         <label className="inline-flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={filter.mainOnly} onChange={(e) => setFilter({ ...filter, mainOnly: e.target.checked })} />
+          <input
+            type="checkbox"
+            checked={filter.mainOnly}
+            onChange={(e) => {
+              track("filter", { kind: "main_only", on: e.target.checked });
+              setFilter({ ...filter, mainOnly: e.target.checked });
+            }}
+          />
           Main claims only
         </label>
       </div>
@@ -629,6 +670,7 @@ function ExportMenu({ r, title }: { r: AnalysisResponse; title: string }) {
           type="button"
           className={item}
           onClick={() => {
+            track("export", { format: "markdown_copy" });
             navigator.clipboard?.writeText(md()).then(
               () => setCopied("ok"),
               () => setCopied("fail"),
@@ -638,7 +680,7 @@ function ExportMenu({ r, title }: { r: AnalysisResponse; title: string }) {
         >
           {copied === "ok" ? "Copied" : copied === "fail" ? "Could not copy" : "Copy as Markdown"}
         </button>
-        <button type="button" className={item} onClick={() => (download(`${name}.md`, "text/markdown", md()), close())}>
+        <button type="button" className={item} onClick={() => (track("export", { format: "markdown" }), download(`${name}.md`, "text/markdown", md()), close())}>
           Download Markdown
         </button>
         <button
@@ -650,6 +692,7 @@ function ExportMenu({ r, title }: { r: AnalysisResponse; title: string }) {
             void _a;
             void _d;
             void _c;
+            track("export", { format: "json" });
             download(`${name}.json`, "application/json", JSON.stringify(result, null, 2));
             close();
           }}

@@ -14,6 +14,8 @@ from pathlib import Path
 
 from fastapi import FastAPI
 
+from onus.api.analytics import AnalyticsSink, RequestLogMiddleware
+from onus.api.analytics import router as analytics_router
 from onus.api.code_stage import CodeDeps, CodeRunner, default_deps
 from onus.api.context import AppContext
 from onus.api.jobs import (
@@ -135,19 +137,24 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
         if stale:
             log.info("marked %d stale code stage(s) failed", stale)
         log.info("live code checks: %s", "on" if code.enabled else "off")
+        analytics = AnalyticsSink(factory, enabled=serving.onus_analytics,
+                                  retention_days=serving.analytics_retention_days)
         ctx = AppContext(settings=settings, factory=factory, runner=runner, onus_version=ONUS_VERSION,
                          fingerprint=fp, models=settings.models_config, limits=LiveLimits.from_settings(settings),
                          salt=load_salt(settings.var_dir), import_dirs=dirs, import_report=report,
                          eval_log=eval_log or serving.eval_log, capabilities_probed_at=probed_at,
-                         frozen_manifest=frozen_manifest or serving.frozen_manifest, serving=serving, code=code)
+                         frozen_manifest=frozen_manifest or serving.frozen_manifest, serving=serving, code=code,
+                         analytics=analytics)
         app.state.ctx = ctx
         runner.start()
         code.start()
+        analytics.start()
         try:
             yield
         finally:
             await runner.stop()
             await code.stop()
+            await analytics.stop()
             engine.dispose()
 
     app = FastAPI(title="Onus", version="1", lifespan=lifespan, docs_url="/api/docs",
@@ -156,6 +163,8 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
     app.include_router(papers_router)
     app.include_router(analyses_router)
     app.include_router(anchors_router)
+    app.include_router(analytics_router)
+    app.add_middleware(RequestLogMiddleware)
     mount_spa(app, frontend_dist)
     return app
 

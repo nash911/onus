@@ -6,6 +6,7 @@ import { ApiError } from "./api/client";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/States";
 import { redirectFor } from "./lib/routes";
+import { installTracking } from "./lib/track";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import ReportPage from "./pages/Report";
@@ -27,6 +28,8 @@ function Fallback() {
   const to = redirectFor(loc.pathname);
   return to ? <Navigate to={{ pathname: to, search: loc.search }} replace /> : <NotFound />;
 }
+
+installTracking();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
