@@ -43,34 +43,3 @@ export function VerdictCounts({ counts }: { counts: Partial<Record<Verdict, numb
     </ul>
   );
 }
-
-/** A stacked bar of the verdict mix. Decorative: always paired with VerdictCounts or a table. */
-export function VerdictMixBar({ counts }: { counts: Partial<Record<Verdict, number>> | undefined }) {
-  const total = VERDICT_ORDER.reduce((s, v) => s + (counts?.[v] ?? 0), 0);
-  if (!total) return null;
-  return (
-    <div className="flex h-1.5 w-full overflow-hidden rounded-sm bg-slate-100" aria-hidden="true">
-      {VERDICT_ORDER.map((v) =>
-        counts?.[v] ? (
-          <div key={v} style={{ width: `${(100 * (counts[v] ?? 0)) / total}%`, background: VERDICTS[v].fill }} />
-        ) : null,
-      )}
-    </div>
-  );
-}
-
-export function VerdictLegend() {
-  return (
-    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Verdict legend">
-      {VERDICT_ORDER.map((v) => {
-        const { Icon, label, fill } = VERDICTS[v];
-        return (
-          <li key={v} className="inline-flex items-center gap-1">
-            <Icon style={{ color: fill }} />
-            {label}
-          </li>
-        );
-      })}
-    </ul>
-  );
-}

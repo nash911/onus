@@ -17,6 +17,10 @@ Paste an arXiv or OpenReview id, or upload a PDF (and optionally its code). Onus
 major claim in the paper, quoted verbatim with its page and paragraph, linked to the table cells, passages,
 checklist answers and code lines that bear on it, with exactly one verdict and a one-sentence reason.
 
+The report shows the paper next to its claims: click a claim and the PDF scrolls to it and highlights the quoted
+text; click an evidence item and its passage or table is highlighted too. Export the map as Markdown for a review
+or a rebuttal.
+
 | Verdict | Meaning |
 | --- | --- |
 | **supported** | Evidence found, and as strong as the claim's wording |
@@ -65,8 +69,8 @@ protocol written before any held-out data was touched:
   rate on unmutated papers alongside; precision on a blind, labelled sample of flags; stability across three runs;
   agreement of code checks with the conference's code audit. All proportions carry Wilson 95% intervals.
 
-Headline numbers: [`docs/public/submission_numbers.md`](docs/public/submission_numbers.md) (also on the app's
-[How well Onus works](https://www.onuscheck.com/trust) page). Pre-freeze go/no-go run (eval #2): planted-error
+Headline numbers: [`docs/public/submission_numbers.md`](docs/public/submission_numbers.md) and the
+[paper](paper/onus.pdf). Pre-freeze go/no-go run (eval #2): planted-error
 recall 83% [66–93%] vs. 80% [63–90%] for the baseline, while flagging 21% of claims on unmutated papers vs. 31%.
 
 ## Run it locally

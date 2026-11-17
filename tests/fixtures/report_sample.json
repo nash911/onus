@@ -1,0 +1,3487 @@
+{
+ "schema_version": "1",
+ "onus_version": "1.0.0",
+ "fingerprint": "9ad544b97609",
+ "models": {
+  "extract": "zai-org/GLM-5.3-Flash",
+  "judge": "moonshotai/Kimi-K3.1-Pro",
+  "fast": "google/gemma-4-31B-it",
+  "embed": "intfloat/multilingual-e5-large-instruct",
+  "judge_reasoning": "high"
+ },
+ "mode": "batch",
+ "runs": 3,
+ "paper": {
+  "id": "EJ8cQFi5cU",
+  "source": "agents4science",
+  "external_id": null,
+  "title": "AI Passes Humanity’s Last Exam and Generates Video Tutorials",
+  "pdf_sha256": "bf76edd222772f379ed754ab30129e660a3e8caecb21977273f6324832007b5c",
+  "pages": 15
+ },
+ "created_at": "2026-11-16T00:59:07.465066Z",
+ "claims": [
+  {
+   "id": "dced2cbd22fc",
+   "type": "checklist",
+   "quote": "Yes. Where applicable we report averages across multiple trials/samples and include the evaluation protocol used to assess variance.",
+   "location": {
+    "page": 14,
+    "paragraph": 21,
+    "sentence": 1,
+    "line_start": 424,
+    "line_end": 425,
+    "section": "Agents4Science Paper Checklist",
+    "start": 40331,
+    "end": 40463
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "fail",
+     "severity": "none",
+     "detail": "Answered Yes, but no spread in any table and no std, CI, error-bar or significance-test language in the results text or captions.",
+     "data": {
+      "status": "unbacked",
+      "answer": "Yes"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "untraced",
+   "reason": "Answered Yes, but no spread in any table and no std, CI, error-bar or significance-test language in the results text or captions.",
+   "caveat": null,
+   "risk": 2,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "untraced",
+     "untraced",
+     "untraced"
+    ]
+   },
+   "checklist_key": "error_bars",
+   "rule_verdict": "untraced",
+   "adjudication": null
+  },
+  {
+   "id": "e66b1808caf7",
+   "type": "checklist",
+   "quote": "Yes. We discuss potential benefits (e.g., educational videos) and potential risks (e.g., misuse of auto-generated content).",
+   "location": {
+    "page": 15,
+    "paragraph": 15,
+    "sentence": 1,
+    "line_start": 462,
+    "line_end": 463,
+    "section": "Agents4Science Paper Checklist",
+    "start": 42378,
+    "end": 42501
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "fail",
+     "severity": "none",
+     "detail": "The passages only describe potential positive impacts (educational videos enhancing understanding and engagement) and contain no discussion of negative societal impacts such as misuse of auto-generated content.",
+     "data": {
+      "status": "unbacked",
+      "answer": "Yes"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "untraced",
+   "reason": "The passages only describe potential positive impacts (educational videos enhancing understanding and engagement) and contain no discussion of negative societal impacts such as misuse of auto-generated content.",
+   "caveat": null,
+   "risk": 2,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "untraced",
+     "untraced",
+     "untraced"
+    ]
+   },
+   "checklist_key": "broader_impacts",
+   "rule_verdict": "untraced",
+   "adjudication": null
+  },
+  {
+   "id": "73aafab8b21c",
+   "type": "result",
+   "quote": "These include insufficient specialized mathematical knowledge in advanced topics such as category theory and knot theory, difficulties translating complex problems into solvable forms, unreliability in handling large numerical answers, limited capability to utilize recent research, difficulty correcting errors from previous literature, and challenges interpreting mathematical code.",
+   "location": {
+    "page": 2,
+    "paragraph": 5,
+    "sentence": 2,
+    "line_start": 48,
+    "line_end": 52,
+    "section": "1 Introduction",
+    "start": 5707,
+    "end": 6091
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "general",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev1",
+     "kind": "text",
+     "label": "p. 8, ¶ 3 (3 Results)",
+     "snippet": "math questions from the HLE with exact numerical answers that are not answered by running code or searching the web. An expert Mathematician curated and analyzed a subset of the most challenging math HLE questions that AI has yet to solve, which appear in the Appendix. We provide the expert Mathematician’s insights into why these questions are hard and summarize key limitations of current LLMs in the Appendix.",
+     "location": {
+      "page": 8,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 169,
+      "line_end": 173,
+      "section": "3 Results",
+      "start": 22705,
+      "end": 23118
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev2",
+     "kind": "figure",
+     "label": "Figure 1",
+     "snippet": "Figure 1: We evaluate 17 LLMs and 9 inference time aggregation methods using OptiLLM and Agent frameworks over 8 question categories and two types of answers. A human compares the answers and solutions to ground truth. An LLM creates a script and Python code using the Manim Python library. This includes a human narrator whose face image and voice sample are provided. The narrator’s voice is cloned, and their facial movements synchronized with the generated audio. The resulting narrator video, i…",
+     "location": {
+      "page": 4,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 12413,
+      "end": 12655
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "0 supporting and 2 partial evidence item(s): p. 8, ¶ 3 (3 Results), Figure 1.",
+     "data": {
+      "supports": 0,
+      "partial": 2,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev1",
+      "ev2"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no strength markers",
+     "data": {
+      "reason": "no strength markers"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no verified limitation statements",
+     "data": {
+      "reason": "no verified limitation statements"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "not_checkable",
+   "reason": "The Results passage on p. 8 only says that an expert’s analysis and a summary of LLM limitations appear in the Appendix; it does not state the specific limitations listed in the claim. Figure 1 describes the evaluation and video-generation pipeline and does not substantiate them.",
+   "caveat": "The Appendix itself was not included in the supplied evidence, so its contents could not be checked.",
+   "risk": 1,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "not_checkable",
+     "not_checkable",
+     "not_checkable"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "not_checkable",
+   "adjudication": {
+    "decision": "confirm",
+    "evidence_ids": [],
+    "parse_problem": "",
+    "applied": true,
+    "note": ""
+   }
+  },
+  {
+   "id": "23b49f3a961e",
+   "type": "method",
+   "quote": "In this work we use imperfect verifiers which saturate with increasing samples.",
+   "location": {
+    "page": 2,
+    "paragraph": 6,
+    "sentence": 4,
+    "line_start": 63,
+    "line_end": 64,
+    "section": "1 Introduction",
+    "start": 7198,
+    "end": 7277
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev3",
+     "kind": "text",
+     "label": "p. 3, ¶ 4 (2 Methods)",
+     "snippet": "one correct answer after N samples is 1 →(1 →p)N. Therefore, increasing N reduces the error exponentially, given independent samples. The samples from an LLM are not independent since they are conditioned on the same input prompt and the model parameters, therefore increasing the number of samples N leads to diminishing returns. The probability of correcting a systematic error does not reduce exponentially in practice. Increasing diversity by adjusting the sampling hyperparameters such as tempe…",
+     "location": {
+      "page": 3,
+      "paragraph": 4,
+      "sentence": 1,
+      "line_start": 94,
+      "line_end": 100,
+      "section": "2 Methods",
+      "start": 10062,
+      "end": 10731
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev4",
+     "kind": "text",
+     "label": "p. 3, ¶ 3 (2 Methods)",
+     "snippet": "Best-of-N rejection sampling uses the LLM to answer the question N times, then uses an LLM to rate each answer and solution, keeping the answer with the highest rating and rejecting all other samples. Rejection sampling increases accuracy by decreasing the probability of selecting an incorrect answer. If the probability of a correct response from a single independent draw from the model is p, then the probability of all incorrect answers after N samples is (1 →p)N and the probability of at least",
+     "location": {
+      "page": 3,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 89,
+      "line_end": 93,
+      "section": "2 Methods",
+      "start": 9560,
+      "end": 10060
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev5",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev6",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "0 supporting and 4 partial evidence item(s): p. 3, ¶ 4 (2 Methods), p. 3, ¶ 3 (2 Methods), p. 3, ¶ 7 (3 Results).",
+     "data": {
+      "supports": 0,
+      "partial": 4,
+      "contradicts": 0,
+      "candidates": 11,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev3",
+      "ev4",
+      "ev5",
+      "ev6"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "not_checkable",
+   "reason": "The Methods section on p. 3 explains that Best-of-N sampling has diminishing returns because samples are not independent, but the Results and Table 1 report only N = 8. They do not show verifier performance across increasing sample counts or establish that it saturates, so the claim cannot be checked as stated.",
+   "caveat": "The linked evidence contains no multi-N comparison or saturation curve.",
+   "risk": 1,
+   "stability": {
+    "runs": 3,
+    "agree": 2,
+    "verdicts": [
+     "not_checkable",
+     "supported",
+     "not_checkable"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "not_checkable",
+   "adjudication": {
+    "decision": "confirm",
+    "evidence_ids": [],
+    "parse_problem": "",
+    "applied": true,
+    "note": ""
+   }
+  },
+  {
+   "id": "4b13b1a3ae6c",
+   "type": "checklist",
+   "quote": "Yes. The work adheres to the Agents4Science Code of Ethics, including anonymization and non-discriminatory practices.",
+   "location": {
+    "page": 15,
+    "paragraph": 8,
+    "sentence": 1,
+    "line_start": 451,
+    "line_end": 452,
+    "section": "Agents4Science Paper Checklist",
+    "start": 41849,
+    "end": 41966
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "inconclusive",
+     "severity": "none",
+     "detail": "None of the passages mentions the Agents4Science Code of Ethics, anonymization, or non-discriminatory practices, so ethical conformity cannot be verified from the paper's text.",
+     "data": {
+      "status": "not_checkable",
+      "answer": "Yes"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "not_checkable",
+   "reason": "None of the passages mentions the Agents4Science Code of Ethics, anonymization, or non-discriminatory practices, so ethical conformity cannot be verified from the paper's text.",
+   "caveat": null,
+   "risk": 1,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "not_checkable",
+     "not_checkable",
+     "not_checkable"
+    ]
+   },
+   "checklist_key": "ethics",
+   "rule_verdict": "not_checkable",
+   "adjudication": null
+  },
+  {
+   "id": "cfd6d8f113fb",
+   "type": "result",
+   "quote": "We demonstrate that AI passes Humanity’s Last Exam by Best-of-N rejection sampling and using appropriate models for different question categories.",
+   "location": {
+    "page": 1,
+    "paragraph": 2,
+    "sentence": 1,
+    "line_start": 1,
+    "line_end": 2,
+    "section": "Abstract",
+    "start": 162,
+    "end": 308
+   },
+   "is_main": true,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev7",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev8",
+     "kind": "text",
+     "label": "p. 3, ¶ 8 (3 Results)",
+     "snippet": "Models and aggregation. We find that o3-mini high performs best across most categories, except for Computer Science/AI for which Claude Sonnet 3.7 performs best, and Humanity/Social Science for which ERNIE X1 and Gemini 2 Flash perform best. This result of this combination is shown in Table 4 achieving 53% overall accuracy with an average running time of 251.9 seconds per answer. We find that using models with search improves accuracy by around 2%, however we do not use search to avoid contamin…",
+     "location": {
+      "page": 3,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": 114,
+      "line_end": 119,
+      "section": "3 Results",
+      "start": 11839,
+      "end": 12411
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev9",
+     "kind": "table",
+     "label": "Table 4",
+     "snippet": "Table 4: Accuracy and average running times by category of running Best-of-N with N=8 on a random sample of 100 HLE questions including multiple choice and exact match answers. Overall combination of the three models running Best-of-N on different categories.\nID | Category | Model | Total | Correct | Acc. (%) | Avg. Time (Sec)\n1 | Math | o3-mini high BoN (N=8) | 27 | 16 | 59.3 | 419.5\n2 | Biology/Medicine | o3-mini high BoN (N=8) | 21 | 8 | 38.1 | 220.7\n3 | Computer Science/AI | Claude 3.7 Sonnet BoN (N=8) | 14 | 8 | 57.1 | 44.9\n4 | Humanities/Social Science | Gemini-2.0-Flash BoN (N=8) | 12 | 5 | 41.7 | 51.7\n5 | Other | o3-mini high BoN (N=8) | 9 | 5 | 55.6 | 330.2\n6 | Physics | o3-mini hi…",
+     "location": {
+      "page": 6,
+      "paragraph": 9,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19071,
+      "end": 19318
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev10",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev11",
+     "kind": "text",
+     "label": "p. 4, ¶ 3 (3 Results)",
+     "snippet": "accuracy by 1%, however we avoid such a detailed feature. We find that using Prompt2Leaderboard [1], ie routing to different models by the actual question did not improve our results. The HLE dataset was made publicly available on 2/11/2025. We pass the HLE using models that do not use online search, and without using models with a knowledge cutoff after the HLE release date. We evaluate recent models and models that use search tools for completeness.",
+     "location": {
+      "page": 4,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 120,
+      "line_end": 124,
+      "section": "3 Results",
+      "start": 13540,
+      "end": 13995
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "3 supporting and 2 partial evidence item(s): Table 1, p. 3, ¶ 8 (3 Results), Table 4.",
+     "data": {
+      "supports": 3,
+      "partial": 2,
+      "contradicts": 0,
+      "candidates": 11,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev7",
+      "ev8",
+      "ev9",
+      "ev10",
+      "ev11"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no strength markers",
+     "data": {
+      "reason": "no strength markers"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by Table 1, p. 3, ¶ 8 (3 Results), Table 4.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "8ed76085b5bf",
+   "type": "result",
+   "quote": "Specifically, we pass the HLE with 53% accuracy, without online search, for a cost of around $3 per question and running time of less than 5 minutes per question, verified by humans on a random sample of 100 questions.",
+   "location": {
+    "page": 1,
+    "paragraph": 2,
+    "sentence": 2,
+    "line_start": 2,
+    "line_end": 5,
+    "section": "Abstract",
+    "start": 309,
+    "end": 527
+   },
+   "is_main": true,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev12",
+     "kind": "text",
+     "label": "p. 3, ¶ 5 (3 Results)",
+     "snippet": "We achieve an overall accuracy of 53% on the HLE without using online search, with an average cost of approximately $3 per question and a running time of under 5 minutes per question.",
+     "location": {
+      "page": 3,
+      "paragraph": 5,
+      "sentence": 1,
+      "line_start": 102,
+      "line_end": 103,
+      "section": "3 Results",
+      "start": 10744,
+      "end": 10927
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev13",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev14",
+     "kind": "table",
+     "label": "Table 4",
+     "snippet": "Table 4: Accuracy and average running times by category of running Best-of-N with N=8 on a random sample of 100 HLE questions including multiple choice and exact match answers. Overall combination of the three models running Best-of-N on different categories.\nID | Category | Model | Total | Correct | Acc. (%) | Avg. Time (Sec)\n1 | Math | o3-mini high BoN (N=8) | 27 | 16 | 59.3 | 419.5\n2 | Biology/Medicine | o3-mini high BoN (N=8) | 21 | 8 | 38.1 | 220.7\n3 | Computer Science/AI | Claude 3.7 Sonnet BoN (N=8) | 14 | 8 | 57.1 | 44.9\n4 | Humanities/Social Science | Gemini-2.0-Flash BoN (N=8) | 12 | 5 | 41.7 | 51.7\n5 | Other | o3-mini high BoN (N=8) | 9 | 5 | 55.6 | 330.2\n6 | Physics | o3-mini hi…",
+     "location": {
+      "page": 6,
+      "paragraph": 9,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19071,
+      "end": 19318
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev15",
+     "kind": "text",
+     "label": "p. 3, ¶ 8 (3 Results)",
+     "snippet": "Models and aggregation. We find that o3-mini high performs best across most categories, except for Computer Science/AI for which Claude Sonnet 3.7 performs best, and Humanity/Social Science for which ERNIE X1 and Gemini 2 Flash perform best. This result of this combination is shown in Table 4 achieving 53% overall accuracy with an average running time of 251.9 seconds per answer. We find that using models with search improves accuracy by around 2%, however we do not use search to avoid contamin…",
+     "location": {
+      "page": 3,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": 114,
+      "line_end": 119,
+      "section": "3 Results",
+      "start": 11839,
+      "end": 12411
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev16",
+     "kind": "text",
+     "label": "p. 4, ¶ 3 (3 Results)",
+     "snippet": "accuracy by 1%, however we avoid such a detailed feature. We find that using Prompt2Leaderboard [1], ie routing to different models by the actual question did not improve our results. The HLE dataset was made publicly available on 2/11/2025. We pass the HLE using models that do not use online search, and without using models with a knowledge cutoff after the HLE release date. We evaluate recent models and models that use search tools for completeness.",
+     "location": {
+      "page": 4,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 120,
+      "line_end": 124,
+      "section": "3 Results",
+      "start": 13540,
+      "end": 13995
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "4 supporting and 1 partial evidence item(s): p. 3, ¶ 5 (3 Results), Table 1, Table 4.",
+     "data": {
+      "supports": 4,
+      "partial": 1,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev12",
+      "ev13",
+      "ev14",
+      "ev15",
+      "ev16"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "Recomputed: 53% = 53 (Table 1, row 'Anthropic Sonnet 3.7 (for CS/AI) BoN (N=8) high', col 'Accuracy (%)').",
+     "data": {
+      "numbers": [
+       {
+        "id": "N1",
+        "text": "53%",
+        "claimed": 53.0,
+        "kind": "value",
+        "note": "Our combined BoN (N=8) approach accuracy on HLE",
+        "cells": [
+         "Table 1, row 'Anthropic Sonnet 3.7 (for CS/AI) BoN (N=8) high', col 'Accuracy (%)'"
+        ],
+        "tables": [
+         "Table 1"
+        ],
+        "computed": 53.0,
+        "expr": "53",
+        "status": "pass",
+        "scale": 1.0
+       }
+      ]
+     },
+     "evidence_ids": [
+      "ev13"
+     ]
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no strength markers",
+     "data": {
+      "reason": "no strength markers"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by p. 3, ¶ 5 (3 Results), Table 1, Table 4 and 1 more. Recomputed: 53% = 53 (Table 1, row 'Anthropic Sonnet 3.7 (for CS/AI) BoN (N=8) high', col 'Accuracy (%)').",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "396c64d7b782",
+   "type": "result",
+   "quote": "We compare the answers and performance of different models and methods and analyze their similarities and differences, finding which pairs of models give the same wrong answers.",
+   "location": {
+    "page": 1,
+    "paragraph": 2,
+    "sentence": 3,
+    "line_start": 5,
+    "line_end": 7,
+    "section": "Abstract",
+    "start": 528,
+    "end": 705
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev17",
+     "kind": "text",
+     "label": "p. 5, ¶ 4 (3 Results)",
+     "snippet": "Figure 7 shows a graph in which nodes are models and edges denote the % of the same wrong answers for multiple choice questions between the two models. Edges connect pairs of models with similarity values above 45%. The graph shows the relationships between models, for example Qwen2.5-Max shares strong edges with the three Grok models with similarity above 50%. Different models give the same answers for between 27.1% and 55.7% of the questions and same wrong answer for between 22.9% and 51.4% o…",
+     "location": {
+      "page": 5,
+      "paragraph": 4,
+      "sentence": 1,
+      "line_start": 132,
+      "line_end": 141,
+      "section": "3 Results",
+      "start": 14954,
+      "end": 15886
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev18",
+     "kind": "figure",
+     "label": "Figure 7",
+     "snippet": "Figure 7: Graph of model similarities showing significant relationships (above 45% similarity) between model pairs. Nodes represent models, colored by companies, and edges show the strength of similarity based on shared incorrect responses.",
+     "location": {
+      "page": 8,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 22191,
+      "end": 22431
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev19",
+     "kind": "figure",
+     "label": "Figure 6",
+     "snippet": "Figure 6: Pairwise similarity heatmaps showing the % of identical answers given by pairs of models on multiple-choice questions: (a) Both correct and incorrect answers, panel (b) Only incorrect answers. Black diagonals indicate self-similarity, and the color gradient ranges from 25% similarity (green) to 65% similarity (red), highlighting model pairs frequently choosing similar responses.",
+     "location": {
+      "page": 7,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 20266,
+      "end": 20509
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev20",
+     "kind": "figure",
+     "label": "Figure 5",
+     "snippet": "Figure 5: Three pairwise comparisons between model responses. The donuts show the % of identical wrong answers (Same Wrong), identical correct answers (Both Correct), and differing responses (Different) between DeepSeek-R1 vs. Anthropic Claude 3 Opus (25.7%), XAI Grok 3 DeepSearch vs. OpenAI GPT-4.5 Preview (27.1%), and Qwen2.5-Max vs. XAI Grok 3 Think (51.4%).",
+     "location": {
+      "page": 7,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19861,
+      "end": 20104
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev21",
+     "kind": "text",
+     "label": "p. 5, ¶ 3 (3 Results)",
+     "snippet": "vs Claude 3.5 Opus with 25.7% same wrong answer letters, Grok 3 DeepSearch vs. GPT 4.5 Preview with 27.1% same wrong answer letters, and Qwen2.5-Max vs Grok 3 Think with 51.4% same wrong answer letters.",
+     "location": {
+      "page": 5,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 129,
+      "line_end": 131,
+      "section": "3 Results",
+      "start": 14750,
+      "end": 14952
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "5 supporting and 0 partial evidence item(s): p. 5, ¶ 4 (3 Results), Figure 7, Figure 6.",
+     "data": {
+      "supports": 5,
+      "partial": 0,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev17",
+      "ev18",
+      "ev19",
+      "ev20",
+      "ev21"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no strength markers",
+     "data": {
+      "reason": "no strength markers"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by p. 5, ¶ 4 (3 Results), Figure 7, Figure 6 and 2 more.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "1210e33de69e",
+   "type": "method",
+   "quote": "For human understanding, we use AI to generate educational videos explaining the HLE math questions and their answers.",
+   "location": {
+    "page": 1,
+    "paragraph": 2,
+    "sentence": 4,
+    "line_start": 7,
+    "line_end": 9,
+    "section": "Abstract",
+    "start": 706,
+    "end": 824
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev22",
+     "kind": "text",
+     "label": "p. 6, ¶ 7 (3 Results)",
+     "snippet": "Generating video tutorials. Understanding mathematical problems often requires multimodal explanations that combine textual reasoning with structured visualizations. Building upon recent work [20], we use the Manim Python package [21] to automatically generate educational videos explaining challenging math questions, solutions, and underlying concepts.",
+     "location": {
+      "page": 6,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 142,
+      "line_end": 145,
+      "section": "3 Results",
+      "start": 18034,
+      "end": 18388
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev23",
+     "kind": "text",
+     "label": "p. 7, ¶ 5 (3 Results)",
+     "snippet": "Our pipeline generates video content that explains mathematical solutions and visually highlights common misconceptions and difficult concepts. The given solutions and Manim code create coherent and educationally sound animations. We interactively review the videos to fix visual inaccuracies, such as misaligned or overlapping elements. Integrating Manim animations with a realistic AI narrator can enhance understanding and engagement, bridging textual reasoning with intuitive auditory and visual…",
+     "location": {
+      "page": 7,
+      "paragraph": 5,
+      "sentence": 1,
+      "line_start": 160,
+      "line_end": 165,
+      "section": "3 Results",
+      "start": 21281,
+      "end": 21836
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev24",
+     "kind": "text",
+     "label": "p. 6, ¶ 8 (3 Results)",
+     "snippet": "Manim is a Python library used by educational content creators such as 3Blue1Brown [22] that allows to create visual animations by code. We use an LLM to generate the Manim code and video from the question, answer, and solution. We initially outline the structure, narrative, and educational flow for explaining the mathematical content. We generate Python scripts to animate concepts and illustrate solutions visually. Our approach incorporates an AI narrator generated using a human face image and…",
+     "location": {
+      "page": 6,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": 146,
+      "line_end": 152,
+      "section": "3 Results",
+      "start": 18390,
+      "end": 19069
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev25",
+     "kind": "figure",
+     "label": "Figure 1",
+     "snippet": "Figure 1: We evaluate 17 LLMs and 9 inference time aggregation methods using OptiLLM and Agent frameworks over 8 question categories and two types of answers. A human compares the answers and solutions to ground truth. An LLM creates a script and Python code using the Manim Python library. This includes a human narrator whose face image and voice sample are provided. The narrator’s voice is cloned, and their facial movements synchronized with the generated audio. The resulting narrator video, i…",
+     "location": {
+      "page": 4,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 12413,
+      "end": 12655
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev26",
+     "kind": "figure",
+     "label": "Figure 8",
+     "snippet": "Figure 8: Three frames from an explanation video generated for an HLE Mathematics question (ID 66edc256d0ce7f9082f8d744) using Claude Sonnet 3.7 for generating code using the Manim Python package. Videos are a few minutes long and take around thirty minutes to generate.",
+     "location": {
+      "page": 8,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 22433,
+      "end": 22675
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "5 supporting and 0 partial evidence item(s): p. 6, ¶ 7 (3 Results), p. 7, ¶ 5 (3 Results), p. 6, ¶ 8 (3 Results).",
+     "data": {
+      "supports": 5,
+      "partial": 0,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev22",
+      "ev23",
+      "ev24",
+      "ev25",
+      "ev26"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by p. 6, ¶ 7 (3 Results), p. 7, ¶ 5 (3 Results), p. 6, ¶ 8 (3 Results) and 2 more.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "973fd6eaed0b",
+   "type": "method",
+   "quote": "An expert Mathematician curates and analyzes a subset of the most challenging math HLE questions that AI has yet to solve, providing insights into current limitations.",
+   "location": {
+    "page": 1,
+    "paragraph": 2,
+    "sentence": 5,
+    "line_start": 9,
+    "line_end": 11,
+    "section": "Abstract",
+    "start": 825,
+    "end": 992
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev27",
+     "kind": "text",
+     "label": "p. 8, ¶ 3 (3 Results)",
+     "snippet": "math questions from the HLE with exact numerical answers that are not answered by running code or searching the web. An expert Mathematician curated and analyzed a subset of the most challenging math HLE questions that AI has yet to solve, which appear in the Appendix. We provide the expert Mathematician’s insights into why these questions are hard and summarize key limitations of current LLMs in the Appendix.",
+     "location": {
+      "page": 8,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 169,
+      "line_end": 173,
+      "section": "3 Results",
+      "start": 22705,
+      "end": 23118
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev28",
+     "kind": "figure",
+     "label": "Figure 1",
+     "snippet": "Figure 1: We evaluate 17 LLMs and 9 inference time aggregation methods using OptiLLM and Agent frameworks over 8 question categories and two types of answers. A human compares the answers and solutions to ground truth. An LLM creates a script and Python code using the Manim Python library. This includes a human narrator whose face image and voice sample are provided. The narrator’s voice is cloned, and their facial movements synchronized with the generated audio. The resulting narrator video, i…",
+     "location": {
+      "page": 4,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 12413,
+      "end": 12655
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev29",
+     "kind": "text",
+     "label": "p. 7, ¶ 6 (3 Results)",
+     "snippet": "Hard math HLE questions and LLM limitations. We initially identified four problems with the HLE dataset: Many questions are not very hard, multiple choice, easily answered by running code or by searching the web. We therefore have an expert Mathematician select a small subset of difficult",
+     "location": {
+      "page": 7,
+      "paragraph": 6,
+      "sentence": 1,
+      "line_start": 166,
+      "line_end": 168,
+      "section": "3 Results",
+      "start": 21838,
+      "end": 22127
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "2 supporting and 1 partial evidence item(s): p. 8, ¶ 3 (3 Results), Figure 1, p. 7, ¶ 6 (3 Results).",
+     "data": {
+      "supports": 2,
+      "partial": 1,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev27",
+      "ev28",
+      "ev29"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by p. 8, ¶ 3 (3 Results), Figure 1.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "b825f658e1cd",
+   "type": "method",
+   "quote": "We then evaluate multiple models in a zero-shot setting, evaluate each model’s accuracy and running time, identify the most effective zero-shot models across all domains under the problem constraints, and find the best zero-shot models specialized for specific categories such as Computer Science/AI or Humanities/Social Sciences.",
+   "location": {
+    "page": 1,
+    "paragraph": 3,
+    "sentence": 11,
+    "line_start": 23,
+    "line_end": 26,
+    "section": "1 Introduction",
+    "start": 2033,
+    "end": 2363
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "absolute",
+    "scope": "universal",
+    "markers": [
+     "all",
+     "all domains"
+    ]
+   },
+   "evidence": [
+    {
+     "id": "ev30",
+     "kind": "text",
+     "label": "p. 3, ¶ 8 (3 Results)",
+     "snippet": "Models and aggregation. We find that o3-mini high performs best across most categories, except for Computer Science/AI for which Claude Sonnet 3.7 performs best, and Humanity/Social Science for which ERNIE X1 and Gemini 2 Flash perform best. This result of this combination is shown in Table 4 achieving 53% overall accuracy with an average running time of 251.9 seconds per answer. We find that using models with search improves accuracy by around 2%, however we do not use search to avoid contamin…",
+     "location": {
+      "page": 3,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": 114,
+      "line_end": 119,
+      "section": "3 Results",
+      "start": 11839,
+      "end": 12411
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev31",
+     "kind": "table",
+     "label": "Table 2",
+     "snippet": "Table 2: Zero-shot accuracy for each model by category and Best-of-N (N=8) o3-mini high accuracy, by category.\nID | Model | Math | Bio/Med | CS/AI | Hum/Soc | Other | Physics | Chem | Engineering | Total\n1 | Command A | 0% | 23.8% | 0% | 0% | 11.1% | 0% | 33.3% | 0% | 8%\n2 | Sonar Pro | 11.1% | 14.3% | 0% | 8.3% | 11.1% | 0% | 16.7% | 0% | 9%\n3 | DeepSeek-R1 | 11.1% | 28.6% | 14.3% | 8.3% | 11.1% | 0% | 0% | 33.3% | 14%\n4 | Qwen2.5-Max | 7.4% | 4.8% | 28.6% | 16.7% | 0% | 0% | 0% | 0% | 9%\n5 | ERNIE 4.5 | 3.7% | 9.5% | 0% | 0% | 22.2% | 0% | 16.7% | 0% | 6%\n6 | ERNIE X1 | 7.4% | 9.5% | 7.1% | 33.3% | 0% | 0% | 16.7% | 0% | 10%\n7 | Claude 3.7 Sonnet | 11.1% | 9.5% | 21.4% | 0% | 11.1% | 0% |…",
+     "location": {
+      "page": 6,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 15888,
+      "end": 15998
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev32",
+     "kind": "text",
+     "label": "p. 3, ¶ 6 (3 Results)",
+     "snippet": "Zero-shot model accuracy and running times. We first test 17 models zero-shot on a random sample of 100 questions and evaluate accuracy and measure running times as shown in Figures 2 and 3. Figure 4 shows model running time vs. accuracy. Based on this plot we select o3-mini high as our base model for further ablation studies of inference time aggregation methods. We exclude the three best performing models (to the right of o3-mini high) since they use search, and the three models above it sinc…",
+     "location": {
+      "page": 3,
+      "paragraph": 6,
+      "sentence": 1,
+      "line_start": 104,
+      "line_end": 109,
+      "section": "3 Results",
+      "start": 10929,
+      "end": 11446
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev33",
+     "kind": "table",
+     "label": "Table 3",
+     "snippet": "Table 3: Zero-shot average running times in seconds for each model by category and o3-mini high BoN (N=8) average running time by category.\nID | Model | Math | Bio/Med | CS/AI | Hum/Soc | Other | Physics | Chem | Engineering | Total\n1 | Command A | 11.6 | 5.0 | 9.5 | 3.7 | 6.2 | 7.8 | 7.3 | 17.3 | 8.1\n2 | DeepSeek-R1 | 304 | 92.4 | 269.5 | 79.6 | 127.2 | 139.9 | 169.2 | 193.3 | 187.3\n3 | Claude 3.7 Sonnet | 366.1 | 42.7 | 133.6 | 29.5 | 20.7 | 86.5 | 101.5 | 403.7 | 157.1\n4 | Gemini-2.0-Flash | 49.2 | 9.9 | 28.1 | 9.8 | 7.3 | 18.0 | 24.5 | 40.7 | 25.3\n5 | Grok 3 DeepSearch | 122.4 | 49.8 | 122.0 | 69.3 | 68.3 | 68.9 | 98.0 | 104.7 | 89.6\n6 | Grok 3 Think | 164.4 | 53.7 | 144.4 | 61.8 | 62.8…",
+     "location": {
+      "page": 6,
+      "paragraph": 4,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 17167,
+      "end": 17306
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev34",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "5 supporting and 0 partial evidence item(s): p. 3, ¶ 8 (3 Results), Table 2, p. 3, ¶ 6 (3 Results).",
+     "data": {
+      "supports": 5,
+      "partial": 0,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev30",
+      "ev31",
+      "ev32",
+      "ev33",
+      "ev34"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (describes what was done)",
+     "data": {
+      "reason": "method claim (describes what was done)",
+      "markers": [
+       "best"
+      ]
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no verified limitation statements",
+     "data": {
+      "reason": "no verified limitation statements"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by p. 3, ¶ 8 (3 Results), Table 2, p. 3, ¶ 6 (3 Results) and 2 more.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "09de63cd6767",
+   "type": "method",
+   "quote": "We compare multiple inference-time methods and agent-based frameworks, and analyze the trade-offs between accuracy, running time, and domain performance.",
+   "location": {
+    "page": 1,
+    "paragraph": 3,
+    "sentence": 13,
+    "line_start": 27,
+    "line_end": 29,
+    "section": "1 Introduction",
+    "start": 2439,
+    "end": 2592
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev35",
+     "kind": "figure",
+     "label": "Figure 1",
+     "snippet": "Figure 1: We evaluate 17 LLMs and 9 inference time aggregation methods using OptiLLM and Agent frameworks over 8 question categories and two types of answers. A human compares the answers and solutions to ground truth. An LLM creates a script and Python code using the Manim Python library. This includes a human narrator whose face image and voice sample are provided. The narrator’s voice is cloned, and their facial movements synchronized with the generated audio. The resulting narrator video, i…",
+     "location": {
+      "page": 4,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 12413,
+      "end": 12655
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev36",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev37",
+     "kind": "text",
+     "label": "p. 3, ¶ 2 (2 Methods)",
+     "snippet": "We evaluate 17 LLMs and 9 aggregation methods over 8 question categories and two types of answers. We perform an ablation study of inference time methods [2] on the HLE using models o3-mini high, Claude Sonnet 3.7, and Gemini 2 Flash. These methods included zero-shot prompting, Best-of-N rejection sampling, Monte Carlo Tree Search [15], self-consistency [6], mixture of agents combining multiple model outputs [8], round trip optimization for response verification [16], Z3 theorem prover for form…",
+     "location": {
+      "page": 3,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 80,
+      "line_end": 88,
+      "section": "2 Methods",
+      "start": 8709,
+      "end": 9558
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev38",
+     "kind": "table",
+     "label": "Table 4",
+     "snippet": "Table 4: Accuracy and average running times by category of running Best-of-N with N=8 on a random sample of 100 HLE questions including multiple choice and exact match answers. Overall combination of the three models running Best-of-N on different categories.\nID | Category | Model | Total | Correct | Acc. (%) | Avg. Time (Sec)\n1 | Math | o3-mini high BoN (N=8) | 27 | 16 | 59.3 | 419.5\n2 | Biology/Medicine | o3-mini high BoN (N=8) | 21 | 8 | 38.1 | 220.7\n3 | Computer Science/AI | Claude 3.7 Sonnet BoN (N=8) | 14 | 8 | 57.1 | 44.9\n4 | Humanities/Social Science | Gemini-2.0-Flash BoN (N=8) | 12 | 5 | 41.7 | 51.7\n5 | Other | o3-mini high BoN (N=8) | 9 | 5 | 55.6 | 330.2\n6 | Physics | o3-mini hi…",
+     "location": {
+      "page": 6,
+      "paragraph": 9,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19071,
+      "end": 19318
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev39",
+     "kind": "figure",
+     "label": "Figure 4",
+     "snippet": "Figure 4: Zero-shot model running time vs. accuracy.",
+     "location": {
+      "page": 5,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 14696,
+      "end": 14748
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "1 supporting and 4 partial evidence item(s): Figure 1, p. 3, ¶ 7 (3 Results), p. 3, ¶ 2 (2 Methods).",
+     "data": {
+      "supports": 1,
+      "partial": 4,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev35",
+      "ev36",
+      "ev37",
+      "ev38",
+      "ev39"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by Figure 1.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "a9d974e8d832",
+   "type": "result",
+   "quote": "We determine which methods perform best across a broad range of domains.",
+   "location": {
+    "page": 1,
+    "paragraph": 3,
+    "sentence": 14,
+    "line_start": 29,
+    "line_end": 30,
+    "section": "1 Introduction",
+    "start": 2593,
+    "end": 2665
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "general",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev40",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev41",
+     "kind": "text",
+     "label": "p. 3, ¶ 8 (3 Results)",
+     "snippet": "Models and aggregation. We find that o3-mini high performs best across most categories, except for Computer Science/AI for which Claude Sonnet 3.7 performs best, and Humanity/Social Science for which ERNIE X1 and Gemini 2 Flash perform best. This result of this combination is shown in Table 4 achieving 53% overall accuracy with an average running time of 251.9 seconds per answer. We find that using models with search improves accuracy by around 2%, however we do not use search to avoid contamin…",
+     "location": {
+      "page": 3,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": 114,
+      "line_end": 119,
+      "section": "3 Results",
+      "start": 11839,
+      "end": 12411
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev42",
+     "kind": "table",
+     "label": "Table 4",
+     "snippet": "Table 4: Accuracy and average running times by category of running Best-of-N with N=8 on a random sample of 100 HLE questions including multiple choice and exact match answers. Overall combination of the three models running Best-of-N on different categories.\nID | Category | Model | Total | Correct | Acc. (%) | Avg. Time (Sec)\n1 | Math | o3-mini high BoN (N=8) | 27 | 16 | 59.3 | 419.5\n2 | Biology/Medicine | o3-mini high BoN (N=8) | 21 | 8 | 38.1 | 220.7\n3 | Computer Science/AI | Claude 3.7 Sonnet BoN (N=8) | 14 | 8 | 57.1 | 44.9\n4 | Humanities/Social Science | Gemini-2.0-Flash BoN (N=8) | 12 | 5 | 41.7 | 51.7\n5 | Other | o3-mini high BoN (N=8) | 9 | 5 | 55.6 | 330.2\n6 | Physics | o3-mini hi…",
+     "location": {
+      "page": 6,
+      "paragraph": 9,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19071,
+      "end": 19318
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev43",
+     "kind": "table",
+     "label": "Table 2",
+     "snippet": "Table 2: Zero-shot accuracy for each model by category and Best-of-N (N=8) o3-mini high accuracy, by category.\nID | Model | Math | Bio/Med | CS/AI | Hum/Soc | Other | Physics | Chem | Engineering | Total\n1 | Command A | 0% | 23.8% | 0% | 0% | 11.1% | 0% | 33.3% | 0% | 8%\n2 | Sonar Pro | 11.1% | 14.3% | 0% | 8.3% | 11.1% | 0% | 16.7% | 0% | 9%\n3 | DeepSeek-R1 | 11.1% | 28.6% | 14.3% | 8.3% | 11.1% | 0% | 0% | 33.3% | 14%\n4 | Qwen2.5-Max | 7.4% | 4.8% | 28.6% | 16.7% | 0% | 0% | 0% | 0% | 9%\n5 | ERNIE 4.5 | 3.7% | 9.5% | 0% | 0% | 22.2% | 0% | 16.7% | 0% | 6%\n6 | ERNIE X1 | 7.4% | 9.5% | 7.1% | 33.3% | 0% | 0% | 16.7% | 0% | 10%\n7 | Claude 3.7 Sonnet | 11.1% | 9.5% | 21.4% | 0% | 11.1% | 0% |…",
+     "location": {
+      "page": 6,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 15888,
+      "end": 15998
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev44",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "explicit_ref",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "4 supporting and 1 partial evidence item(s): p. 3, ¶ 7 (3 Results), p. 3, ¶ 8 (3 Results), Table 4.",
+     "data": {
+      "supports": 4,
+      "partial": 1,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev40",
+      "ev41",
+      "ev42",
+      "ev43",
+      "ev44"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "the linked tables do not compare the claimed systems",
+     "data": {
+      "reason": "the linked tables do not compare the claimed systems",
+      "markers": [
+       "best"
+      ],
+      "note": "The claim only states that the paper identifies which methods perform best across domains; it does not assert that one specific system outperforms others, so no comparison can be mapped."
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "fail",
+     "severity": "overstates",
+     "detail": "\"consistently\" / \"always\" / \"across\" (across a broad range of): no dominance check (the linked tables do not compare the claimed systems).",
+     "data": {
+      "rules": [
+       {
+        "rule": "consistency",
+        "title": "\"consistently\" / \"always\" / \"across\"",
+        "markers": [
+         "across a broad range of"
+        ],
+        "outcome": "overstates",
+        "requirements": {
+         "settings>=2": "ok",
+         "dominance_if_comparison": "unmet"
+        },
+        "unmet": [
+         "no dominance check (the linked tables do not compare the claimed systems)"
+        ]
+       }
+      ]
+     },
+     "evidence_ids": [
+      "ev40",
+      "ev41",
+      "ev42",
+      "ev43",
+      "ev44"
+     ]
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no verified limitation statements",
+     "data": {
+      "reason": "no verified limitation statements"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "The Results section on p. 3 and Table 2 compare performance by question category, identifying o3-mini high as best in most categories and other models as best in Computer Science/AI and Humanities/Social Science. Table 4 reports the resulting category-specific combination, supporting the claim that the authors determine which methods perform best across domains without implying one universal winner.",
+   "caveat": "The results support category-specific winners rather than dominance by a single method in every domain.",
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 2,
+    "verdicts": [
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "overstated",
+   "adjudication": {
+    "decision": "supported",
+    "evidence_ids": [
+     "ev41",
+     "ev42",
+     "ev43"
+    ],
+    "parse_problem": "",
+    "applied": true,
+    "note": ""
+   }
+  },
+  {
+   "id": "f0e5ec83b51c",
+   "type": "method",
+   "quote": "Our ablation studies allow us to select LLMs and an inference aggregation method within the problem constraints for passing Humanity’s Last Exam as shown in Table 1.",
+   "location": {
+    "page": 1,
+    "paragraph": 3,
+    "sentence": 15,
+    "line_start": 30,
+    "line_end": 31,
+    "section": "1 Introduction",
+    "start": 2666,
+    "end": 2831
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev45",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "explicit_ref",
+     "relation": "supports"
+    },
+    {
+     "id": "ev46",
+     "kind": "text",
+     "label": "p. 3, ¶ 8 (3 Results)",
+     "snippet": "Models and aggregation. We find that o3-mini high performs best across most categories, except for Computer Science/AI for which Claude Sonnet 3.7 performs best, and Humanity/Social Science for which ERNIE X1 and Gemini 2 Flash perform best. This result of this combination is shown in Table 4 achieving 53% overall accuracy with an average running time of 251.9 seconds per answer. We find that using models with search improves accuracy by around 2%, however we do not use search to avoid contamin…",
+     "location": {
+      "page": 3,
+      "paragraph": 8,
+      "sentence": 1,
+      "line_start": 114,
+      "line_end": 119,
+      "section": "3 Results",
+      "start": 11839,
+      "end": 12411
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev47",
+     "kind": "text",
+     "label": "p. 3, ¶ 6 (3 Results)",
+     "snippet": "Zero-shot model accuracy and running times. We first test 17 models zero-shot on a random sample of 100 questions and evaluate accuracy and measure running times as shown in Figures 2 and 3. Figure 4 shows model running time vs. accuracy. Based on this plot we select o3-mini high as our base model for further ablation studies of inference time aggregation methods. We exclude the three best performing models (to the right of o3-mini high) since they use search, and the three models above it sinc…",
+     "location": {
+      "page": 3,
+      "paragraph": 6,
+      "sentence": 1,
+      "line_start": 104,
+      "line_end": 109,
+      "section": "3 Results",
+      "start": 10929,
+      "end": 11446
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev48",
+     "kind": "text",
+     "label": "p. 3, ¶ 2 (2 Methods)",
+     "snippet": "We evaluate 17 LLMs and 9 aggregation methods over 8 question categories and two types of answers. We perform an ablation study of inference time methods [2] on the HLE using models o3-mini high, Claude Sonnet 3.7, and Gemini 2 Flash. These methods included zero-shot prompting, Best-of-N rejection sampling, Monte Carlo Tree Search [15], self-consistency [6], mixture of agents combining multiple model outputs [8], round trip optimization for response verification [16], Z3 theorem prover for form…",
+     "location": {
+      "page": 3,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 80,
+      "line_end": 88,
+      "section": "2 Methods",
+      "start": 8709,
+      "end": 9558
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev49",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev50",
+     "kind": "text",
+     "label": "p. 4, ¶ 3 (3 Results)",
+     "snippet": "accuracy by 1%, however we avoid such a detailed feature. We find that using Prompt2Leaderboard [1], ie routing to different models by the actual question did not improve our results. The HLE dataset was made publicly available on 2/11/2025. We pass the HLE using models that do not use online search, and without using models with a knowledge cutoff after the HLE release date. We evaluate recent models and models that use search tools for completeness.",
+     "location": {
+      "page": 4,
+      "paragraph": 3,
+      "sentence": 1,
+      "line_start": 120,
+      "line_end": 124,
+      "section": "3 Results",
+      "start": 13540,
+      "end": 13995
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "2 supporting and 4 partial evidence item(s): Table 1, p. 3, ¶ 8 (3 Results), p. 3, ¶ 6 (3 Results).",
+     "data": {
+      "supports": 2,
+      "partial": 4,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev45",
+      "ev46",
+      "ev47",
+      "ev48",
+      "ev49",
+      "ev50"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by Table 1, p. 3, ¶ 8 (3 Results).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "279f60f437c7",
+   "type": "method",
+   "quote": "We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.",
+   "location": {
+    "page": 2,
+    "paragraph": 1,
+    "sentence": 3,
+    "line_start": null,
+    "line_end": null,
+    "section": "1 Introduction",
+    "start": 3759,
+    "end": 3876
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev51",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev52",
+     "kind": "table",
+     "label": "Table 4",
+     "snippet": "Table 4: Accuracy and average running times by category of running Best-of-N with N=8 on a random sample of 100 HLE questions including multiple choice and exact match answers. Overall combination of the three models running Best-of-N on different categories.\nID | Category | Model | Total | Correct | Acc. (%) | Avg. Time (Sec)\n1 | Math | o3-mini high BoN (N=8) | 27 | 16 | 59.3 | 419.5\n2 | Biology/Medicine | o3-mini high BoN (N=8) | 21 | 8 | 38.1 | 220.7\n3 | Computer Science/AI | Claude 3.7 Sonnet BoN (N=8) | 14 | 8 | 57.1 | 44.9\n4 | Humanities/Social Science | Gemini-2.0-Flash BoN (N=8) | 12 | 5 | 41.7 | 51.7\n5 | Other | o3-mini high BoN (N=8) | 9 | 5 | 55.6 | 330.2\n6 | Physics | o3-mini hi…",
+     "location": {
+      "page": 6,
+      "paragraph": 9,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19071,
+      "end": 19318
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev53",
+     "kind": "text",
+     "label": "p. 6, ¶ 11 (3 Results)",
+     "snippet": "1 Math o3-mini high BoN (N=8) 27 16 59.3 419.5 2 Biology/Medicine o3-mini high BoN (N=8) 21 8 38.1 220.7 3 Computer Science/AI Claude 3.7 Sonnet BoN (N=8) 14 8 57.1 44.9 4 Humanities/Social Science Gemini-2.0-Flash BoN (N=8) 12 5 41.7 51.7 5 Other o3-mini high BoN (N=8) 9 5 55.6 330.2 6 Physics o3-mini high BoN (N=8) 8 5 62.5 239.6 7 Chemistry o3-mini high BoN (N=8) 6 4 66.7 280.0 8 Engineering o3-mini high BoN (N=8) 3 2 66.7 470.3 Overall BoN (N=8) 100 53 53 251.9",
+     "location": {
+      "page": 6,
+      "paragraph": 11,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 19390,
+      "end": 19859
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev54",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev55",
+     "kind": "text",
+     "label": "p. 3, ¶ 2 (2 Methods)",
+     "snippet": "We evaluate 17 LLMs and 9 aggregation methods over 8 question categories and two types of answers. We perform an ablation study of inference time methods [2] on the HLE using models o3-mini high, Claude Sonnet 3.7, and Gemini 2 Flash. These methods included zero-shot prompting, Best-of-N rejection sampling, Monte Carlo Tree Search [15], self-consistency [6], mixture of agents combining multiple model outputs [8], round trip optimization for response verification [16], Z3 theorem prover for form…",
+     "location": {
+      "page": 3,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 80,
+      "line_end": 88,
+      "section": "2 Methods",
+      "start": 8709,
+      "end": 9558
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "3 supporting and 2 partial evidence item(s): Table 1, Table 4, p. 6, ¶ 11 (3 Results).",
+     "data": {
+      "supports": 3,
+      "partial": 2,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev51",
+      "ev52",
+      "ev53",
+      "ev54",
+      "ev55"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by Table 1, Table 4, p. 6, ¶ 11 (3 Results).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "3b1a3b974447",
+   "type": "method",
+   "quote": "Without a perfect verifier we cannot aggregate by maximum over answers, and therefore perform ablation studies over aggregation methods.",
+   "location": {
+    "page": 2,
+    "paragraph": 6,
+    "sentence": 5,
+    "line_start": 64,
+    "line_end": 65,
+    "section": "1 Introduction",
+    "start": 7278,
+    "end": 7414
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "universal",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev56",
+     "kind": "text",
+     "label": "p. 3, ¶ 2 (2 Methods)",
+     "snippet": "We evaluate 17 LLMs and 9 aggregation methods over 8 question categories and two types of answers. We perform an ablation study of inference time methods [2] on the HLE using models o3-mini high, Claude Sonnet 3.7, and Gemini 2 Flash. These methods included zero-shot prompting, Best-of-N rejection sampling, Monte Carlo Tree Search [15], self-consistency [6], mixture of agents combining multiple model outputs [8], round trip optimization for response verification [16], Z3 theorem prover for form…",
+     "location": {
+      "page": 3,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 80,
+      "line_end": 88,
+      "section": "2 Methods",
+      "start": 8709,
+      "end": 9558
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev57",
+     "kind": "text",
+     "label": "p. 3, ¶ 7 (3 Results)",
+     "snippet": "Inference time aggregation methods. Next, we apply 9 different aggregation methods to o3-mini high and find that Best-of-N rejection sampling is effective across nearly all question categories. Best-of-N rejection sampling (N=8) significantly improves accuracy compared with zero-shot model performance as shown in Table 2, with a tradeoff, increasing computation time as shown in Table 3.",
+     "location": {
+      "page": 3,
+      "paragraph": 7,
+      "sentence": 1,
+      "line_start": 110,
+      "line_end": 113,
+      "section": "3 Results",
+      "start": 11448,
+      "end": 11837
+     },
+     "link_method": "llm_selected",
+     "relation": "supports"
+    },
+    {
+     "id": "ev58",
+     "kind": "text",
+     "label": "p. 3, ¶ 6 (3 Results)",
+     "snippet": "Zero-shot model accuracy and running times. We first test 17 models zero-shot on a random sample of 100 questions and evaluate accuracy and measure running times as shown in Figures 2 and 3. Figure 4 shows model running time vs. accuracy. Based on this plot we select o3-mini high as our base model for further ablation studies of inference time aggregation methods. We exclude the three best performing models (to the right of o3-mini high) since they use search, and the three models above it sinc…",
+     "location": {
+      "page": 3,
+      "paragraph": 6,
+      "sentence": 1,
+      "line_start": 104,
+      "line_end": 109,
+      "section": "3 Results",
+      "start": 10929,
+      "end": 11446
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev59",
+     "kind": "figure",
+     "label": "Figure 1",
+     "snippet": "Figure 1: We evaluate 17 LLMs and 9 inference time aggregation methods using OptiLLM and Agent frameworks over 8 question categories and two types of answers. A human compares the answers and solutions to ground truth. An LLM creates a script and Python code using the Manim Python library. This includes a human narrator whose face image and voice sample are provided. The narrator’s voice is cloned, and their facial movements synchronized with the generated audio. The resulting narrator video, i…",
+     "location": {
+      "page": 4,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "3 Results",
+      "start": 12413,
+      "end": 12655
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    },
+    {
+     "id": "ev60",
+     "kind": "table",
+     "label": "Table 1",
+     "snippet": "Table 1: Performance of 17 LLMs on Humanity’s Last Exam. We pass Humanity’s Last Exam achieving 53% accuracy, with an average running time of 251.9 seconds per question, average cost of $3 per question, as verified by humans on a random sample of 100 questions. We use Best-of-N rejection sampling with N = 8, as implemented by OptiLLM [2] and extended to support different LLMs.\nID | Company | Model | Accuracy (%) | Time (sec) | Cost\n1 | Cohere | Cohere Command A | 8 | 11.4 | low\n2 | Perplexity AI | Sonar Pro | 9 | NA | low\n3 | DeepSeek | DeepSeek-R1 | 14 | 174.3 | low\n4 | Alibaba Cloud | Qwen2.5-Max | 9 | NA | low\n5 | Baidu | ERNIE 4.5 | 6 | NA | low\n6 | Baidu | ERNIE X1 | 10 | NA | low\n7 |…",
+     "location": {
+      "page": 2,
+      "paragraph": 1,
+      "sentence": 1,
+      "line_start": null,
+      "line_end": null,
+      "section": "1 Introduction",
+      "start": 3497,
+      "end": 3740
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "2 supporting and 3 partial evidence item(s): p. 3, ¶ 2 (2 Methods), p. 3, ¶ 7 (3 Results), p. 3, ¶ 6 (3 Results).",
+     "data": {
+      "supports": 2,
+      "partial": 3,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev56",
+      "ev57",
+      "ev58",
+      "ev59",
+      "ev60"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "method claim (the rubric covers results)",
+     "data": {
+      "reason": "method claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no verified limitation statements",
+     "data": {
+      "reason": "no verified limitation statements"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by p. 3, ¶ 2 (2 Methods), p. 3, ¶ 7 (3 Results).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 2,
+    "verdicts": [
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "1d7dd417fcd8",
+   "type": "availability",
+   "quote": "We hope our results advance LLM reasoning and math education and, in the spirit of reproducible research, will make our data and code available online upon publication.",
+   "location": {
+    "page": 8,
+    "paragraph": 4,
+    "sentence": 8,
+    "line_start": 182,
+    "line_end": 184,
+    "section": "4 Conclusions",
+    "start": 23894,
+    "end": 24062
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ev61",
+     "kind": "code",
+     "label": "20 source file(s) in the submitted code",
+     "snippet": "supplementary/code/bon.py, supplementary/code/optillm/batching.py, supplementary/code/optillm/bon.py, supplementary/code/optillm/conversation_logger.py, supplementary/code/optillm/cot_decoding.py, supplementary/code/optillm/cot_reflection.py",
+     "location": null,
+     "link_method": "code_search",
+     "relation": "supports"
+    },
+    {
+     "id": "ev62",
+     "kind": "text",
+     "label": "p. 7, ¶ 5 (3 Results)",
+     "snippet": "Our pipeline generates video content that explains mathematical solutions and visually highlights common misconceptions and difficult concepts. The given solutions and Manim code create coherent and educationally sound animations. We interactively review the videos to fix visual inaccuracies, such as misaligned or overlapping elements. Integrating Manim animations with a realistic AI narrator can enhance understanding and engagement, bridging textual reasoning with intuitive auditory and visual…",
+     "location": {
+      "page": 7,
+      "paragraph": 5,
+      "sentence": 1,
+      "line_start": 160,
+      "line_end": 165,
+      "section": "3 Results",
+      "start": 21281,
+      "end": 21836
+     },
+     "link_method": "llm_selected",
+     "relation": "partial"
+    }
+   ],
+   "checks": [
+    {
+     "check": "link",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "1 supporting and 1 partial evidence item(s): 20 source file(s) in the submitted code, p. 7, ¶ 5 (3 Results).",
+     "data": {
+      "supports": 1,
+      "partial": 1,
+      "contradicts": 0,
+      "candidates": 12,
+      "dangling": []
+     },
+     "evidence_ids": [
+      "ev61",
+      "ev62"
+     ]
+    },
+    {
+     "check": "number",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "no number in the claim",
+     "data": {
+      "reason": "no number in the claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "dominance",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "not a comparison claim",
+     "data": {
+      "reason": "not a comparison claim"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "strength",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "availability claim (the rubric covers results)",
+     "data": {
+      "reason": "availability claim (the rubric covers results)"
+     },
+     "evidence_ids": []
+    },
+    {
+     "check": "scope",
+     "outcome": "not_run",
+     "severity": "none",
+     "detail": "claim wording is not strong, absolute, general or universal",
+     "data": {
+      "reason": "claim wording is not strong, absolute, general or universal"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Supported by 20 source file(s) in the submitted code.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": null,
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "f4ae19ed2d36",
+   "type": "checklist",
+   "quote": "Yes. The abstract and introduction match the scope and contributions presented in the paper.",
+   "location": {
+    "page": 12,
+    "paragraph": 11,
+    "sentence": 1,
+    "line_start": 318,
+    "line_end": 319,
+    "section": "Agents4Science Paper Checklist",
+    "start": 33814,
+    "end": 33906
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "No main claim in the abstract is contradicted by the paper's results.",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": []
+    }
+   ],
+   "verdict": "supported",
+   "reason": "No main claim in the abstract is contradicted by the paper's results.",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": "claims",
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "502cbf079612",
+   "type": "checklist",
+   "quote": "Yes. We explicitly discuss limitations and threats to validity.",
+   "location": {
+    "page": 12,
+    "paragraph": 20,
+    "sentence": 1,
+    "line_start": 333,
+    "line_end": 333,
+    "section": "Agents4Science Paper Checklist",
+    "start": 34682,
+    "end": 34745
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ck-limitations-1",
+     "kind": "text",
+     "label": "p. 8, ¶ 4 (4 Conclusions)",
+     "snippet": "We demonstrate that AI passes Humanity’s Last Exam, achieving an accuracy of 53% by using Best-of-N rejection sampling and selecting LLMs for specific question categories. This result is achieved without online search. We analyze the trade-offs between model accuracy, running time, and cost. Our analysis provides insights into model similarities. A pairwise comparison shows similarity in incorrect answers and knowledge gaps. To improve human understanding and provide educational value, we use a…",
+     "location": {
+      "page": 8,
+      "paragraph": 4,
+      "sentence": 1,
+      "line_start": 175,
+      "line_end": 184,
+      "section": "4 Conclusions",
+      "start": 23135,
+      "end": 24062
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "Limitations are discussed (p. 8, ¶ 4 (4 Conclusions)).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-limitations-1"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Limitations are discussed (p. 8, ¶ 4 (4 Conclusions)).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": "limitations",
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "773ee292f5f0",
+   "type": "checklist",
+   "quote": "Yes. We describe all experimental settings needed to verify main claims, independent of code release.",
+   "location": {
+    "page": 13,
+    "paragraph": 19,
+    "sentence": 1,
+    "line_start": 376,
+    "line_end": 377,
+    "section": "Agents4Science Paper Checklist",
+    "start": 37489,
+    "end": 37590
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "absolute",
+    "scope": "specific",
+    "markers": [
+     "all"
+    ]
+   },
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "code",
+     "label": "20 source file(s) in the submitted code",
+     "snippet": "supplementary/code/bon.py, supplementary/code/optillm/batching.py, supplementary/code/optillm/bon.py, supplementary/code/optillm/conversation_logger.py, supplementary/code/optillm/cot_decoding.py, supplementary/code/optillm/cot_reflection.py",
+     "location": null,
+     "link_method": "code_search",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "The submission includes 20 source file(s).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-open_access-2"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "The submission includes 20 source file(s).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": "reproducibility",
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "4c2f5a0fd7d9",
+   "type": "checklist",
+   "quote": "Yes. We release the processed data and main results.",
+   "location": {
+    "page": 14,
+    "paragraph": 3,
+    "sentence": 1,
+    "line_start": 394,
+    "line_end": 394,
+    "section": "Agents4Science Paper Checklist",
+    "start": 38623,
+    "end": 38675
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "code",
+     "label": "20 source file(s) in the submitted code",
+     "snippet": "supplementary/code/bon.py, supplementary/code/optillm/batching.py, supplementary/code/optillm/bon.py, supplementary/code/optillm/conversation_logger.py, supplementary/code/optillm/cot_decoding.py, supplementary/code/optillm/cot_reflection.py",
+     "location": null,
+     "link_method": "code_search",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "The submission includes 20 source file(s).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-open_access-2"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "The submission includes 20 source file(s).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": "open_access",
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "f059d71fe298",
+   "type": "checklist",
+   "quote": "Yes. We specify datasets (or question sets), sampling, and evaluation protocols sufficient to understand and reproduce results.",
+   "location": {
+    "page": 14,
+    "paragraph": 13,
+    "sentence": 1,
+    "line_start": 412,
+    "line_end": 413,
+    "section": "Agents4Science Paper Checklist",
+    "start": 39626,
+    "end": 39753
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ck-experimental_details-3",
+     "kind": "text",
+     "label": "p. 3, ¶ 2 (2 Methods)",
+     "snippet": "We evaluate 17 LLMs and 9 aggregation methods over 8 question categories and two types of answers. We perform an ablation study of inference time methods [2] on the HLE using models o3-mini high, Claude Sonnet 3.7, and Gemini 2 Flash. These methods included zero-shot prompting, Best-of-N rejection sampling, Monte Carlo Tree Search [15], self-consistency [6], mixture of agents combining multiple model outputs [8], round trip optimization for response verification [16], Z3 theorem prover for form…",
+     "location": {
+      "page": 3,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 80,
+      "line_end": 88,
+      "section": "2 Methods",
+      "start": 8709,
+      "end": 9558
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "Found \"hyperparameters\" in p. 3, ¶ 2 (2 Methods).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-experimental_details-3"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Found \"hyperparameters\" in p. 3, ¶ 2 (2 Methods).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": "experimental_details",
+   "rule_verdict": "supported",
+   "adjudication": null
+  },
+  {
+   "id": "4de69f370956",
+   "type": "checklist",
+   "quote": "Yes. We describe compute resources and relevant settings to reproduce experiments.",
+   "location": {
+    "page": 14,
+    "paragraph": 29,
+    "sentence": 1,
+    "line_start": 439,
+    "line_end": 440,
+    "section": "Agents4Science Paper Checklist",
+    "start": 41203,
+    "end": 41285
+   },
+   "is_main": false,
+   "wording": {
+    "strength": "plain",
+    "scope": "specific",
+    "markers": []
+   },
+   "evidence": [
+    {
+     "id": "ck-compute-4",
+     "kind": "text",
+     "label": "p. 1, ¶ 2 (Abstract)",
+     "snippet": "We demonstrate that AI passes Humanity’s Last Exam by Best-of-N rejection sampling and using appropriate models for different question categories. Specifically, we pass the HLE with 53% accuracy, without online search, for a cost of around $3 per question and running time of less than 5 minutes per question, verified by humans on a random sample of 100 questions. We compare the answers and performance of different models and methods and analyze their similarities and differences, finding which…",
+     "location": {
+      "page": 1,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 1,
+      "line_end": 11,
+      "section": "Abstract",
+      "start": 162,
+      "end": 992
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ],
+   "checks": [
+    {
+     "check": "checklist",
+     "outcome": "pass",
+     "severity": "none",
+     "detail": "Found \"5 minutes\" in p. 1, ¶ 2 (Abstract).",
+     "data": {
+      "status": "backed",
+      "answer": "Yes"
+     },
+     "evidence_ids": [
+      "ck-compute-4"
+     ]
+    }
+   ],
+   "verdict": "supported",
+   "reason": "Found \"5 minutes\" in p. 1, ¶ 2 (Abstract).",
+   "caveat": null,
+   "risk": 0,
+   "stability": {
+    "runs": 3,
+    "agree": 3,
+    "verdicts": [
+     "supported",
+     "supported",
+     "supported"
+    ]
+   },
+   "checklist_key": "compute",
+   "rule_verdict": "supported",
+   "adjudication": null
+  }
+ ],
+ "checklist": [
+  {
+   "key": "claims",
+   "title": "Claims",
+   "answer": "Yes",
+   "justification": "Yes. The abstract and introduction match the scope and contributions presented in the paper.",
+   "status": "backed",
+   "reason": "No main claim in the abstract is contradicted by the paper's results.",
+   "evidence": []
+  },
+  {
+   "key": "limitations",
+   "title": "Limitations",
+   "answer": "Yes",
+   "justification": "Yes. We explicitly discuss limitations and threats to validity.",
+   "status": "backed",
+   "reason": "Limitations are discussed (p. 8, ¶ 4 (4 Conclusions)).",
+   "evidence": [
+    {
+     "id": "ck-limitations-1",
+     "kind": "text",
+     "label": "p. 8, ¶ 4 (4 Conclusions)",
+     "snippet": "We demonstrate that AI passes Humanity’s Last Exam, achieving an accuracy of 53% by using Best-of-N rejection sampling and selecting LLMs for specific question categories. This result is achieved without online search. We analyze the trade-offs between model accuracy, running time, and cost. Our analysis provides insights into model similarities. A pairwise comparison shows similarity in incorrect answers and knowledge gaps. To improve human understanding and provide educational value, we use a…",
+     "location": {
+      "page": 8,
+      "paragraph": 4,
+      "sentence": 1,
+      "line_start": 175,
+      "line_end": 184,
+      "section": "4 Conclusions",
+      "start": 23135,
+      "end": 24062
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "theory",
+   "title": "Theory assumptions and proofs",
+   "answer": "NA",
+   "justification": "NA. The paper does not present formal theorems or proofs; results are empirical.",
+   "status": "not_applicable",
+   "reason": "Answered NA.",
+   "evidence": []
+  },
+  {
+   "key": "reproducibility",
+   "title": "Experimental result reproducibility",
+   "answer": "Yes",
+   "justification": "Yes. We describe all experimental settings needed to verify main claims, independent of code release.",
+   "status": "backed",
+   "reason": "The submission includes 20 source file(s).",
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "code",
+     "label": "20 source file(s) in the submitted code",
+     "snippet": "supplementary/code/bon.py, supplementary/code/optillm/batching.py, supplementary/code/optillm/bon.py, supplementary/code/optillm/conversation_logger.py, supplementary/code/optillm/cot_decoding.py, supplementary/code/optillm/cot_reflection.py",
+     "location": null,
+     "link_method": "code_search",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "open_access",
+   "title": "Open access to data and code",
+   "answer": "Yes",
+   "justification": "Yes. We release the processed data and main results.",
+   "status": "backed",
+   "reason": "The submission includes 20 source file(s).",
+   "evidence": [
+    {
+     "id": "ck-open_access-2",
+     "kind": "code",
+     "label": "20 source file(s) in the submitted code",
+     "snippet": "supplementary/code/bon.py, supplementary/code/optillm/batching.py, supplementary/code/optillm/bon.py, supplementary/code/optillm/conversation_logger.py, supplementary/code/optillm/cot_decoding.py, supplementary/code/optillm/cot_reflection.py",
+     "location": null,
+     "link_method": "code_search",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "experimental_details",
+   "title": "Experimental setting/details",
+   "answer": "Yes",
+   "justification": "Yes. We specify datasets (or question sets), sampling, and evaluation protocols sufficient to understand and reproduce results.",
+   "status": "backed",
+   "reason": "Found \"hyperparameters\" in p. 3, ¶ 2 (2 Methods).",
+   "evidence": [
+    {
+     "id": "ck-experimental_details-3",
+     "kind": "text",
+     "label": "p. 3, ¶ 2 (2 Methods)",
+     "snippet": "We evaluate 17 LLMs and 9 aggregation methods over 8 question categories and two types of answers. We perform an ablation study of inference time methods [2] on the HLE using models o3-mini high, Claude Sonnet 3.7, and Gemini 2 Flash. These methods included zero-shot prompting, Best-of-N rejection sampling, Monte Carlo Tree Search [15], self-consistency [6], mixture of agents combining multiple model outputs [8], round trip optimization for response verification [16], Z3 theorem prover for form…",
+     "location": {
+      "page": 3,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 80,
+      "line_end": 88,
+      "section": "2 Methods",
+      "start": 8709,
+      "end": 9558
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "error_bars",
+   "title": "Experiment statistical significance",
+   "answer": "Yes",
+   "justification": "Yes. Where applicable we report averages across multiple trials/samples and include the evaluation protocol used to assess variance.",
+   "status": "unbacked",
+   "reason": "Answered Yes, but no spread in any table and no std, CI, error-bar or significance-test language in the results text or captions.",
+   "evidence": []
+  },
+  {
+   "key": "compute",
+   "title": "Experiments compute resources",
+   "answer": "Yes",
+   "justification": "Yes. We describe compute resources and relevant settings to reproduce experiments.",
+   "status": "backed",
+   "reason": "Found \"5 minutes\" in p. 1, ¶ 2 (Abstract).",
+   "evidence": [
+    {
+     "id": "ck-compute-4",
+     "kind": "text",
+     "label": "p. 1, ¶ 2 (Abstract)",
+     "snippet": "We demonstrate that AI passes Humanity’s Last Exam by Best-of-N rejection sampling and using appropriate models for different question categories. Specifically, we pass the HLE with 53% accuracy, without online search, for a cost of around $3 per question and running time of less than 5 minutes per question, verified by humans on a random sample of 100 questions. We compare the answers and performance of different models and methods and analyze their similarities and differences, finding which…",
+     "location": {
+      "page": 1,
+      "paragraph": 2,
+      "sentence": 1,
+      "line_start": 1,
+      "line_end": 11,
+      "section": "Abstract",
+      "start": 162,
+      "end": 992
+     },
+     "link_method": "retrieval",
+     "relation": "supports"
+    }
+   ]
+  },
+  {
+   "key": "ethics",
+   "title": "Code of ethics",
+   "answer": "Yes",
+   "justification": "Yes. The work adheres to the Agents4Science Code of Ethics, including anonymization and non-discriminatory practices.",
+   "status": "not_checkable",
+   "reason": "None of the passages mentions the Agents4Science Code of Ethics, anonymization, or non-discriminatory practices, so ethical conformity cannot be verified from the paper's text.",
+   "evidence": []
+  },
+  {
+   "key": "broader_impacts",
+   "title": "Broader impacts",
+   "answer": "Yes",
+   "justification": "Yes. We discuss potential benefits (e.g., educational videos) and potential risks (e.g., misuse of auto-generated content).",
+   "status": "unbacked",
+   "reason": "The passages only describe potential positive impacts (educational videos enhancing understanding and engagement) and contain no discussion of negative societal impacts such as misuse of auto-generated content.",
+   "evidence": []
+  }
+ ],
+ "code": {
+  "available": true,
+  "files": 23,
+  "static": [],
+  "reruns": [],
+  "code_version": null
+ },
+ "ledger": [
+  {
+   "check": "link",
+   "ran_on": 14,
+   "not_run_on": 9,
+   "reasons": {
+    "checklist claim (checked by the checklist audit)": 9
+   }
+  },
+  {
+   "check": "number",
+   "ran_on": 1,
+   "not_run_on": 22,
+   "reasons": {
+    "no number in the claim": 13,
+    "checklist claim (checked by the checklist audit)": 9
+   }
+  },
+  {
+   "check": "dominance",
+   "ran_on": 0,
+   "not_run_on": 23,
+   "reasons": {
+    "not a comparison claim": 12,
+    "method claim (describes what was done)": 1,
+    "the linked tables do not compare the claimed systems": 1,
+    "checklist claim (checked by the checklist audit)": 9
+   }
+  },
+  {
+   "check": "strength",
+   "ran_on": 1,
+   "not_run_on": 22,
+   "reasons": {
+    "no strength markers": 4,
+    "method claim (the rubric covers results)": 8,
+    "availability claim (the rubric covers results)": 1,
+    "checklist claim (checked by the checklist audit)": 9
+   }
+  },
+  {
+   "check": "scope",
+   "ran_on": 0,
+   "not_run_on": 23,
+   "reasons": {
+    "no verified limitation statements": 4,
+    "claim wording is not strong, absolute, general or universal": 10,
+    "checklist claim (checked by the checklist audit)": 9
+   }
+  },
+  {
+   "check": "checklist",
+   "ran_on": 9,
+   "not_run_on": 1,
+   "reasons": {
+    "answered No or NA": 1
+   }
+  },
+  {
+   "check": "code_static",
+   "ran_on": 0,
+   "not_run_on": 23,
+   "reasons": {
+    "code checks are not part of this version": 23
+   }
+  },
+  {
+   "check": "code_rerun",
+   "ran_on": 0,
+   "not_run_on": 23,
+   "reasons": {
+    "code checks are not part of this version": 23
+   }
+  }
+ ],
+ "not_checked": [
+  {
+   "what": "Figure values not extracted",
+   "reason": "values plotted in figures are not read; figures are matched by their captions",
+   "count": 8
+  },
+  {
+   "what": "Submitted code",
+   "reason": "code checks are not part of this version",
+   "count": 23
+  },
+  {
+   "what": "Model claims with unverified quotes",
+   "reason": "the quoted text was not found in the paper, so the claim was dropped",
+   "count": 1
+  },
+  {
+   "what": "Claims found in only one run",
+   "reason": "not reported: a claim must appear in at least 2 of 3 runs",
+   "count": 1
+  },
+  {
+   "what": "Scope against limitations",
+   "reason": "no verified limitation statements in the paper",
+   "count": 1
+  },
+  {
+   "what": "AI-involvement checklist",
+   "reason": "shown as submitted; not scored",
+   "count": 5
+  }
+ ],
+ "summary": {
+  "counts": {
+   "contradicted": 0,
+   "overstated": 0,
+   "untraced": 2,
+   "not_checkable": 3,
+   "supported": 18
+  },
+  "n_claims": 23,
+  "n_checklist_claims": 9,
+  "flagged_share": 0.087,
+  "main_flagged_share": 0.0,
+  "n_main": 2,
+  "checklist": {
+   "backed": 6,
+   "not_applicable": 1,
+   "unbacked": 2,
+   "not_checkable": 1
+  },
+  "stability_mean": 0.9565,
+  "adjudicated": 3,
+  "downgraded": 1
+ },
+ "cost": {
+  "eur": 0.0,
+  "calls": 117,
+  "cache_hits": 117,
+  "tokens_in": 263621,
+  "tokens_out": 248540,
+  "by_stage": {
+   "claims": 0,
+   "evidence": 0,
+   "checks": 0,
+   "verdicts": 0
+  },
+  "note": "chat calls; embeddings (≈ €0.0002 per paper) are in the cost ledger only"
+ },
+ "timings": {
+  "ingest_s": 0.02,
+  "claims_s": 13.92,
+  "evidence_s": 12.06,
+  "checks_s": 21.04,
+  "verdicts_s": 0.99,
+  "wall_s": 18.1
+ },
+ "warnings": []
+}

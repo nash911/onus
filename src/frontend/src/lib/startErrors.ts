@@ -8,7 +8,7 @@ export interface StartErrorText {
 }
 
 export const LIVE_OFF_TEXT =
-  "Live analysis is switched off on this server for now. Papers that were already analysed still open, and the corpus can be browsed.";
+  "Live analysis is switched off on this server for now. Reports that were already made still open, including the examples below.";
 
 export function startErrorText(status: number, detail: string | null | undefined): StartErrorText {
   const d = detail && !/^Request failed \(HTTP \d+\)\.$/.test(detail) ? detail : null;

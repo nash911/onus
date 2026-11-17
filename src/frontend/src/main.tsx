@@ -1,21 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { StrictMode, Suspense, lazy } from "react";
+import { StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { ApiError } from "./api/client";
 import { Layout } from "./components/Layout";
 import { Loading } from "./components/States";
-import Corpus from "./pages/Corpus";
+import { redirectFor } from "./lib/routes";
 import Home from "./pages/Home";
-import LiveProgress from "./pages/LiveProgress";
-import Method from "./pages/Method";
 import NotFound from "./pages/NotFound";
-import { AnalysisReport, PaperReport } from "./pages/Report";
+import ReportPage from "./pages/Report";
 import "./index.css";
-
-// The chart pages pull in Recharts; load them on demand.
-const Findings = lazy(() => import("./pages/Findings"));
-const Trust = lazy(() => import("./pages/Trust"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +21,13 @@ const queryClient = new QueryClient({
   },
 });
 
+/** Old routes (/live/:id, /corpus, /findings, /trust, /method, /papers/*) go to the two pages; see lib/routes.ts. */
+function Fallback() {
+  const loc = useLocation();
+  const to = redirectFor(loc.pathname);
+  return to ? <Navigate to={{ pathname: to, search: loc.search }} replace /> : <NotFound />;
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -35,15 +36,8 @@ createRoot(document.getElementById("root")!).render(
           <Routes>
             <Route element={<Layout />}>
               <Route index element={<Home />} />
-              <Route path="corpus" element={<Corpus />} />
-              <Route path="papers/:ref" element={<PaperReport />} />
-              <Route path="analyses/:id" element={<AnalysisReport />} />
-              <Route path="live/:id" element={<LiveProgress />} />
-              <Route path="findings" element={<Findings />} />
-              <Route path="trust" element={<Trust />} />
-              <Route path="method" element={<Method />} />
-              <Route path="home" element={<Navigate to="/" replace />} />
-              <Route path="*" element={<NotFound />} />
+              <Route path="analyses/:id" element={<ReportPage />} />
+              <Route path="*" element={<Fallback />} />
             </Route>
           </Routes>
         </Suspense>

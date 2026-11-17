@@ -1,5 +1,4 @@
 import type { Location } from "../types/result";
-import type { CI } from "../api/types";
 
 /** "p. 7, ¶ 3, s. 2", plus ", line 322" (or ", lines 322–324") only when the PDF has review line numbers.
  * Mirrors Location.cite() in onus/schemas/result.py. */
@@ -20,20 +19,8 @@ export function pct(x: number | null | undefined, digits = 0): string {
   return `${(x * 100).toFixed(digits)}%`;
 }
 
-export function ciPct(ci: CI | undefined, digits = 0): string {
-  if (!ci) return "";
-  return `${pct(ci[0], digits)}–${pct(ci[1], digits)}`;
-}
 
-export function num(x: number | null | undefined, digits = 2): string {
-  if (x == null || Number.isNaN(x)) return "—";
-  return x.toFixed(digits);
-}
 
-export function ciNum(ci: CI | undefined, digits = 2): string {
-  if (!ci) return "";
-  return `${num(ci[0], digits)} to ${num(ci[1], digits)}`;
-}
 
 export function date(iso: string | null | undefined): string {
   if (!iso) return "";
@@ -65,11 +52,3 @@ export const LINK_METHOD_LABELS: Record<string, string> = {
   sandbox: "sandbox re-run",
 };
 
-export const MUTATION_LABELS: Record<string, string> = {
-  abstract_number: "Changed abstract number",
-  checklist_flip: "Flipped checklist answer",
-  remove_table: "Removed table",
-  widen_scope: "Widened claim scope",
-  delete_errorbars: "Deleted error bars",
-  all: "All planted errors",
-};

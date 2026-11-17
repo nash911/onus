@@ -1,7 +1,7 @@
 /**
  * Shapes returned by the Onus API around the RunResult contract. RunResult itself is generated from
  * schema/result.schema.json (`npm run gen:types` -> src/types/result.ts); the rest mirrors
- * onus/api/serialize.py, onus/eval/findings.py and onus/eval/metrics.py (merge-metrics).
+ * onus/api/serialize.py and onus/api/routes_meta.py.
  */
 import type { CodeStage } from "../lib/codeStage";
 import type { RunResult, Verdict } from "../types/result";
@@ -48,13 +48,6 @@ export interface PaperRow {
   runs?: number;
 }
 
-export interface PapersPage {
-  total: number;
-  offset: number;
-  limit: number;
-  items: PaperRow[];
-  facets: { decision: string[]; tier: string[]; verdict: Verdict[] };
-}
 
 export interface AnalysisHeader {
   id: string;
@@ -71,9 +64,6 @@ export interface AnalysisHeader {
   error?: string | null;
 }
 
-export interface PaperDetail extends PaperRow {
-  analyses: AnalysisHeader[];
-}
 
 export interface AnalysisResponse extends RunResult {
   display: Display | null;
@@ -168,123 +158,4 @@ export interface StartResponse {
   analysis_id: string;
   status: "queued" | "running" | "done";
   cached: boolean;
-}
-
-// ---------------------------------------------------------------- findings.json (onus findings)
-
-export type CI = [number, number] | null;
-
-export interface Rq1Series {
-  rho: number | null;
-  ci95: CI;
-  n: number;
-  points: { x: number; y: number }[];
-}
-
-export interface Findings {
-  papers?: number;
-  splits?: Record<string, number>;
-  bootstrap?: number;
-  seed?: number;
-  rq1?: { ai_score?: Rq1Series | null; human_score?: Rq1Series | null };
-  rq2?: {
-    difference: number | null;
-    ci95: CI;
-    mann_whitney_p: number | null;
-    mean_accepted: number | null;
-    mean_rejected: number | null;
-    n_accepted: number;
-    n_rejected: number;
-    series?: { accepted: number[]; rejected: number[] };
-  } | null;
-  rq3?: {
-    items: { key: string; yes: number; unbacked: number; contradicted?: number; unbacked_share: number | null }[];
-  } | null;
-  rq4?: {
-    funnel: {
-      papers: number;
-      with_code: number;
-      executable: number;
-      rerun_attempted: number;
-      consistent: number;
-      note?: string;
-    };
-  } | null;
-  _fixture?: string;
-}
-
-// ---------------------------------------------------------------- metrics.json (onus eval merge-metrics)
-
-export interface Rate {
-  k: number;
-  n: number;
-  rate: number | null;
-  ci95: CI;
-  papers?: number;
-}
-
-export interface RecallRow {
-  attempted?: number;
-  applied?: number;
-  target_missing?: number;
-  papers?: number;
-  onus?: Rate | null;
-  baseline?: Rate | null;
-}
-
-export interface StabilityMetrics {
-  runs: number;
-  na?: string;
-  claims?: number;
-  papers?: number;
-  full_agreement?: Rate;
-  mean_agreement?: number | null;
-  matrix?: Record<string, Record<string, number>>;
-}
-
-export interface CodeAgreement {
-  labelled?: number;
-  excluded?: number;
-  audit_classes?: Record<string, number>;
-  na?: string;
-  n?: number;
-  accuracy?: number;
-  kappa?: number | null;
-  confusion?: {
-    pred_mismatch_audit_mismatch: number;
-    pred_mismatch_audit_passed: number;
-    pred_ok_audit_mismatch: number;
-    pred_ok_audit_passed: number;
-  };
-}
-
-export interface SplitMetrics {
-  fingerprint?: string;
-  harness_fingerprint?: string;
-  created_at?: string;
-  mutation_plan?: string;
-  runs?: number[];
-  mutations?: { recall?: Record<string, RecallRow>; collateral?: { onus?: Rate | null; baseline?: Rate | null } };
-  stability?: StabilityMetrics;
-  code_agreement?: CodeAgreement;
-  distributions?: { papers?: number; claims?: number; flagged?: Rate; verdicts?: Record<string, number> };
-}
-
-export interface Precision {
-  correct: number;
-  incorrect: number;
-  unsure: number;
-  precision: number | null;
-  ci95: CI;
-}
-
-export interface Metrics {
-  splits: Record<string, SplitMetrics>;
-  pooled: {
-    recall: Record<string, { onus: Rate | null; baseline: Rate | null }>;
-    collateral: Rate | null;
-  };
-  labels: { systems: Record<string, Record<string, Precision>> } | null;
-  eval_runs?: number;
-  _fixture?: string;
 }

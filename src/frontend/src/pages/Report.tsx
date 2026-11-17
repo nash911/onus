@@ -1,565 +1,662 @@
+/**
+ * The report, read against the paper: /analyses/:id.
+ *
+ * Desktop (>= 1024 px): the PDF on the left (about 58%), the report on the right (about 42%); each pane scrolls on
+ * its own. Narrow screens: Paper and Report tabs. While the analysis runs, the report pane shows the progress
+ * stages and the PDF appears as soon as /pdf answers; the report replaces the progress without a reload.
+ * Selection lives in the URL (?claim=<id>&ev=<ev_id>&tab=...), so a link opens the same view.
+ */
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
-import type { AnalysisResponse, Summary } from "../api/types";
-import { ClaimPanel } from "../components/ClaimPanel";
-import { Drawer } from "../components/Drawer";
-import { IconDownload, IconExternal, IconSpinner } from "../components/Icons";
+import type { AnalysisResponse, AnalysisStatus } from "../api/types";
+import { ClaimPanel, isCodeEvidence, type EvidencePlace } from "../components/ClaimPanel";
+import { IconExternal, IconSpinner } from "../components/Icons";
 import { OlderVersionBadge, VersionBadge, useMeta } from "../components/Layout";
-import { EmptyState, ErrorBox, Loading } from "../components/States";
+import type { PdfHighlight, PdfMark, ScrollRequest } from "../components/PdfViewer";
+import { ProgressStages } from "../components/ProgressStages";
+import { ChecklistSection, CodeSection, CodeStageNote, NotCheckedSection } from "../components/ReportSections";
+import { ErrorBox, Loading } from "../components/States";
 import { TabPanel, Tabs } from "../components/Tabs";
-import { AuditBadge, VerdictBadge } from "../components/Verdict";
-import { factLabel, rerunView, type RerunView } from "../lib/codecheck";
-import { codeSourceText, codeStageLine, codeStagePending, liveModeLabel, type CodeStage } from "../lib/codeStage";
-import { CHECK_LABELS, cite, date, humanize, pct } from "../lib/format";
-import { isOlderVersion } from "../lib/versions";
-import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
-import type { Claim, RunResult, Verdict } from "../types/result";
+import { VerdictBadge } from "../components/Verdict";
+import { EMPTY_ANCHORS, anchorKey, checklistKey, firstRect, type Anchor, type Anchors } from "../lib/anchors";
+import { codeStagePending, liveModeLabel } from "../lib/codeStage";
+import { date } from "../lib/format";
+import {
+  ALL_VERDICTS,
+  DEFAULT_FILTER,
+  exportName,
+  filterClaims,
+  readSelection,
+  reportMarkdown,
+  stepClaim,
+  toggleVerdict,
+  writeSelection,
+  type ClaimFilter,
+  type ReportTab,
+  type Selection,
+} from "../lib/reportView";
+import { VERDICTS } from "../lib/verdicts";
+import type { ChecklistAudit, Claim, Evidence1, Verdict } from "../types/result";
 
-export function PaperReport() {
-  const { ref = "" } = useParams();
-  const paper = useQuery({ queryKey: ["paper", ref], queryFn: () => api.paper(ref) });
-  if (paper.isPending) return <Loading />;
-  if (paper.error) return <ErrorBox title="Could not load this paper" error={paper.error} />;
-  if (!paper.data.analysis_id) {
-    return <EmptyState title={paper.data.title ?? ref}>This paper has no finished analysis yet.</EmptyState>;
-  }
-  return <Report id={paper.data.analysis_id} />;
+const PdfViewer = lazy(() => import("../components/PdfViewer"));
+
+function useMediaQuery(q: string): boolean {
+  const get = () => typeof window !== "undefined" && !!window.matchMedia?.(q).matches;
+  const [m, setM] = useState(get);
+  useEffect(() => {
+    const mq = window.matchMedia(q);
+    const on = () => setM(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [q]);
+  return m;
 }
 
-export function AnalysisReport() {
+const isTerminal = (s?: AnalysisStatus["status"]) => s === "done" || s === "failed";
+
+export default function ReportPage() {
   const { id = "" } = useParams();
-  return <Report id={id} />;
-}
-
-function Report({ id }: { id: string }) {
-  const q = useQuery({
+  const meta = useMeta();
+  const status = useQuery({
+    queryKey: ["status", id],
+    queryFn: () => api.status(id),
+    refetchInterval: (q) => (isTerminal(q.state.data?.status) ? false : 1500),
+  });
+  const done = status.data?.status === "done";
+  const report = useQuery({
     queryKey: ["analysis", id],
     queryFn: () => api.analysis(id),
+    enabled: done,
     staleTime: Infinity,
-    // a live report is shown at once; while its code checks run it polls and updates in place
-    refetchInterval: (query) => (codeStagePending(query.state.data?.code_stage) ? 4000 : false),
+    // while the live code checks run, the report polls and updates in place
+    refetchInterval: (q) => (codeStagePending(q.state.data?.code_stage) ? 4000 : false),
   });
-  if (q.isPending) return <Loading label="Loading the report…" />;
-  if (q.error) {
+  const anchors = useQuery({ queryKey: ["anchors", id], queryFn: () => api.anchors(id), enabled: done, staleTime: Infinity });
+  const [pdfProblem, setPdfProblem] = useState<"missing" | "error" | null>(null);
+  const wide = useMediaQuery("(min-width: 1024px)");
+
+  // While running, a 404 from /pdf only means "not downloaded yet": try again when the stage moves on.
+  const stage = status.data?.progress?.stage ?? status.data?.status ?? "";
+  useEffect(() => {
+    if (!done) setPdfProblem(null);
+  }, [stage, done]);
+
+  const a = anchors.data ?? EMPTY_ANCHORS;
+  const noPdf = (done && anchors.isSuccess && !a.pdf) || (done && pdfProblem != null);
+  const title = report.data ? reportTitle(report.data) : null;
+  useEffect(() => {
+    document.title = title ? `${title} · Onus` : "Onus";
+    return () => {
+      document.title = "Onus";
+    };
+  }, [title]);
+
+  if (status.isPending) return <Centered><Loading label="Loading the report…" /></Centered>;
+  if (status.error) return <Centered><ErrorBox title="Could not load this analysis" error={status.error} /></Centered>;
+
+  const s = status.data;
+  const pdfPane = noPdf ? null : (
+    <Suspense fallback={<Loading label="Loading the paper viewer…" />}>
+      <PdfSlot key={done ? "done" : stage} id={id} anchors={a} onProblem={setPdfProblem} problem={pdfProblem} done={done} />
+    </Suspense>
+  );
+
+  if (!done) {
     return (
-      <>
-        <ErrorBox title="Could not load this report" error={q.error} />
-        <Link to={`/live/${id}`} className="text-sm text-blue-900 underline">
-          See the analysis status
-        </Link>
-      </>
+      <SplitLayout
+        wide={wide}
+        pdf={pdfPane}
+        report={
+          <div className="p-4 sm:p-6">
+            <ProgressStages s={s} codeChecks={!!meta.data?.live.code_checks} />
+          </div>
+        }
+        onPaper={false}
+        setOnPaper={() => undefined}
+      />
     );
   }
-  return <ReportBody r={q.data} />;
+  if (report.isPending || anchors.isPending) return <Centered><Loading label="Loading the report…" /></Centered>;
+  if (report.error) return <Centered><ErrorBox title="Could not load this report" error={report.error} /></Centered>;
+  return <ReportView r={report.data} anchors={a} noPdf={noPdf} wide={wide} onProblem={setPdfProblem} problem={pdfProblem} />;
 }
 
-const TABS = ["claims", "checklist", "code", "coverage", "json"] as const;
-type Tab = (typeof TABS)[number];
+function Centered({ children }: { children: React.ReactNode }) {
+  return <div className="mx-auto w-full max-w-3xl px-4 py-8">{children}</div>;
+}
 
-function ReportBody({ r }: { r: AnalysisResponse }) {
-  const meta = useMeta();
-  const [params, setParams] = useSearchParams();
-  const tab = (TABS as readonly string[]).includes(params.get("tab") ?? "") ? (params.get("tab") as Tab) : "claims";
-  const claimId = params.get("claim");
-  const claims = r.claims ?? [];
-  const open = claims.find((c) => c.id === claimId) ?? null;
-  const summary = (r.summary ?? {}) as Summary;
-  const counts = summary.counts ?? {};
-  const title = r.display?.title ?? r.analysis.title ?? (r.paper.title as string | undefined) ?? r.analysis.paper_ref;
-  const current = meta.data?.fingerprint;
+function reportTitle(r: AnalysisResponse): string {
+  return r.display?.title ?? r.analysis.title ?? (r.paper.title as string | undefined) ?? r.analysis.paper_ref;
+}
 
-  const setParam = (k: string, v: string | null) =>
-    setParams(
-      (p) => {
-        const n = new URLSearchParams(p);
-        if (v == null) n.delete(k);
-        else n.set(k, v);
-        return n;
-      },
-      { replace: k === "tab" },
+function authorsOf(r: AnalysisResponse): string | null {
+  const raw = (r.paper as Record<string, unknown>).authors ?? (r.display as Record<string, unknown> | null)?.authors;
+  if (Array.isArray(raw)) return raw.filter((x) => typeof x === "string").join(", ") || null;
+  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+}
+
+// ---------------------------------------------------------------- the PDF pane
+
+interface PdfSlotProps {
+  id: string;
+  anchors: Anchors;
+  done: boolean;
+  problem: "missing" | "error" | null;
+  onProblem: (p: "missing" | "error") => void;
+  marks?: PdfMark[];
+  selected?: { verdict: Verdict; highlights: PdfHighlight[] } | null;
+  evidence?: PdfHighlight[] | null;
+  scroll?: ScrollRequest | null;
+  onMark?: (claimId: string) => void;
+  active?: boolean;
+}
+
+function PdfSlot({ id, anchors, done, problem, onProblem, marks, selected, evidence, scroll, onMark, active }: PdfSlotProps) {
+  if (problem && !done) {
+    return (
+      <p className="flex items-center gap-2 p-6 text-sm text-slate-600" role="status">
+        <IconSpinner /> The paper appears here once it has been downloaded.
+      </p>
     );
-
+  }
   return (
-    <div>
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight break-anywhere">{title}</h1>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-600">
-          {r.analysis.source_url && (
-            <a href={r.analysis.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-900 underline">
-              Source <IconExternal />
-              <span className="sr-only">(opens in a new tab)</span>
-            </a>
-          )}
-          <VersionBadge version={r.onus_version} fingerprint={r.fingerprint} label="report" />
-          <OlderVersionBadge fingerprint={r.fingerprint} version={r.onus_version} />
-          <span>
-            {r.mode === "live" ? liveModeLabel(r.code_stage) : `Batch analysis, ${r.runs} run${r.runs === 1 ? "" : "s"}`}
-            {" · "}
-            {date(r.created_at)}
-          </span>
-          {r.display?.decision && <span className="capitalize">Decision: {r.display.decision}</span>}
-          {r.display?.tier && <span>Code tier: {r.display.tier}</span>}
-        </div>
-        {isOlderVersion(r.fingerprint, current) && (
-          <p className="mt-2 text-xs text-slate-500">
-            This report was made with v{r.onus_version} (pipeline {r.fingerprint}); this site now runs
-            {meta.data ? ` v${meta.data.onus_version}` : ""} (pipeline {current}). Its verdicts may differ from a
-            new analysis.
-          </p>
-        )}
-        <CodeStageNote stage={r.code_stage} />
-        <ul className="mt-4 flex flex-wrap gap-2" aria-label="Verdict counts">
-          {VERDICT_ORDER.map((v) => (
-            <li key={v} className="inline-flex items-center gap-1.5">
-              <VerdictBadge verdict={v} />
-              <span className="tabular-nums text-sm">{counts[v] ?? 0}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-2 text-sm text-slate-600">
-          {pct(summary.flagged_share)} of {summary.n_claims ?? claims.length} claims flagged; {pct(summary.main_flagged_share)} of main
-          claims. Flags mark evidence gaps in the paper, not misconduct.
-        </p>
-      </header>
+    <PdfViewer
+      url={api.pdfUrl(id)}
+      pageSizes={anchors.page_sizes}
+      marks={marks ?? []}
+      selected={selected ?? null}
+      evidence={evidence ?? null}
+      scroll={scroll ?? null}
+      onMark={onMark ?? (() => undefined)}
+      onUnavailable={onProblem}
+      active={active}
+    />
+  );
+}
 
-      <Tabs
-        idPrefix="report"
-        active={tab}
-        onChange={(t) => setParam("tab", t === "claims" ? null : t)}
-        tabs={[
-          { id: "claims", label: "Claims", count: claims.length },
-          { id: "checklist", label: "Checklist", count: (r.checklist ?? []).length },
-          { id: "code", label: "Code" },
-          { id: "coverage", label: "Coverage ledger" },
-          { id: "json", label: "Download JSON" },
-        ]}
-      />
-      <TabPanel idPrefix="report" id="claims" active={tab}>
-        <ClaimsTab claims={claims} onOpen={(c) => setParam("claim", c.id)} />
-      </TabPanel>
-      <TabPanel idPrefix="report" id="checklist" active={tab}>
-        <ChecklistTab r={r} />
-      </TabPanel>
-      <TabPanel idPrefix="report" id="code" active={tab}>
-        <CodeTab r={r} stage={r.code_stage ?? null} />
-      </TabPanel>
-      <TabPanel idPrefix="report" id="coverage" active={tab}>
-        <CoverageTab r={r} />
-      </TabPanel>
-      <TabPanel idPrefix="report" id="json" active={tab}>
-        <JsonTab r={r} />
-      </TabPanel>
-
-      <Drawer open={open != null} onClose={() => setParam("claim", null)} title="Claim">
-        {open && <ClaimPanel claim={open} analysisId={r.analysis.id} />}
-      </Drawer>
+function SplitLayout({ wide, pdf, report, onPaper, setOnPaper, canGoBack }: {
+  wide: boolean;
+  pdf: React.ReactNode | null;
+  report: React.ReactNode;
+  onPaper: boolean;
+  setOnPaper: (v: boolean) => void;
+  canGoBack?: boolean;
+}) {
+  if (!pdf) {
+    return (
+      <div className="h-full min-h-0 overflow-y-auto">
+        <p className="border-b border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">Paper preview not available for this report.</p>
+        <div className="mx-auto max-w-3xl">{report}</div>
+      </div>
+    );
+  }
+  if (wide) {
+    return (
+      <div className="grid h-full min-h-0 grid-cols-[58fr_42fr]">
+        <section aria-label="Paper" className="min-h-0 border-r border-slate-200">{pdf}</section>
+        <section aria-label="Report" className="min-h-0 overflow-y-auto" id="report-pane">{report}</section>
+      </div>
+    );
+  }
+  return (
+    <div className="relative flex h-full min-h-0 flex-col">
+      <div role="tablist" aria-label="View" className="flex border-b border-slate-200 bg-white">
+        {(["paper", "report"] as const).map((t) => {
+          const sel = (t === "paper") === onPaper;
+          return (
+            <button
+              key={t}
+              role="tab"
+              id={`view-tab-${t}`}
+              aria-selected={sel}
+              aria-controls={`view-panel-${t}`}
+              onClick={() => setOnPaper(t === "paper")}
+              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm ${sel ? "border-slate-900 font-medium" : "border-transparent text-slate-600"}`}
+            >
+              {t === "paper" ? "Paper" : "Report"}
+            </button>
+          );
+        })}
+      </div>
+      <div id="view-panel-paper" role="tabpanel" aria-labelledby="view-tab-paper" className={`min-h-0 flex-1 ${onPaper ? "" : "hidden"}`}>
+        {pdf}
+      </div>
+      <div id="view-panel-report" role="tabpanel" aria-labelledby="view-tab-report" className={`min-h-0 flex-1 overflow-y-auto ${onPaper ? "hidden" : ""}`}>
+        {report}
+      </div>
+      {onPaper && canGoBack && (
+        <button
+          type="button"
+          onClick={() => setOnPaper(false)}
+          className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-sm font-medium text-white shadow-lg"
+        >
+          Back to report
+        </button>
+      )}
     </div>
   );
 }
 
-// ---------------------------------------------------------------- claims
+// ---------------------------------------------------------------- the report
 
-function ClaimsTab({ claims, onOpen }: { claims: Claim[]; onOpen: (c: Claim) => void }) {
-  const [verdicts, setVerdicts] = useState<Set<Verdict>>(new Set());
-  const [type, setType] = useState("");
-  const [mainOnly, setMainOnly] = useState(false);
-  const [text, setText] = useState("");
-  const types = useMemo(() => Array.from(new Set(claims.map((c) => c.type))).sort(), [claims]);
-  const shown = useMemo(() => {
-    const t = text.trim().toLowerCase();
-    return [...claims]
-      .filter((c) => (verdicts.size ? verdicts.has(c.verdict) : true))
-      .filter((c) => (type ? c.type === type : true))
-      .filter((c) => (mainOnly ? c.is_main : true))
-      .filter((c) => (t ? c.quote.toLowerCase().includes(t) : true))
-      .sort((a, b) => b.risk - a.risk || a.location.start - b.location.start);
-  }, [claims, verdicts, type, mainOnly, text]);
+function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
+  r: AnalysisResponse;
+  anchors: Anchors;
+  noPdf: boolean;
+  wide: boolean;
+  onProblem: (p: "missing" | "error") => void;
+  problem: "missing" | "error" | null;
+}) {
+  const [params, setParams] = useSearchParams();
+  const sel = readSelection(params);
+  const claims = useMemo(() => r.claims ?? [], [r.claims]);
+  const [filter, setFilter] = useState<ClaimFilter>(DEFAULT_FILTER);
+  const shown = useMemo(() => filterClaims(claims, filter), [claims, filter]);
+  const [expanded, setExpanded] = useState<boolean>(() => !!sel.claim);
+  const [onPaper, setOnPaper] = useState(false);
+  const [scroll, setScroll] = useState<ScrollRequest | null>(null);
+  const seq = useRef(0);
+  const items = anchors.items;
+  const pdfOn = !noPdf;
 
-  const toggle = (v: Verdict) =>
-    setVerdicts((s) => {
-      const n = new Set(s);
-      if (n.has(v)) n.delete(v);
-      else n.add(v);
-      return n;
-    });
+  const byChecklistKey = useMemo(() => {
+    const m = new Map<string, Claim>();
+    for (const c of claims) if (c.checklist_key) m.set(c.checklist_key, c);
+    return m;
+  }, [claims]);
+  const checklistSel = sel.claim?.startsWith("checklist:") ? sel.claim.slice("checklist:".length) : null;
+  const claim = checklistSel ? null : (claims.find((c) => c.id === sel.claim) ?? null);
+
+  const update = useCallback(
+    (s: Partial<Selection>) => setParams((p) => writeSelection(p, s), { replace: true }),
+    [setParams],
+  );
+
+  const scrollTo = useCallback((list: Anchor[] | undefined, fallbackPage: number | undefined) => {
+    const t = firstRect(list) ?? (fallbackPage ? { page: fallbackPage, rect: null } : null);
+    if (t) setScroll({ ...t, seq: ++seq.current });
+  }, []);
+
+  // ---- anchors for claims, checklist answers and evidence
+  const claimAnchors = (c: Claim) => items[anchorKey(c.id)];
+  const evAnchors = (c: Claim, e: Evidence1) => items[anchorKey(c.id, e.id)];
+  const checklistAnchors = (a: ChecklistAudit) => {
+    const c = byChecklistKey.get(a.key);
+    return c ? claimAnchors(c) : undefined;
+  };
+  const checklistEvAnchors = (a: ChecklistAudit, e: Evidence1) => {
+    const c = byChecklistKey.get(a.key);
+    return items[checklistKey(a.key, e.id)] ?? (c ? evAnchors(c, e) : undefined);
+  };
+  const place = (list: Anchor[] | undefined, e?: Evidence1): EvidencePlace => {
+    if (!pdfOn || (e && isCodeEvidence(e))) return "none";
+    if (list?.length) return "pdf";
+    return e && !e.location ? "none" : "missing";
+  };
+
+  // ---- actions
+  const selectClaim = useCallback(
+    (c: Claim, opts: { expand?: boolean; toPaper?: boolean } = {}) => {
+      update({ claim: c.id, tab: "claims" });
+      setExpanded(opts.expand ?? true);
+      scrollTo(items[c.id], c.location.page);
+      if (!wide && opts.toPaper && pdfOn) setOnPaper(true);
+    },
+    [update, scrollTo, items, wide, pdfOn],
+  );
+  const selectEvidence = (c: Claim, e: Evidence1) => {
+    update({ claim: c.id, ev: e.id });
+    scrollTo(evAnchors(c, e), e.location?.page);
+    if (!wide) setOnPaper(true);
+  };
+  const selectChecklist = (a: ChecklistAudit) => {
+    update({ claim: `checklist:${a.key}`, tab: "checklist" });
+    const c = byChecklistKey.get(a.key);
+    scrollTo(checklistAnchors(a), c?.location.page);
+    if (!wide) setOnPaper(true);
+  };
+  const selectChecklistEvidence = (a: ChecklistAudit, e: Evidence1) => {
+    update({ claim: `checklist:${a.key}`, ev: e.id, tab: "checklist" });
+    scrollTo(checklistEvAnchors(a, e), e.location?.page);
+    if (!wide) setOnPaper(true);
+  };
+
+  // a shared link (?claim=&ev=) scrolls to its target once
+  const first = useRef(true);
+  useEffect(() => {
+    if (!first.current) return;
+    first.current = false;
+    if (claim) {
+      const e = sel.ev ? claim.evidence?.find((x) => x.id === sel.ev) : undefined;
+      if (e) scrollTo(evAnchors(claim, e), e.location?.page);
+      else scrollTo(items[claim.id], claim.location.page);
+    } else if (checklistSel) {
+      const a = r.checklist?.find((x) => x.key === checklistSel);
+      if (a) scrollTo(checklistAnchors(a), byChecklistKey.get(a.key)?.location.page);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- keyboard: j/k or arrows move, Enter expands, Esc collapses
+  const rowRefs = useRef(new Map<string, HTMLLIElement>());
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (sel.tab !== "claims" || ev.altKey || ev.ctrlKey || ev.metaKey) return;
+      const t = ev.target as HTMLElement | null;
+      if (t && (t.closest("input, textarea, select, [contenteditable=true]") || t.closest("[role=dialog]"))) return;
+      const inPdf = !!t?.closest('[aria-label="Paper"], #view-panel-paper');
+      const k = ev.key;
+      if (k === "j" || k === "k" || ((k === "ArrowDown" || k === "ArrowUp") && !inPdf)) {
+        const next = stepClaim(shown, claim?.id ?? null, k === "j" || k === "ArrowDown" ? 1 : -1);
+        const c = shown.find((x) => x.id === next);
+        if (c) {
+          ev.preventDefault();
+          selectClaim(c, { expand: false });
+          rowRefs.current.get(c.id)?.querySelector("button")?.focus({ preventScroll: true });
+          rowRefs.current.get(c.id)?.scrollIntoView({ block: "nearest" });
+        }
+      } else if (k === "Enter" && claim && !(t instanceof HTMLButtonElement) && !(t instanceof HTMLAnchorElement)) {
+        ev.preventDefault();
+        setExpanded(true);
+      } else if (k === "Escape") {
+        if (expanded) setExpanded(false);
+        else if (sel.ev) update({ ev: null });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sel.tab, sel.ev, shown, claim, expanded, selectClaim, update]);
+
+  // ---- what the PDF shows
+  const marks = useMemo<PdfMark[]>(() => {
+    const out: PdfMark[] = [];
+    for (const c of shown) {
+      const f = firstRect(items[c.id]);
+      if (!f?.rect) continue;
+      const q = c.quote.length > 90 ? `${c.quote.slice(0, 90).trimEnd()}…` : c.quote;
+      out.push({ claimId: c.id, verdict: c.verdict, page: f.page, rect: f.rect, label: `${VERDICTS[c.verdict].label}: “${q}”` });
+    }
+    return out;
+  }, [shown, items]);
+
+  let selected: { verdict: Verdict; highlights: PdfHighlight[] } | null = null;
+  let evidence: PdfHighlight[] | null = null;
+  let checklistClaim: Claim | undefined;
+  if (claim) {
+    selected = { verdict: claim.verdict, highlights: claimAnchors(claim) ?? [] };
+    const e = sel.ev ? claim.evidence?.find((x) => x.id === sel.ev) : undefined;
+    if (e) evidence = evAnchors(claim, e) ?? null;
+  } else if (checklistSel) {
+    const a = r.checklist?.find((x) => x.key === checklistSel);
+    checklistClaim = byChecklistKey.get(checklistSel);
+    if (a && checklistClaim) selected = { verdict: checklistClaim.verdict, highlights: checklistAnchors(a) ?? [] };
+    const e = a && sel.ev ? a.evidence?.find((x) => x.id === sel.ev) : undefined;
+    if (a && e) evidence = checklistEvAnchors(a, e) ?? null;
+  }
+
+  const pdf = noPdf ? null : (
+    <Suspense fallback={<Loading label="Loading the paper viewer…" />}>
+      <PdfSlot
+        id={r.analysis.id}
+        anchors={anchors}
+        done
+        problem={problem}
+        onProblem={onProblem}
+        marks={marks}
+        selected={selected}
+        evidence={evidence}
+        scroll={scroll}
+        onMark={(cid) => {
+          const c = claims.find((x) => x.id === cid);
+          if (!c) return;
+          selectClaim(c, { expand: true });
+          requestAnimationFrame(() => rowRefs.current.get(c.id)?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+        }}
+        active={wide || onPaper}
+      />
+    </Suspense>
+  );
+
+  const report = (
+    <div className="px-4 py-4 sm:px-5">
+      <ReportHeader r={r} claims={claims} filter={filter} setFilter={setFilter} />
+      <div className="mt-3">
+        <Tabs
+          idPrefix="report"
+          active={sel.tab}
+          onChange={(t) => update({ tab: t as ReportTab, claim: null })}
+          tabs={[
+            { id: "claims", label: "Claims", count: claims.length },
+            { id: "checklist", label: "Checklist", count: (r.checklist ?? []).length },
+            { id: "code", label: "Code" },
+            { id: "not-checked", label: "Not checked" },
+          ]}
+        />
+      </div>
+      <TabPanel idPrefix="report" id="claims" active={sel.tab}>
+        <p className="mb-2 text-xs text-slate-600" role="status">
+          {shown.length} of {claims.length} claims, in paper order. <span className="hidden lg:inline">Keys: j / k to move, Enter to open, Esc to close.</span>
+        </p>
+        <ul aria-label="Claims" className="divide-y divide-slate-200 border-y border-slate-200">
+          {shown.map((c) => {
+            const isSel = claim?.id === c.id;
+            const open = isSel && expanded;
+            return (
+              <li
+                key={c.id}
+                ref={(el) => {
+                  if (el) rowRefs.current.set(c.id, el);
+                  else rowRefs.current.delete(c.id);
+                }}
+                className={isSel ? "bg-slate-50" : ""}
+              >
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-current={isSel ? "true" : undefined}
+                  onClick={() => (open ? setExpanded(false) : selectClaim(c, { expand: true, toPaper: true }))}
+                  className={`grid w-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-1 px-2 py-2.5 text-left hover:bg-slate-50 ${isSel ? "shadow-[inset_3px_0_0_0_#0f172a]" : ""}`}
+                >
+                  <VerdictBadge verdict={c.verdict} />
+                  <span className="min-w-0">
+                    <span className="line-clamp-2 text-sm text-slate-900 break-anywhere">{c.quote}</span>
+                    <span className="mt-0.5 block text-xs text-slate-500">
+                      p. {c.location.page}
+                      {c.is_main ? " · main" : ""}
+                      {c.stability && (
+                        <span title={`${c.stability.agree} of ${c.stability.runs} runs gave this verdict`}>
+                          {" "}· {c.stability.agree}/{c.stability.runs} runs agree
+                        </span>
+                      )}
+                    </span>
+                  </span>
+                </button>
+                {open && (
+                  <div className="px-2 pb-4 pt-1">
+                    <ClaimPanel
+                      claim={c}
+                      analysisId={r.analysis.id}
+                      placeOf={(e) => place(evAnchors(c, e), e)}
+                      selectedEvidence={sel.ev}
+                      onEvidence={(e) => selectEvidence(c, e)}
+                      quoteMissing={pdfOn && !claimAnchors(c)?.length}
+                    />
+                    {!wide && pdfOn && (
+                      <button type="button" onClick={() => selectClaim(c, { toPaper: true })} className="mt-3 text-sm text-blue-900 underline">
+                        Show the claim in the paper
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {!shown.length && <p className="py-4 text-sm text-slate-600">No claim matches these filters.</p>}
+      </TabPanel>
+      <TabPanel idPrefix="report" id="checklist" active={sel.tab}>
+        <ChecklistSection
+          r={r}
+          selectedKey={checklistSel}
+          selectedEvidence={sel.ev}
+          onSelect={selectChecklist}
+          onEvidence={selectChecklistEvidence}
+          placeOfItem={(a) => (byChecklistKey.has(a.key) ? place(checklistAnchors(a)) : "none")}
+          placeOfEvidence={(a, e) => place(checklistEvAnchors(a, e), e)}
+        />
+      </TabPanel>
+      <TabPanel idPrefix="report" id="code" active={sel.tab}>
+        <CodeSection r={r} />
+      </TabPanel>
+      <TabPanel idPrefix="report" id="not-checked" active={sel.tab}>
+        <NotCheckedSection r={r} />
+      </TabPanel>
+    </div>
+  );
 
   return (
-    <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <fieldset>
-          <legend className="text-sm font-medium">Verdict</legend>
-          <div className="mt-1 flex flex-wrap gap-1.5">
-            {VERDICT_ORDER.map((v) => {
-              const { Icon, label, fill } = VERDICTS[v];
-              const on = verdicts.has(v);
-              return (
-                <button
-                  key={v}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggle(v)}
-                  className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs ${
-                    on ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  <Icon style={{ color: on ? "white" : fill }} />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Type
-          <select value={type} onChange={(e) => setType(e.target.value)} className="rounded border border-slate-300 px-2 py-1 text-sm font-normal">
-            <option value="">All types</option>
-            {types.map((t) => (
-              <option key={t} value={t}>
-                {humanize(t)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm font-medium">
-          Search quotes
+    <SplitLayout wide={wide} pdf={pdf} report={report} onPaper={onPaper} setOnPaper={setOnPaper} canGoBack />
+  );
+}
+
+// ---------------------------------------------------------------- header, filters, export
+
+function ReportHeader({ r, claims, filter, setFilter }: {
+  r: AnalysisResponse;
+  claims: Claim[];
+  filter: ClaimFilter;
+  setFilter: (f: ClaimFilter) => void;
+}) {
+  const title = reportTitle(r);
+  const authors = authorsOf(r);
+  const counts = useMemo(() => {
+    const c: Partial<Record<Verdict, number>> = {};
+    for (const x of claims) c[x.verdict] = (c[x.verdict] ?? 0) + 1;
+    return c;
+  }, [claims]);
+  return (
+    <header>
+      <div className="flex items-start gap-3">
+        <h1 className="min-w-0 flex-1 text-xl font-semibold leading-snug tracking-tight break-anywhere">{title}</h1>
+        <ExportMenu r={r} title={title} />
+      </div>
+      {authors && <p className="mt-1 text-sm text-slate-700 break-anywhere">{authors}</p>}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600">
+        {r.analysis.source_url && (
+          <a href={r.analysis.source_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-900 underline">
+            Source <IconExternal />
+            <span className="sr-only">(opens in a new tab)</span>
+          </a>
+        )}
+        <span>
+          {r.mode === "live" ? liveModeLabel(r.code_stage) : `Analysis, ${r.runs} run${r.runs === 1 ? "" : "s"}`} · {date(r.created_at)}
+        </span>
+        <VersionBadge version={r.onus_version} fingerprint={r.fingerprint} label="report" />
+        <OlderVersionBadge fingerprint={r.fingerprint} version={r.onus_version} />
+      </div>
+      <CodeStageNote stage={r.code_stage} />
+
+      <fieldset className="mt-3">
+        <legend className="sr-only">Show verdicts</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {ALL_VERDICTS.map((v) => {
+            const on = filter.verdicts.has(v);
+            const { Icon, label, fill } = VERDICTS[v];
+            return (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setFilter({ ...filter, verdicts: toggleVerdict(filter.verdicts, v) })}
+                className={`inline-flex items-center gap-1 rounded border px-2 py-1 text-xs ${
+                  on ? "border-slate-400 bg-white text-slate-900" : "border-dashed border-slate-300 bg-slate-50 text-slate-500 line-through"
+                }`}
+                title={on ? `Hide ${label.toLowerCase()} claims` : `Show ${label.toLowerCase()} claims`}
+              >
+                <Icon style={{ color: on ? fill : undefined }} />
+                {label}
+                <span className="tabular-nums font-medium">{counts[v] ?? 0}</span>
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+          <span className="sr-only">Search quotes</span>
           <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="rounded border border-slate-300 px-2 py-1 text-sm font-normal"
             type="search"
+            value={filter.text}
+            onChange={(e) => setFilter({ ...filter, text: e.target.value })}
+            placeholder="Search quotes"
+            className="w-full min-w-0 rounded border border-slate-300 px-2 py-1 text-sm"
           />
         </label>
-        <label className="inline-flex items-center gap-2 pb-1 text-sm">
-          <input type="checkbox" checked={mainOnly} onChange={(e) => setMainOnly(e.target.checked)} />
+        <label className="inline-flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={filter.mainOnly} onChange={(e) => setFilter({ ...filter, mainOnly: e.target.checked })} />
           Main claims only
         </label>
       </div>
-
-      <p className="mt-4 text-sm text-slate-600" role="status">
-        {shown.length} of {claims.length} claims, highest risk first. Select a claim for its evidence and checks.
-      </p>
-      <ul className="mt-2 divide-y divide-slate-200 border-y border-slate-200">
-        {shown.map((c) => (
-          <li key={c.id}>
-            <button
-              type="button"
-              onClick={() => onOpen(c)}
-              className="grid w-full grid-cols-1 gap-1 px-1 py-3 text-left hover:bg-slate-50 sm:grid-cols-[9rem_1fr] sm:gap-4"
-            >
-              <span className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-start">
-                <VerdictBadge verdict={c.verdict} />
-                {c.stability && (
-                  <span className="text-xs text-slate-500">
-                    {c.stability.agree}/{c.stability.runs} runs
-                  </span>
-                )}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-slate-900 break-anywhere">{c.quote}</span>
-                <span className="mt-1 block text-xs text-slate-500">
-                  {cite(c.location)}
-                  {c.location.section ? ` · ${c.location.section}` : ""} · {humanize(c.type)}
-                  {c.is_main ? " · main" : ""}
-                </span>
-                <span className="mt-1 block text-sm text-slate-600 break-anywhere">{c.reason}</span>
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+      <p className="mt-2 text-xs text-slate-500">Flags mark evidence gaps in the paper, not misconduct. There is no overall score.</p>
+    </header>
   );
 }
 
-// ---------------------------------------------------------------- checklist, code, coverage, json
-
-function ChecklistTab({ r }: { r: RunResult }) {
-  const items = r.checklist ?? [];
-  if (!items.length) return <EmptyState title="No paper checklist was found in this PDF." />;
-  return (
-    <div>
-      <p className="mb-3 max-w-prose text-sm text-slate-600">
-        Each answer in the paper's checklist, and whether the paper itself backs it. "No" and "NA" answers are not
-        applicable.
-      </p>
-      <ul className="divide-y divide-slate-200 border-y border-slate-200">
-        {items.map((a) => (
-          <li key={a.key} className="py-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-medium">{a.title}</span>
-              <span className="text-sm text-slate-600">Answer: {a.answer}</span>
-              <AuditBadge status={a.status} />
-            </div>
-            <p className="mt-1 text-sm text-slate-700 break-anywhere">{a.reason}</p>
-            {a.justification && (
-              <p className="mt-1 text-xs text-slate-500 break-anywhere">Authors' justification: {a.justification}</p>
-            )}
-            {(a.evidence ?? []).length > 0 && (
-              <details className="mt-1 text-sm">
-                <summary className="cursor-pointer text-blue-900">Evidence ({(a.evidence ?? []).length})</summary>
-                <ul className="mt-1 space-y-2">
-                  {(a.evidence ?? []).map((e) => (
-                    <li key={e.id} className="border-l-2 border-slate-200 pl-3">
-                      <span className="font-medium">{e.label}</span>
-                      {e.location && <span className="text-xs text-slate-500"> · {cite(e.location)}</span>}
-                      <p className="text-slate-700 break-anywhere">{e.snippet}</p>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+function download(name: string, type: string, text: string) {
+  const blob = new Blob([text], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function CodeStageNote({ stage }: { stage: CodeStage | null | undefined }) {
-  const line = codeStageLine(stage);
-  if (!line || !stage) return null;
-  const pending = codeStagePending(stage);
+function ExportMenu({ r, title }: { r: AnalysisResponse; title: string }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [copied, setCopied] = useState<"ok" | "fail" | null>(null);
+  const name = exportName(r.analysis.paper_ref, r.fingerprint);
+  const md = () => reportMarkdown(r, title, r.analysis.source_url);
+  const close = () => ref.current?.removeAttribute("open");
+  const item = "block w-full rounded px-3 py-1.5 text-left text-sm hover:bg-slate-100";
   return (
-    <p
-      className={`mt-3 inline-flex items-start gap-2 rounded border px-3 py-2 text-sm ${
-        pending ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-slate-50 text-slate-700"
-      }`}
-      role="status"
-      aria-live="polite"
-    >
-      {pending && <IconSpinner />}
-      <span className="break-anywhere">{line}</span>
-    </p>
-  );
-}
-
-function CodeTab({ r, stage }: { r: RunResult; stage: CodeStage | null }) {
-  const code = r.code;
-  const statics = code.static ?? [];
-  const reruns = code.reruns ?? [];
-  const source = codeSourceText(stage);
-  return (
-    <div className="max-w-prose space-y-3 text-sm text-slate-700">
-      <p>
-        {code.available ? `${stage ? "Code" : "Submitted code"}: ${code.files} files.` : "No code was submitted with this paper."}
-        {code.code_version ? ` Code checks version ${code.code_version}.` : ""}
-      </p>
-      {source && <p className="break-anywhere">{source}</p>}
-      {r.mode === "live" && !stage && <p>Live analysis does not run code checks.</p>}
-      {stage && codeStageLine(stage) && <CodeStageNote stage={stage} />}
-      {!statics.length && !reruns.length && code.available && r.mode !== "live" && (
-        <p>Code checks are not part of this report's version. The coverage ledger lists this.</p>
-      )}
-      {statics.length > 0 && (
-        <section>
-          <h3 className="font-semibold text-slate-900">Paper–code facts</h3>
-          <ul className="mt-1 divide-y divide-slate-100">
-            {statics.map((f, i) => (
-              <li key={i} className="py-2">
-                <span className="font-medium">{factLabel(f.status)}:</span>{" "}
-                <span className="break-anywhere">{String(f.fact ?? f.statement ?? "")}</span>
-                {Array.isArray(f.citations) && f.citations.length > 0 && (
-                  <span className="block font-mono text-xs text-slate-500 break-anywhere">{f.citations.join(", ")}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {reruns.length > 0 && (
-        <section>
-          <h3 className="font-semibold text-slate-900">Re-runs</h3>
-          <ul className="mt-1 divide-y divide-slate-100">
-            {reruns.map((x, i) => (
-              <RerunItem key={i} v={rerunView(x as Record<string, unknown>)} />
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
-  );
-}
-
-const TONE: Record<RerunView["tone"], string> = {
-  good: "border-emerald-300 bg-emerald-50 text-emerald-900",
-  bad: "border-red-300 bg-red-50 text-red-900",
-  caution: "border-amber-300 bg-amber-50 text-amber-900",
-  neutral: "border-slate-300 bg-slate-50 text-slate-800",
-};
-
-function RerunItem({ v }: { v: RerunView }) {
-  return (
-    <li className="py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={`inline-flex rounded border px-1.5 py-0.5 text-xs font-medium ${TONE[v.tone]}`}>{v.label}</span>
-        {!v.known && <span className="text-xs text-slate-500">(status as recorded)</span>}
-        {v.minutes != null && <span className="text-xs text-slate-500">{v.minutes.toFixed(1)} min</span>}
+    <details ref={ref} className="relative shrink-0">
+      <summary className="cursor-pointer list-none rounded border border-slate-300 px-2.5 py-1 text-sm hover:bg-slate-50">Export</summary>
+      <div className="absolute right-0 z-20 mt-1 w-52 rounded border border-slate-200 bg-white p-1 shadow-lg">
+        <button
+          type="button"
+          className={item}
+          onClick={() => {
+            navigator.clipboard?.writeText(md()).then(
+              () => setCopied("ok"),
+              () => setCopied("fail"),
+            );
+            setTimeout(() => setCopied(null), 2500);
+          }}
+        >
+          {copied === "ok" ? "Copied" : copied === "fail" ? "Could not copy" : "Copy as Markdown"}
+        </button>
+        <button type="button" className={item} onClick={() => (download(`${name}.md`, "text/markdown", md()), close())}>
+          Download Markdown
+        </button>
+        <button
+          type="button"
+          className={item}
+          onClick={() => {
+            // the RunResult as served, without the page-only fields
+            const { analysis: _a, display: _d, code_stage: _c, ...result } = r;
+            void _a;
+            void _d;
+            void _c;
+            download(`${name}.json`, "application/json", JSON.stringify(result, null, 2));
+            close();
+          }}
+        >
+          Download JSON
+        </button>
       </div>
-      {v.explain && <p className="mt-1">{v.explain}</p>}
-      {v.errorLine && (
-        <p className="mt-1">
-          Error: <code className="font-mono text-xs break-anywhere">{v.errorLine}</code>
-        </p>
-      )}
-      {v.reason && !v.errorLine && <p className="mt-1 text-xs text-slate-500 break-anywhere">{v.reason}</p>}
-      {v.note && (
-        <p className="mt-1 text-xs text-slate-600 break-anywhere">
-          <span className="font-medium">Re-run agent's note:</span> {v.note}
-        </p>
-      )}
-      {v.modifications.length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-blue-900">
-            Changes made to the code ({v.modifications.length} file{v.modifications.length === 1 ? "" : "s"})
-          </summary>
-          <ul className="mt-1 space-y-2">
-            {v.modifications.map((m, j) => (
-              <li key={j}>
-                <p className="font-mono text-xs break-anywhere">{m.path}</p>
-                {m.change && <p className="text-xs text-slate-600 break-anywhere">{m.change}</p>}
-                {m.diff && (
-                  <pre className="mt-1 max-h-80 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-xs break-anywhere">
-                    {m.diff}
-                  </pre>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-      {v.commands.length > 0 && (
-        <details className="mt-2">
-          <summary className="cursor-pointer text-blue-900">Commands ({v.commands.length})</summary>
-          <pre className="mt-1 overflow-x-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-xs break-anywhere">
-            {v.commands.join("\n")}
-          </pre>
-        </details>
-      )}
-    </li>
-  );
-}
-
-function CoverageTab({ r }: { r: RunResult }) {
-  const ledger = r.ledger ?? [];
-  const notChecked = r.not_checked ?? [];
-  const cost = (r.cost ?? {}) as { eur?: number; calls?: number };
-  const timings = (r.timings ?? {}) as { wall_s?: number };
-  return (
-    <div className="space-y-8">
-      <section>
-        <h3 className="font-semibold">Which checks ran</h3>
-        <div className="mt-2 overflow-x-auto">
-          <table className="w-full min-w-0 text-left text-sm">
-            <thead className="border-b border-slate-300 text-slate-600">
-              <tr>
-                <th scope="col" className="py-2 pr-3 font-medium">Check</th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">Ran on</th>
-                <th scope="col" className="py-2 pr-3 text-right font-medium">Not run</th>
-                <th scope="col" className="hidden py-2 font-medium sm:table-cell">Why not</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 align-top">
-              {ledger.map((l) => (
-                <tr key={l.check}>
-                  <th scope="row" className="py-2 pr-3 font-normal">
-                    {CHECK_LABELS[l.check] ?? l.check}
-                    <ul className="mt-1 text-xs text-slate-500 sm:hidden">
-                      {Object.entries(l.reasons ?? {}).map(([k, n]) => (
-                        <li key={k}>{k}: {n}</li>
-                      ))}
-                    </ul>
-                  </th>
-                  <td className="py-2 pr-3 text-right tabular-nums">{l.ran_on}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">{l.not_run_on}</td>
-                  <td className="hidden py-2 text-slate-600 sm:table-cell">
-                    <ul>
-                      {Object.entries(l.reasons ?? {}).map(([k, n]) => (
-                        <li key={k}>
-                          {k}: <span className="tabular-nums">{n}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <section>
-        <h3 className="font-semibold">What was not checked</h3>
-        {notChecked.length ? (
-          <ul className="mt-2 divide-y divide-slate-100 text-sm">
-            {notChecked.map((n, i) => (
-              <li key={i} className="py-2">
-                <span className="font-medium">{n.what}</span>
-                {(n.count ?? 1) > 1 && <span className="tabular-nums text-slate-500"> ({n.count})</span>}
-                <span className="text-slate-600">: {n.reason}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-2 text-sm text-slate-600">Nothing recorded.</p>
-        )}
-      </section>
-      {(r.warnings ?? []).length > 0 && (
-        <section>
-          <h3 className="font-semibold">Warnings</h3>
-          <ul className="mt-2 list-disc pl-5 text-sm text-slate-700">
-            {(r.warnings ?? []).map((w, i) => (
-              <li key={i} className="break-anywhere">{w}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-      <section className="text-sm text-slate-600">
-        <h3 className="font-semibold text-slate-900">Run</h3>
-        <p className="mt-1 break-anywhere">
-          Models: {Object.entries(r.models).map(([k, v]) => `${k} ${v}`).join(" · ")}
-        </p>
-        <p className="mt-1">
-          {cost.eur != null && `Model cost €${cost.eur.toFixed(3)}`}
-          {cost.calls != null && ` · ${cost.calls} calls`}
-          {timings.wall_s != null && ` · ${Math.round(timings.wall_s)} s`}
-        </p>
-      </section>
-    </div>
-  );
-}
-
-function JsonTab({ r }: { r: AnalysisResponse }) {
-  const { analysis, display: _display, ...result } = r;
-  void _display;
-  const download = () => {
-    const blob = new Blob([JSON.stringify(result, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `onus_${analysis.paper_ref.replace(/[^A-Za-z0-9._-]+/g, "_")}_${r.fingerprint}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-  return (
-    <div className="max-w-prose space-y-3 text-sm text-slate-700">
-      <p>
-        The full result in the published schema (schema version {r.schema_version ?? "1"}): every claim, its
-        evidence, checks, verdict and reason, the checklist audit and the coverage ledger.
-      </p>
-      <button
-        type="button"
-        onClick={download}
-        className="inline-flex items-center gap-2 rounded bg-slate-900 px-4 py-2 font-medium text-white"
-      >
-        <IconDownload /> Download JSON
-      </button>
-      <p>
-        Or fetch it directly:{" "}
-        <a className="font-mono text-blue-900 underline break-anywhere" href={`/api/analyses/${analysis.id}`}>
-          /api/analyses/{analysis.id}
-        </a>
-      </p>
-    </div>
+    </details>
   );
 }

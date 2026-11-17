@@ -28,6 +28,7 @@ from onus.api.jobs import (
 )
 from onus.api.limits import CodeLimits, LiveLimits, load_salt
 from onus.api.routes_analyses import router as analyses_router
+from onus.api.routes_anchors import router as anchors_router
 from onus.api.routes_meta import router as meta_router
 from onus.api.routes_papers import router as papers_router
 from onus.api.settings import ServingSettings, get_serving_settings
@@ -154,6 +155,7 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
     app.include_router(meta_router)
     app.include_router(papers_router)
     app.include_router(analyses_router)
+    app.include_router(anchors_router)
     mount_spa(app, frontend_dist)
     return app
 

@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "@tanstack/react-query": "5.107.1",
+    "pdfjs-dist": "6.4.299",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-router-dom": "7.18.5",
-    "recharts": "3.10.1"
+    "react-router-dom": "7.18.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.5",

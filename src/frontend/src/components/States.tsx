@@ -27,16 +27,6 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** Shown on Findings and Trust when the data comes from the dev-only fixture switch. Never in a build. */
-export function FixtureBanner({ fixture }: { fixture?: string }) {
-  if (!import.meta.env.DEV || !fixture) return null;
-  return (
-    <div className="my-4 rounded border-2 border-dashed border-fuchsia-500 px-4 py-2 text-sm text-fuchsia-900" role="note">
-      <strong>Development fixture ({fixture}).</strong> These are dev-split numbers loaded for building the charts.
-      They are not results and never appear in a build.
-    </div>
-  );
-}
 
 export function PageTitle({ children, sub }: { children: React.ReactNode; sub?: React.ReactNode }) {
   return (
@@ -47,11 +37,3 @@ export function PageTitle({ children, sub }: { children: React.ReactNode; sub?: 
   );
 }
 
-export function NotProven({ children }: { children: React.ReactNode }) {
-  return (
-    <aside className="mt-3 border-l-2 border-amber-400 bg-amber-50/50 px-3 py-2 text-sm text-slate-700">
-      <span className="font-medium text-slate-900">What this does not prove. </span>
-      {children}
-    </aside>
-  );
-}

@@ -1,31 +1,16 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useId, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { Findings, PaperRow, StartResponse } from "../api/types";
+import type { PaperRow, StartResponse } from "../api/types";
 import { OlderVersionBadge, useMeta } from "../components/Layout";
 import { ErrorBox } from "../components/States";
-import { VerdictCounts, VerdictMixBar } from "../components/Verdict";
-import { pct } from "../lib/format";
+import { VerdictCounts } from "../components/Verdict";
 import { LIVE_OFF_TEXT, startErrorText } from "../lib/startErrors";
+import { VERDICTS, VERDICT_ORDER } from "../lib/verdicts";
 
 type Source = "arxiv" | "openreview";
 
-function headline(f: Findings): string | null {
-  const r2 = f.rq2;
-  if (r2 && r2.difference != null && r2.ci95) {
-    const pp = (x: number) => `${(x * 100).toFixed(1)} pp`;
-    return (
-      `Accepted and rejected papers differ in the share of flagged claims by ${pp(r2.difference)} ` +
-      `(95% CI ${pp(r2.ci95[0])} to ${pp(r2.ci95[1])}; ${r2.n_accepted} accepted, ${r2.n_rejected} rejected).`
-    );
-  }
-  const r1 = f.rq1?.ai_score;
-  if (r1 && r1.rho != null) {
-    return `Across ${r1.n} papers, the share of flagged claims and the mean AI reviewer score have Spearman ρ = ${r1.rho.toFixed(2)}.`;
-  }
-  return null;
-}
 
 function StartError({ error }: { error: unknown }) {
   const e = error instanceof ApiError ? startErrorText(error.status, error.message) : startErrorText(-1, String(error));
@@ -78,8 +63,8 @@ function StartForm() {
   const fileRef = useRef<HTMLInputElement>(null);
   const ids = { input: useId(), source: useId(), file: useId(), help: useId(), refCode: useId(), pdfCode: useId() };
 
-  const go = (r: StartResponse) =>
-    navigate(r.status === "done" ? `/analyses/${r.analysis_id}` : `/live/${r.analysis_id}`);
+  // the report page shows the progress while the analysis runs
+  const go = (r: StartResponse) => navigate(`/analyses/${r.analysis_id}`);
   const byRef = useMutation({
     mutationFn: () => {
       const v = ident.trim();
@@ -112,11 +97,7 @@ function StartForm() {
       </p>
       {off && (
         <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="note">
-          {LIVE_OFF_TEXT}{" "}
-          <Link to="/corpus" className="underline">
-            Browse the corpus
-          </Link>
-          .
+          {LIVE_OFF_TEXT}
         </p>
       )}
       <fieldset disabled={off} className="disabled:opacity-60">
@@ -210,94 +191,84 @@ function StartForm() {
   );
 }
 
-function FeaturedRow({ p }: { p: PaperRow }) {
-  const s = p.summary;
+/** One line per verdict, in risk order. Colour is never the only signal: icon and name sit next to it. */
+function VerdictRow() {
   return (
-    <li className="py-3">
-      <Link to={`/papers/${encodeURIComponent(p.ref)}`} className="font-medium text-blue-900 hover:underline break-anywhere">
-        {p.title ?? p.ref}
-      </Link>
-      <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
-        {p.display?.decision && <span className="capitalize">{p.display.decision}</span>}
-        {s ? (
-          <span>
-            {pct(s.flagged_share)} of {s.n_claims ?? "—"} claims flagged
-          </span>
-        ) : (
-          <span>No finished analysis yet</span>
-        )}
+    <ul className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-5" aria-label="The five verdicts">
+      {VERDICT_ORDER.map((v) => {
+        const { Icon, label, fill, description } = VERDICTS[v];
+        return (
+          <li key={v} className="min-w-0">
+            <span className="inline-flex items-center gap-1 font-medium text-slate-900">
+              <Icon style={{ color: fill }} />
+              {label}
+            </span>
+            <span className="block text-slate-600">{description}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function ExampleCard({ p }: { p: PaperRow & { analysis_id: string } }) {
+  return (
+    <li className="flex min-w-0 flex-col rounded border border-slate-200 p-4">
+      <p className="font-medium text-slate-900 break-anywhere line-clamp-3">{p.title ?? p.ref}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <VerdictCounts counts={p.summary?.counts} />
         <OlderVersionBadge fingerprint={p.fingerprint} version={p.onus_version} />
-        <VerdictCounts counts={s?.counts} />
       </div>
-      <div className="mt-2 max-w-sm">
-        <VerdictMixBar counts={s?.counts} />
-      </div>
+      <Link to={`/analyses/${encodeURIComponent(p.analysis_id)}`} className="mt-auto pt-3 text-sm font-medium text-blue-900 underline">
+        Open report
+        <span className="sr-only">: {p.title ?? p.ref}</span>
+      </Link>
     </li>
   );
 }
 
 export default function Home() {
   const meta = useMeta();
-  const findings = useQuery({ queryKey: ["findings"], queryFn: api.findings, enabled: !!meta.data?.has_findings });
-  const head = findings.data ? headline(findings.data) : null;
+  const examples = (meta.data?.featured ?? []).filter((p): p is PaperRow & { analysis_id: string } => !!p.analysis_id);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8">
       <section>
-        <h1 className="text-3xl font-semibold tracking-tight">A claim map for research papers</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Check a paper's claims against its evidence</h1>
         <p className="mt-3 max-w-prose text-slate-700">
-          Onus finds the major claims in a paper, links each one to the table, figure, passage or checklist answer
-          behind it, runs checks that code can verify, and gives one verdict per claim. Every verdict links to its
-          evidence and can be disputed. There is no overall score, and the report says what was not checked.
+          Onus finds the claims in a paper, links each one to the passage, table, figure or code behind it, and gives
+          each claim one of five verdicts that you can read against the paper itself.
         </p>
       </section>
 
+      <VerdictRow />
+
       <StartForm />
 
-      {meta.data && !meta.data.has_findings && (
-        <section aria-labelledby="finding-h">
-          <h2 id="finding-h" className="text-lg font-semibold">
-            Findings
+      <details className="max-w-prose rounded border border-slate-200 px-4 py-3 text-sm text-slate-700">
+        <summary className="cursor-pointer font-medium text-slate-900">How it works</summary>
+        <p className="mt-2">
+          The model points and code computes: a language model finds claims and candidate evidence, and every count,
+          comparison and number recheck is done in code. Every quote the model returns is verified against the
+          paper's text before it is used. Submitted code is re-run in an isolated sandbox with no access to Onus's
+          keys. There is no overall score: each claim gets its own verdict with the evidence, and the report says
+          what was not checked.
+        </p>
+      </details>
+
+      {meta.error && <ErrorBox error={meta.error} />}
+      {examples.length > 0 && (
+        <section aria-labelledby="examples-h">
+          <h2 id="examples-h" className="text-lg font-semibold">
+            Try an example
           </h2>
-          <p className="mt-2 max-w-prose text-slate-700">
-            The corpus findings and Onus's own error rates are measured once, on the frozen version, over papers it
-            was not tuned on. They appear here after the held-out runs.{" "}
-            <Link to="/method" className="text-blue-900 underline">
-              How the analysis works
-            </Link>
-          </p>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {examples.map((p) => (
+              <ExampleCard key={p.id} p={p} />
+            ))}
+          </ul>
         </section>
       )}
-
-      {head && (
-        <section aria-labelledby="finding-h">
-          <h2 id="finding-h" className="text-lg font-semibold">
-            Headline finding
-          </h2>
-          <p className="mt-2 max-w-prose text-slate-700">{head}</p>
-          <Link to="/findings" className="mt-1 inline-block text-sm text-blue-900 underline">
-            All findings and what they do not prove
-          </Link>
-        </section>
-      )}
-
-      <section aria-labelledby="featured-h">
-        <h2 id="featured-h" className="text-lg font-semibold">
-          {meta.data?.featured_source === "config" ? "Featured papers" : "Papers with the most flagged claims"}
-        </h2>
-        {meta.error && <ErrorBox error={meta.error} />}
-        {meta.data && meta.data.featured.length === 0 && (
-          <p className="mt-2 text-slate-600">No papers have been analysed yet.</p>
-        )}
-        <ul className="divide-y divide-slate-200">
-          {meta.data?.featured.map((p) => <FeaturedRow key={p.id} p={p} />)}
-        </ul>
-        {meta.data && meta.data.corpus_papers > 0 && (
-          <Link to="/corpus" className="text-sm text-blue-900 underline">
-            Browse all {meta.data.corpus_papers} analysed papers
-          </Link>
-        )}
-      </section>
     </div>
   );
 }

@@ -1,13 +1,5 @@
-import type {
-  AnalysisResponse,
-  AnalysisStatus,
-  Findings,
-  Meta,
-  Metrics,
-  PaperDetail,
-  PapersPage,
-  StartResponse,
-} from "./types";
+import { EMPTY_ANCHORS, type Anchors } from "../lib/anchors";
+import type { AnalysisResponse, AnalysisStatus, Meta, StartResponse } from "./types";
 
 export class ApiError extends Error {
   status: number;
@@ -38,28 +30,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** null on 404: findings and metrics do not exist until the held-out runs. */
-async function optional<T>(path: string): Promise<T | null> {
+/** The analysis's anchors; no PDF (404, or `pdf: false`) gives empty anchors, never an error. */
+async function anchors(id: string): Promise<Anchors> {
   try {
-    return await request<T>(path);
+    const a = await request<Anchors>(`/api/analyses/${encodeURIComponent(id)}/anchors`);
+    return { ...EMPTY_ANCHORS, ...a, items: a.items ?? {}, missing: a.missing ?? [], page_sizes: a.page_sizes ?? [] };
   } catch (e) {
-    if (e instanceof ApiError && e.status === 404) return null;
+    if (e instanceof ApiError && e.status === 404) return EMPTY_ANCHORS;
     throw e;
   }
 }
 
-// Dev-only: `npm run dev:fixtures` serves the dev split's files from var/eval (see vite.config.ts).
-// `import.meta.env.DEV` is false in every build, so a build always reads /api.
-const FIXTURES = import.meta.env.DEV && import.meta.env.VITE_DEV_FIXTURES === "1";
-
 export const api = {
   meta: () => request<Meta>("/api/meta"),
-  papers: (params: URLSearchParams) => request<PapersPage>(`/api/papers?${params.toString()}`),
-  paper: (ref: string) => request<PaperDetail>(`/api/papers/${encodeURIComponent(ref)}`),
   analysis: (id: string) => request<AnalysisResponse>(`/api/analyses/${encodeURIComponent(id)}`),
   status: (id: string) => request<AnalysisStatus>(`/api/analyses/${encodeURIComponent(id)}/status`),
-  findings: () => optional<Findings>(FIXTURES ? "/__dev/findings.json" : "/api/findings"),
-  metrics: () => optional<Metrics>(FIXTURES ? "/__dev/metrics.json" : "/api/metrics"),
+  anchors,
+  /** The paper PDF (pdf.js fetches it; 404 {"detail":"no_pdf"} when the report has none). */
+  pdfUrl: (id: string) => `/api/analyses/${encodeURIComponent(id)}/pdf`,
   /** An arXiv / OpenReview reference; with a code .zip it is sent as multipart (`ref` + `code`). */
   startRef: (body: { source: string; id: string } | { ref: string }, code?: File | null) => {
     if (code) {

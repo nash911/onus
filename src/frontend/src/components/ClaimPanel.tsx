@@ -23,8 +23,8 @@ const RELATION: Record<string, string> = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mt-6">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
+    <section className="mt-4">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
       <div className="mt-2">{children}</div>
     </section>
   );
@@ -49,28 +49,78 @@ function CheckRow({ c }: { c: CheckResult }) {
   );
 }
 
-function EvidenceRow({ e }: { e: Evidence1 }) {
-  return (
-    <li className="py-3" id={`evidence-${e.id}`}>
-      <div className="flex flex-wrap items-baseline gap-x-2 text-sm">
-        <span className="font-mono text-xs text-slate-500">{e.id}</span>
-        <span className="font-medium break-anywhere">{e.label}</span>
-        {e.relation && (
-          <span className={e.relation === "contradicts" ? "text-red-800" : "text-slate-600"}>
-            {RELATION[e.relation] ?? e.relation}
-          </span>
-        )}
-      </div>
-      {e.snippet && (
-        <blockquote className="mt-1 border-l-2 border-slate-200 pl-3 text-sm text-slate-700 whitespace-pre-wrap break-anywhere">
-          {e.snippet}
-        </blockquote>
+/** Where an evidence item can be shown: in the PDF, not found there, or never (code, no location). */
+export type EvidencePlace = "pdf" | "missing" | "none";
+
+const CODE_KINDS = new Set(["code", "rerun_output"]);
+
+export function isCodeEvidence(e: Evidence1): boolean {
+  return CODE_KINDS.has(e.kind);
+}
+
+function EvidenceRow({ e, place, selected, onSelect }: {
+  e: Evidence1;
+  place: EvidencePlace;
+  selected: boolean;
+  onSelect?: (e: Evidence1) => void;
+}) {
+  const code = isCodeEvidence(e);
+  const meta = [
+    e.location ? cite(e.location) : null,
+    e.location?.section,
+    humanize(e.kind.replace("_", " ")),
+    `linked by ${LINK_METHOD_LABELS[e.link_method] ?? e.link_method}`,
+  ].filter(Boolean).join(" · ");
+  const head = (
+    <span className="flex flex-wrap items-baseline gap-x-2 text-sm">
+      <span className="font-mono text-xs text-slate-500">{e.id}</span>
+      <span className={`font-medium break-anywhere ${code ? "font-mono text-xs" : ""}`}>{e.label}</span>
+      {e.relation && (
+        <span className={e.relation === "contradicts" ? "text-red-800" : "text-slate-600"}>
+          {RELATION[e.relation] ?? e.relation}
+        </span>
       )}
-      <p className="mt-1 text-xs text-slate-500">
-        {[e.location ? cite(e.location) : null, e.location?.section, humanize(e.kind.replace("_", " ")), `linked by ${LINK_METHOD_LABELS[e.link_method] ?? e.link_method}`]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
+    </span>
+  );
+  const body = (
+    <>
+      {e.snippet &&
+        (code ? (
+          <pre className="mt-1 max-h-60 overflow-auto whitespace-pre-wrap rounded bg-slate-50 p-2 font-mono text-xs text-slate-800 break-anywhere">
+            {e.snippet}
+          </pre>
+        ) : (
+          <span className="mt-1 block border-l-2 border-slate-200 pl-3 text-sm text-slate-700 whitespace-pre-wrap break-anywhere line-clamp-6">
+            {e.snippet}
+          </span>
+        ))}
+      <span className="mt-1 block text-xs text-slate-500">{meta}</span>
+      {place === "missing" && (
+        <span className="mt-1 block text-xs font-medium text-amber-900">Exact place not found; the PDF is open at its page.</span>
+      )}
+    </>
+  );
+  if (place === "none" || !onSelect) {
+    return (
+      <li className="py-3" id={`evidence-${e.id}`}>
+        {head}
+        {body}
+        {code && <span className="mt-1 block text-xs text-slate-500">Code evidence is shown here, not in the paper.</span>}
+      </li>
+    );
+  }
+  return (
+    <li className="py-1" id={`evidence-${e.id}`}>
+      <button
+        type="button"
+        onClick={() => onSelect(e)}
+        aria-pressed={selected}
+        className={`block w-full rounded px-2 py-2 text-left ${selected ? "bg-slate-100 outline-2 outline-dashed outline-slate-700" : "hover:bg-slate-50"}`}
+      >
+        {head}
+        {body}
+        <span className="mt-1 block text-xs text-blue-900">{selected ? "Shown in the paper" : "Show in the paper"}</span>
+      </button>
     </li>
   );
 }
@@ -156,38 +206,60 @@ function DisputeForm({ analysisId, claimId }: { analysisId: string; claimId: str
   );
 }
 
-export function ClaimPanel({ claim, analysisId }: { claim: Claim; analysisId: string }) {
-  const v = VERDICTS[claim.verdict];
+function AdjudicationNote({ claim }: { claim: Claim }) {
+  const a = claim.adjudication as { decision?: string; note?: string; applied?: boolean } | null | undefined;
+  const changed = claim.rule_verdict && claim.rule_verdict !== claim.verdict && isVerdict(claim.rule_verdict);
+  const note = typeof a?.note === "string" ? a.note.trim() : "";
+  if (!changed && !note) return null;
+  return (
+    <p className="mt-2 text-sm text-slate-600">
+      {changed && (
+        <>
+          The rule-based verdict was {VERDICTS[claim.rule_verdict!].label.toLowerCase()}; the adjudicator changed it,
+          citing the evidence below.{" "}
+        </>
+      )}
+      {note && <span className="break-anywhere">Adjudicator's note: {note}</span>}
+    </p>
+  );
+}
+
+export interface ClaimPanelProps {
+  claim: Claim;
+  analysisId: string;
+  /** Where each evidence item can be shown (default: nowhere, no buttons). */
+  placeOf?: (e: Evidence1) => EvidencePlace;
+  selectedEvidence?: string | null;
+  onEvidence?: (e: Evidence1) => void;
+  /** The claim's own quote was not found in the PDF. */
+  quoteMissing?: boolean;
+}
+
+/** The detail of one claim, shown in place when its row in the report is expanded. */
+export function ClaimPanel({ claim, analysisId, placeOf, selectedEvidence, onEvidence, quoteMissing }: ClaimPanelProps) {
   const markers = claim.wording.markers ?? [];
   const evidence = claim.evidence ?? [];
   const checks = claim.checks ?? [];
-  const changed = claim.rule_verdict && claim.rule_verdict !== claim.verdict && isVerdict(claim.rule_verdict);
   return (
-    <article>
-      <div className="flex flex-wrap items-center gap-2">
-        <VerdictBadge verdict={claim.verdict} size="md" />
-        <span className="text-sm text-slate-600">
-          {humanize(claim.type)} claim{claim.is_main ? " · main claim" : ""}
-        </span>
-      </div>
-
-      <blockquote className="mt-4 border-l-4 pl-4 text-base leading-relaxed text-slate-900 break-anywhere" style={{ borderColor: v.fill }}>
-        “{claim.quote}”
-      </blockquote>
-      <p className="mt-2 text-sm text-slate-600">
-        {cite(claim.location)}
+    <article className="text-slate-900">
+      <p className="text-sm text-slate-600">
+        {humanize(claim.type)} claim{claim.is_main ? " · main claim" : ""} · {cite(claim.location)}
         {claim.location.section ? ` · ${claim.location.section}` : ""}
       </p>
+      <blockquote className="mt-2 border-l-4 pl-3 text-sm leading-relaxed break-anywhere" style={{ borderColor: VERDICTS[claim.verdict].fill }}>
+        “{claim.quote}”
+      </blockquote>
+      {quoteMissing && (
+        <p className="mt-1 text-xs font-medium text-amber-900">Exact place not found; the PDF is open at page {claim.location.page}.</p>
+      )}
 
       <Section title="Verdict">
-        <p className="text-slate-900">{claim.reason}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <VerdictBadge verdict={claim.verdict} />
+        </div>
+        <p className="mt-2">{claim.reason}</p>
         {claim.caveat && <p className="mt-2 text-sm text-slate-600">Caveat: {claim.caveat}</p>}
-        {changed && (
-          <p className="mt-2 text-sm text-slate-600">
-            The rule-based verdict was {VERDICTS[claim.rule_verdict!].label.toLowerCase()}; the adjudicator changed it,
-            citing the evidence above.
-          </p>
-        )}
+        <AdjudicationNote claim={claim} />
         {claim.stability && (
           <p className="mt-2 text-sm text-slate-700">
             Stability: {claim.stability.agree}/{claim.stability.runs} runs agree
@@ -197,20 +269,27 @@ export function ClaimPanel({ claim, analysisId }: { claim: Claim; analysisId: st
             </span>
           </p>
         )}
+        <p className="mt-2 text-xs text-slate-500">
+          Wording: strength {claim.wording.strength}, scope {claim.wording.scope}
+          {markers.length > 0 && ` (${markers.join(", ")})`}
+        </p>
       </Section>
 
-      <Section title="Wording">
-        <p className="text-sm text-slate-700">
-          Strength {claim.wording.strength} · scope {claim.wording.scope}
-        </p>
-        {markers.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {markers.map((m) => (
-              <li key={m} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
-                {m}
-              </li>
+      <Section title={`Evidence (${evidence.length})`}>
+        {evidence.length ? (
+          <ul className="divide-y divide-slate-100">
+            {evidence.map((e) => (
+              <EvidenceRow
+                key={e.id}
+                e={e}
+                place={placeOf ? placeOf(e) : "none"}
+                selected={selectedEvidence === e.id}
+                onSelect={onEvidence}
+              />
             ))}
           </ul>
+        ) : (
+          <p className="text-sm text-slate-600">No evidence was located for this claim.</p>
         )}
       </Section>
 
@@ -223,18 +302,6 @@ export function ClaimPanel({ claim, analysisId }: { claim: Claim; analysisId: st
           </ul>
         ) : (
           <p className="text-sm text-slate-600">No checks ran on this claim.</p>
-        )}
-      </Section>
-
-      <Section title={`Evidence (${evidence.length})`}>
-        {evidence.length ? (
-          <ul className="divide-y divide-slate-100">
-            {evidence.map((e) => (
-              <EvidenceRow key={e.id} e={e} />
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-slate-600">No evidence was located for this claim.</p>
         )}
       </Section>
 

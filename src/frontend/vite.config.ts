@@ -6,40 +6,53 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
 /**
- * Dev-only fixtures (`npm run dev:fixtures`, i.e. VITE_DEV_FIXTURES=1): serves the dev-split findings and
- * metrics that Session A's harness wrote under var/eval/, so the Findings and Trust charts can be developed
- * before the held-out runs. `apply: "serve"` keeps this out of every build, and the app only requests
- * /__dev/* when `import.meta.env.DEV` is true, which is statically false in a build.
+ * Dev-only fixtures (`npm run dev:fixtures`, i.e. VITE_DEV_FIXTURES=1): a report for dev paper EJ8cQFi5cU, with
+ * its PDF from data/dev and anchors from tests/fixtures/anchors_sample.json (the /anchors contract), so the PDF
+ * report view can be built before the real endpoints exist. Open /analyses/dev-fixture (or
+ * /analyses/dev-fixture-nopdf for the missing-PDF view). `apply: "serve"` keeps this plugin out of every build.
  */
+const FIXTURE_PAPER = "EJ8cQFi5cU";
+
 function devFixtures(): Plugin {
   const repo = resolve(fileURLToPath(new URL(".", import.meta.url)), "../..");
   const read = (p: string) => JSON.parse(readFileSync(resolve(repo, p), "utf-8"));
+  const json = (res: import("node:http").ServerResponse, body: unknown, status = 200) => {
+    res.statusCode = status;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify(body));
+  };
   return {
     name: "onus-dev-fixtures",
     apply: "serve",
     configureServer(server) {
       if (process.env.VITE_DEV_FIXTURES !== "1") return;
-      server.middlewares.use("/__dev/findings.json", (_req, res) => {
-        res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ ...read("var/eval/dev_findings.json"), _fixture: "dev split" }));
-      });
-      server.middlewares.use("/__dev/metrics.json", (_req, res) => {
-        // Same shape as `onus eval merge-metrics`: {splits, pooled, labels}.
-        const dev = read("var/eval/dev/metrics.json");
-        let stability = dev.stability;
-        try {
-          stability = read("var/eval/dev_3runs/metrics.json").stability;
-        } catch {
-          /* keep the 1-run note */
+      server.middlewares.use((req, res, next) => {
+        const m = /^\/api\/analyses\/(dev-fixture(?:-nopdf)?)(\/[a-z]+)?(?:\?.*)?$/.exec(req.url ?? "");
+        if (!m || req.method !== "GET") return next();
+        const [, id, sub] = m;
+        const noPdf = id === "dev-fixture-nopdf";
+        if (sub === "/status") {
+          return json(res, { id, paper_id: FIXTURE_PAPER, status: "done", mode: "batch", progress: null, error: null,
+                             created_at: null, finished_at: null });
         }
-        const merged = {
-          splits: { dev: { ...dev, stability } },
-          pooled: { recall: dev.mutations?.recall ?? {}, collateral: dev.mutations?.collateral?.onus ?? null },
-          labels: null,
-          _fixture: "dev split",
-        };
-        res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify(merged));
+        if (sub === "/pdf") {
+          if (noPdf) return json(res, { detail: "no_pdf" }, 404);
+          res.setHeader("content-type", "application/pdf");
+          return res.end(readFileSync(resolve(repo, `data/dev/papers/${FIXTURE_PAPER}/paper.pdf`)));
+        }
+        if (sub === "/anchors") {
+          const a = read("tests/fixtures/anchors_sample.json");
+          return json(res, noPdf ? { pdf: false, page_sizes: [], items: {}, missing: [] } : a);
+        }
+        if (sub) return next();
+        const r = read("tests/fixtures/report_sample.json");
+        return json(res, {
+          ...r,
+          display: null,
+          code_stage: null,
+          analysis: { id, paper_id: FIXTURE_PAPER, paper_ref: FIXTURE_PAPER, status: "done", source_url: null,
+                      title: r.paper?.title ?? null },
+        });
       });
     },
   };
