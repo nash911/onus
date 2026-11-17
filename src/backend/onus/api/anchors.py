@@ -19,23 +19,27 @@ Methods, tried in this order:
    A clipped evidence snippet ("…") highlights only the part of the span the snippet shows; a location that
    covers only the start of a longer snippet (a section's first paragraph, a long caption) is extended along the
    text to the snippet's end when the text goes on with the snippet's words.
-2. `table`: table and table-cell evidence: the cell's words when the cell can be found inside the table, else the
-   table's box.
+2. `table_cell` / `table`: table evidence: the cells the claim's checks used on that table (a `table_cell` item: its
+   own cell), one rect per cell, when every cell is located unambiguously (see "table cells" below); else the
+   table's box (`table`).
 3. `search`: `page.search_for` on the quote (whitespace, ligatures and line-break hyphens normalised) on
    `location.page`, then the pages before and after; the first 12 words when the full text is not found.
 4. `paragraph`: every line of the paragraph at `location.page` / `location.paragraph`.
 
 Keys: the claim id for the claim quote, `claim_id:ev_id` for each evidence item (evidence ids repeat across
-claims). Code and re-run evidence has no place in the PDF and is left out; an item that has a PDF location but could
+claims), `checklist:<audit key>:<ev_id>` for each checklist audit's evidence. Code and re-run evidence has no place in the PDF and is left out; an item that has a PDF location but could
 not be placed is listed in `missing`.
 
 The Document comes from the ingest cache (`doc_path`) when its PDF sha matches, else from `ingest_pdf` on the stored
-file (deterministic). Results are cached at `$ONUS_VAR_DIR/anchors/<analysis_id>.json`. Nothing here changes a
+file (deterministic). Results are cached at `$ONUS_VAR_DIR/anchors/<analysis_id>.json`, stamped with
+`ANCHORS_VERSION`, the PDF sha and a digest of the result's anchor-relevant parts (`anchors_warm.py` fills the
+cache when an analysis finishes). Nothing here changes a
 result or a verdict; it only reads them.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import threading
@@ -48,7 +52,7 @@ import pymupdf
 
 from onus.schemas.document import Document, Line
 
-ANCHORS_VERSION = 2
+ANCHORS_VERSION = 3  # 3: table cells, checklist evidence, result digest in the cache stamp
 SEARCH_FLAGS = pymupdf.TEXT_DEHYPHENATE | pymupdf.TEXT_MEDIABOX_CLIP  # no TEXT_PRESERVE_LIGATURES: "ﬁ" -> "fi"
 NO_PDF_PLACE = {"code", "rerun_output"}
 TABLE_KINDS = {"table", "table_cell"}
@@ -217,10 +221,18 @@ def find_table(doc: Document, label: str):
     return next((t for t in doc.tables if t.id == tid), None)
 
 
-def by_table(doc: Document, pdf: Pdf, kind: str, label: str) -> list[dict]:
+def by_table(doc: Document, pdf: Pdf, kind: str, label: str, cells: list[str] | tuple[str, ...] = ()) -> list[dict]:
+    """The referenced cells (`table_cell`, one rect per cell) when every one of them is located unambiguously,
+    else the table's box (`table`). `cells` are the claim's checked cells on this table (`TableView.where`
+    strings); a `table_cell` evidence item uses its own label."""
     t = find_table(doc, label)
     if t is None or not 1 <= t.page <= pdf.pages:
         return []
+    wheres = [label] if kind == "table_cell" else [c for c in cells if find_table(doc, c) is t]
+    if wheres:
+        found = locate_cells(pdf, t, wheres)
+        if found:
+            return [{"page": t.page, "rects": [r for _, r in found], "method": "table_cell"}]
     if kind == "table_cell" and t.rows and (m := _CELL_LABEL.search(label)):
         raw = _cell_raw(t, m["row"], m["col"])
         if raw:
@@ -237,6 +249,127 @@ def _cell_raw(t, row: str, col: str) -> str | None:
         if r and norm(r[0].raw) == norm(row) and cols and cols[0] < len(r):
             return r[cols[0]].raw
     return None
+
+
+# ---------------------------------------------------------------- table cells
+#
+# The Document's cells have no box, so a cell is found on the page: the table is rebuilt with the frozen
+# `TableView` (so a "row '…', col '…'" reference means exactly what the number check meant, merged headers
+# included), the cell's raw text is matched against the PyMuPDF words inside the table box, and a match is kept
+# only when every label part of the cell's row lies on the same visual line(s) and the match is nearer to the
+# cell's column header than to any other located header (the column and its neighbours must be located). Exactly
+# one match must remain: anything else is ambiguous, and ambiguous falls back to the table box.
+
+BAND_PAD = 2.0  # points of slack when comparing a value's line with its row label's
+
+
+def _compact(s: str) -> str:
+    return "".join(norm(s).lower().split())
+
+
+def _table_words(pdf: Pdf, t) -> list:
+    x0, y0, x1, y1 = t.bbox
+    return [w for w in pdf.words(t.page)
+            if x0 - 1 <= (w[0] + w[2]) / 2 <= x1 + 1 and y0 - 1 <= (w[1] + w[3]) / 2 <= y1 + 1]
+
+
+def _runs(words: list, text: str) -> list[tuple[float, float, float, float]]:
+    """Boxes of every run of consecutive words (reading order) whose letters spell `text`. Each next word must
+    follow on the same visual line (to the right) or start the line directly below (a wrapped cell)."""
+    want = _compact(text)
+    if not want:
+        return []
+    out = []
+    for i in range(len(words)):
+        got, j = "", i
+        while j < len(words) and len(got) < len(want):
+            if j > i:
+                p, w = words[j - 1], words[j]
+                h = p[3] - p[1]
+                same_line = abs((w[1] + w[3]) - (p[1] + p[3])) / 2 < 0.5 * h and w[0] >= p[0]
+                below = 0 <= w[1] - p[3] < 1.5 * h + 1 and w[0] <= p[2]
+                if not (same_line or below):
+                    break
+            got += _compact(words[j][4])
+            j += 1
+        if got == want:
+            ws = words[i:j]
+            out.append((min(w[0] for w in ws), min(w[1] for w in ws), max(w[2] for w in ws), max(w[3] for w in ws)))
+    return out
+
+
+def _in_row(part_runs: list[list[tuple]], box: tuple) -> bool:
+    """True when every label part of the row has an occurrence on the same visual line(s) as `box`."""
+    return bool(part_runs) and all(
+        any(r[1] <= box[3] + BAND_PAD and r[3] >= box[1] - BAND_PAD for r in runs) for runs in part_runs)
+
+
+def _col_centres(words: list, view) -> dict[int, float]:
+    """Horizontal centre of each column's lowest header part. When k columns share that text and it occurs
+    exactly k times, the occurrences go to those columns left to right; any other count leaves them unlocated."""
+    groups: dict[str, list[int]] = {}
+    for j, parts in enumerate(view.col_parts):
+        if parts:
+            groups.setdefault(_compact(parts[-1]), []).append(j)
+    out: dict[int, float] = {}
+    for js in groups.values():
+        hits = sorted(_runs(words, view.col_parts[js[0]][-1]), key=lambda b: b[0])
+        if len(hits) == len(js):
+            for j, b in zip(js, hits, strict=True):
+                out[j] = (b[0] + b[2]) / 2
+    return out
+
+
+def locate_cells(pdf: Pdf, t, wheres: list[str]) -> list[tuple[str, Rect]] | None:
+    """[(raw text, rect)] for every referenced cell, or None when any of them is not found unambiguously."""
+    from onus.checks.tables import TableView
+
+    if not t.parsed or not t.rows:
+        return None
+    view = TableView(t)
+    index: dict[str, list[tuple[int, int]]] = {}
+    for i in range(len(view.body)):
+        for j in range(view.ncols):
+            index.setdefault(view.where(i, j), []).append((i, j))
+    words = _table_words(pdf, t)
+    cols = _col_centres(words, view)
+    out: list[tuple[str, Rect]] = []
+    for ref in dict.fromkeys(w.strip() for w in wheres):
+        ij = index.get(ref) or []
+        if len(ij) != 1:
+            return None  # unknown or duplicated row / column labels
+        i, j = ij[0]
+        cell = view.cell(i, j)
+        part_runs = [_runs(words, p) for p in view.row_parts[i]]
+        neighbours = [k for k in (j - 1, j + 1) if 0 <= k < view.ncols]
+        if cell is None or not cell.raw.strip() or not part_runs or any(k not in cols for k in [j, *neighbours]):
+            return None  # needs a row label, and the column and its neighbours located for the nearest-header test
+        hits = [b for b in _runs(words, cell.raw)
+                if _in_row(part_runs, b) and min(cols, key=lambda k: abs(cols[k] - (b[0] + b[2]) / 2)) == j]
+        if len(hits) != 1:
+            return None
+        out.append((cell.raw, _r(hits[0])))
+    return out or None
+
+
+def claim_cells(claim: dict) -> list[str]:
+    """The table cells a claim's checks used (`TableView.where` strings), from any `cells` list in check data."""
+    out: list[str] = []
+
+    def walk(o: Any) -> None:
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if k == "cells" and isinstance(v, list):
+                    out.extend(x for x in v if isinstance(x, str))
+                else:
+                    walk(v)
+        elif isinstance(o, list):
+            for x in o:
+                walk(x)
+
+    for ch in claim.get("checks") or []:
+        walk(ch.get("data"))
+    return list(dict.fromkeys(out))
 
 
 # ---------------------------------------------------------------- one item
@@ -290,9 +423,9 @@ def checked_span(doc: Document, start: int, end: int, ref: str) -> tuple[int, in
 
 
 def place(doc: Document, pdf: Pdf, *, text: str, loc: dict | None, kind: str = "claim",
-          label: str = "") -> list[dict]:
+          label: str = "", cells: list[str] | tuple[str, ...] = ()) -> list[dict]:
     if kind in TABLE_KINDS:
-        got = by_table(doc, pdf, kind, label)
+        got = by_table(doc, pdf, kind, label, cells)
         if got:
             return got
     if loc:
@@ -309,23 +442,41 @@ def place(doc: Document, pdf: Pdf, *, text: str, loc: dict | None, kind: str = "
     return []
 
 
+def pdf_evidence(evidence: list[dict] | None) -> list[dict]:
+    """Evidence items with a place in the PDF: not code or re-run output, and with a location (tables need none)."""
+    return [e for e in evidence or [] if e.get("kind") not in NO_PDF_PLACE
+            and (e.get("location") is not None or e.get("kind") in TABLE_KINDS)]
+
+
+def anchor_jobs(result: dict) -> list[tuple[str, dict]]:
+    """(key, place() arguments) for every claim, claim evidence and checklist evidence item, in report order."""
+    jobs: list[tuple[str, dict]] = []
+
+    def ev_job(key: str, e: dict, cells: list[str]) -> None:
+        core, _ = snippet_core(e.get("snippet") or "")
+        jobs.append((key, {"text": core, "loc": e.get("location"), "kind": e.get("kind") or "",
+                           "label": e.get("label") or "", "cells": cells}))
+
+    for c in result.get("claims") or []:
+        cid = c["id"]
+        jobs.append((cid, {"text": c.get("quote") or "", "loc": c.get("location")}))
+        cells = claim_cells(c)
+        for e in pdf_evidence(c.get("evidence")):
+            ev_job(f"{cid}:{e['id']}", e, cells)
+    for a in result.get("checklist") or []:
+        for e in pdf_evidence(a.get("evidence")):
+            ev_job(f"checklist:{a['key']}:{e['id']}", e, [])
+    return jobs
+
+
 def compute_anchors(doc: Document, pdf_path: Path, result: dict) -> dict[str, Any]:
     pdf = Pdf.open(pdf_path)
     try:
         items: dict[str, list[dict]] = {}
         missing: list[str] = []
-        for c in result.get("claims") or []:
-            cid = c["id"]
-            got = place(doc, pdf, text=c.get("quote") or "", loc=c.get("location"))
-            (items.__setitem__(cid, got) if got else missing.append(cid))
-            for e in c.get("evidence") or []:
-                kind = e.get("kind")
-                if kind in NO_PDF_PLACE or (e.get("location") is None and kind not in TABLE_KINDS):
-                    continue
-                key = f"{cid}:{e['id']}"
-                core, _ = snippet_core(e.get("snippet") or "")
-                got = place(doc, pdf, text=core, loc=e.get("location"), kind=kind, label=e.get("label") or "")
-                (items.__setitem__(key, got) if got else missing.append(key))
+        for key, args in anchor_jobs(result):
+            got = place(doc, pdf, **args)
+            (items.__setitem__(key, got) if got else missing.append(key))
         for its in items.values():
             for it in its:
                 it["rects"] = pdf.displayed(it["page"], it["rects"])
@@ -372,21 +523,42 @@ def _lock(key: str) -> threading.Lock:
         return _locks.setdefault(key, threading.Lock())
 
 
+def result_digest(result: dict) -> str:
+    """sha256 over everything placement reads from a result (`anchor_jobs`: claim ids, quotes and locations;
+    evidence ids, kinds, labels, snippets and locations; the checks' cell lists; checklist evidence). A result
+    the code stage rewrites gets new anchors only when one of these changes."""
+    blob = json.dumps(anchor_jobs(result), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
+def cache_stamp(result: dict, sha: str | None) -> dict[str, Any]:
+    return {"version": ANCHORS_VERSION, "pdf_sha256": sha, "result_digest": result_digest(result)}
+
+
+def cached_anchors(var_dir: Path, analysis_id: str, stamp: dict) -> dict[str, Any] | None:
+    """The cached anchors when the file exists and its stamp matches, else None."""
+    cp = cache_path(var_dir, analysis_id)
+    if not cp.is_file():
+        return None
+    try:
+        cached = json.loads(cp.read_text())
+    except (OSError, ValueError):
+        return None
+    return cached["anchors"] if isinstance(cached, dict) and cached.get("stamp") == stamp else None
+
+
 def anchors_for(var_dir: Path, analysis_id: str, result: dict, sha: str | None) -> dict[str, Any]:
-    """Cached anchors for one analysis (`pdf: false` when no PDF is stored). Blocking: call it in a thread."""
+    """Cached anchors for one analysis (`pdf: false` when no PDF is stored). Blocking: call it in a thread.
+    The cache is valid while `ANCHORS_VERSION`, the PDF sha and `result_digest` are unchanged."""
     pdf = stored_pdf(var_dir, sha)
     if pdf is None:
         return empty()
-    stamp = {"version": ANCHORS_VERSION, "pdf_sha256": sha, "result_created_at": result.get("created_at")}
+    stamp = cache_stamp(result, sha)
     cp = cache_path(var_dir, analysis_id)
     with _lock(analysis_id):
-        if cp.is_file():
-            try:
-                cached = json.loads(cp.read_text())
-                if cached.get("stamp") == stamp:
-                    return cached["anchors"]
-            except (OSError, ValueError):
-                pass
+        hit = cached_anchors(var_dir, analysis_id, stamp)
+        if hit is not None:
+            return hit
         paper = result.get("paper") or {}
         assert sha is not None
         doc = load_doc(var_dir, str(paper.get("id") or f"upload:{sha[:12]}"), str(paper.get("source") or ""),

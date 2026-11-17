@@ -15,6 +15,7 @@ Read from the process environment (Railway variables), never from `.env`:
 | ONUS_ANALYTICS | on | `0` turns off the request log and `POST /api/events` (see `analytics.py`) |
 | ANALYTICS_RETENTION_DAYS | 90 | analytics rows older than this are deleted |
 | ANALYTICS_TOKEN | unset | bearer token for `GET /api/admin/analytics` (the author's dashboard); unset = 404 |
+| ONUS_ANCHORS_WARM | on | `0` turns off computing PDF anchors in the background (on finish and at startup; `anchors_warm.py`) |
 """
 
 from __future__ import annotations
@@ -47,6 +48,9 @@ class ServingSettings(BaseSettings):
     onus_analytics: bool = True
     analytics_retention_days: int = 90
     analytics_token: SecretStr | None = None
+
+    # PDF anchors computed in the background (Phase 14; see onus.api.anchors_warm)
+    onus_anchors_warm: bool = True
 
     @property
     def frontend_dist(self) -> Path:

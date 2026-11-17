@@ -4,7 +4,8 @@ Status and progress are persisted on the `analyses` row, so a page reload (or an
 state. On startup, rows left `queued` or `running` by a previous process are marked `failed` (the queue is in
 memory, so they can never finish). Live mode is always 1 run. When live code checks are on (Phase 11b), the
 finished P0 report is stored first and then handed to the code stage (`code_stage.py`), which has its own
-one-worker queue and updates the report in place.
+one-worker queue and updates the report in place. Once a report is stored, its PDF anchors are computed in the
+background (`anchors_warm.py`) so the report page's first `/anchors` request reads the cache.
 
 For arXiv and OpenReview papers the display title comes from the source's metadata (`fetch_title`), not from
 the title parsed out of the PDF (which can pick up margin stamps and emails); the parsed title is the fallback.
@@ -78,16 +79,21 @@ def no_title_fetcher(source: str, external_id: str) -> str | None:
 
 def make_pipeline_analyzer(settings: Settings, fingerprint: str) -> Analyzer:
     async def analyze(pdf_path: Path, paper_id: str, source: str, progress: ProgressFn) -> dict[str, Any]:
-        from onus.ingest.document_builder import ingest_pdf
+        from onus.ingest.document_builder import ingest_pdf, save_document
         from onus.llm.client import LLMClient
         from onus.pipeline import analyze_doc_runs
 
         progress("ingest", {})
         t = time.monotonic()
         doc = await asyncio.to_thread(ingest_pdf, pdf_path, settings.var_dir, source=source, paper_id=paper_id)
+        ingest_s = time.monotonic() - t
+        try:  # the ingest cache: PDF anchors (anchors.load_doc) reuse it instead of re-ingesting the PDF
+            await asyncio.to_thread(save_document, doc, settings.var_dir)
+        except OSError as e:
+            log.warning("could not cache the Document for %s: %s", paper_id, type(e).__name__)
         llm = LLMClient(settings, mode="live")
         result = await analyze_doc_runs(doc, 1, "live", llm=llm, fingerprint=fingerprint, progress=progress,
-                                        ingest_s=time.monotonic() - t)
+                                        ingest_s=ingest_s)
         return json.loads(result.model_dump_json())
 
     return analyze
@@ -110,13 +116,14 @@ def public_error(e: BaseException) -> str:
 class JobRunner:
     def __init__(self, factory: sessionmaker[Session], settings: Settings, *, analyzer: Analyzer,
                  fetcher: Fetcher = default_fetcher, title_fetcher: TitleFetcher = no_title_fetcher,
-                 code: CodeRunner | None = None):
+                 code: CodeRunner | None = None, anchors: Any = None):
         self.factory = factory
         self.settings = settings
         self.analyzer = analyzer
         self.fetcher = fetcher
         self.title_fetcher = title_fetcher
         self.code = code
+        self.anchors = anchors  # AnchorWarmer: PDF anchors computed as soon as a result is stored
         self._queue: asyncio.Queue[LiveJob] | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._task: asyncio.Task | None = None
@@ -222,6 +229,8 @@ class JobRunner:
                                            "ahead": self.code.pending}} if code_on else {})}
                 repo.store_result(s, a, result)  # P0 is published here, before any code check
                 repo.add_live_usage(s, today(), cost_eur=float((result.get("cost") or {}).get("eur") or 0.0))
+            if self.anchors is not None:
+                self.anchors.submit(job.analysis_id)  # a worker thread; failures are logged there, never raised
             if code_on:
                 assert self.code is not None
                 self.code.submit(CodeJob(analysis_id=job.analysis_id, paper_id=job.pipeline_paper_id,

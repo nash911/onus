@@ -7,6 +7,7 @@ database, a fake pipeline and a fake fetcher.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from fastapi import FastAPI
 
 from onus.api.analytics import AnalyticsSink, RequestLogMiddleware
 from onus.api.analytics import router as analytics_router
+from onus.api.anchors_warm import AnchorWarmer
 from onus.api.code_stage import CodeDeps, CodeRunner, default_deps
 from onus.api.context import AppContext
 from onus.api.jobs import (
@@ -125,8 +127,11 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
         init_db(engine)
         factory = make_sessionmaker(engine)
         code = make_code_runner(factory, settings, serving, code_deps, code_tmp)
+        warmer = AnchorWarmer(factory, settings.var_dir, enabled=serving.onus_anchors_warm)
+        code.anchors = warmer
         runner = JobRunner(factory, settings, analyzer=analyzer or make_pipeline_analyzer(settings, fp),
-                           fetcher=fetcher or default_fetcher, title_fetcher=title_fetcher, code=code)
+                           fetcher=fetcher or default_fetcher, title_fetcher=title_fetcher, code=code,
+                           anchors=warmer)
         dirs = import_dirs(settings)
         report = import_bundles(factory, dirs).as_dict()
         log.info("bundles imported: %s", report)
@@ -149,12 +154,14 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
         runner.start()
         code.start()
         analytics.start()
+        warmer.warm_existing()  # stale or missing anchors caches (e.g. after an ANCHORS_VERSION bump), one at a time
         try:
             yield
         finally:
             await runner.stop()
             await code.stop()
             await analytics.stop()
+            await asyncio.to_thread(warmer.shutdown)
             engine.dispose()
 
     app = FastAPI(title="Onus", version="1", lifespan=lifespan, docs_url="/api/docs",

@@ -430,6 +430,7 @@ class CodeRunner:
     enabled: bool
     deps: CodeDeps
     tmp_root: Path | None = None
+    anchors: Any = None  # AnchorWarmer: re-warms the PDF anchors when a code-checked result is saved
     _queue: asyncio.Queue[CodeJob] | None = field(default=None, init=False)
     _loop: asyncio.AbstractEventLoop | None = field(default=None, init=False)
     _task: asyncio.Task | None = field(default=None, init=False)
@@ -505,6 +506,8 @@ class CodeRunner:
             a.progress = {**(a.progress or {}), "code": rec}
             if eur:
                 repo.add_live_usage(s, today(), cost_eur=eur)
+        if result is not None and self.anchors is not None:
+            self.anchors.submit(analysis_id)  # after the commit; recomputed only if the anchor digest changed
 
     # ------------------------------------------------------------ work
 
