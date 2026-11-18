@@ -208,10 +208,20 @@ def _two_columns(lines: list[RawLine], width: float) -> bool:
     long_ = [ln for ln in lines if len(ln.text.strip()) >= 25]
     if len(long_) < 10:
         return False
-    left = sum(1 for ln in long_ if ln.bbox[2] < mid + 5)
-    right = sum(1 for ln in long_ if ln.bbox[0] > mid - 5)
-    spanning = len(long_) - left - right
-    return left >= 5 and right >= 5 and spanning < 0.15 * len(long_)
+    lefts = [ln for ln in long_ if ln.bbox[2] < mid + 5]
+    rights = [ln for ln in long_ if ln.bbox[0] > mid - 5]
+    spanning = [ln for ln in long_ if ln not in lefts and ln not in rights]
+    if len(lefts) < 5 or len(rights) < 5:
+        return False
+    if len(spanning) < 0.15 * len(long_):
+        return True
+    # Full-width material (a title block, a wide figure or its caption) above or below the columns does not make
+    # the page one column: only full-width lines inside the band where both columns run count against it.
+    top = max(min(ln.bbox[1] for ln in lefts), min(ln.bbox[1] for ln in rights))
+    bottom = min(max(ln.bbox[3] for ln in lefts), max(ln.bbox[3] for ln in rights))
+    inside = [ln for ln in spanning if ln.bbox[3] > top and ln.bbox[1] < bottom]
+    in_band = [ln for ln in long_ if ln.bbox[3] > top and ln.bbox[1] < bottom]
+    return bottom - top > 0 and len(inside) < 0.15 * max(len(in_band), 1)
 
 
 def _merge(lines: list[RawLine], page: int) -> list[Row]:

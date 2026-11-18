@@ -62,6 +62,7 @@ class InputText:
     regions: list[tuple[int, int]]
     sections: list[str] = field(default_factory=list)
     truncated: bool = False
+    fallback: bool = False  # no abstract, introduction or conclusion: the opening body text was used
 
 
 def _paras_in(doc: Document, start: int, end: int) -> list[Paragraph]:
@@ -78,6 +79,10 @@ def _deepest(doc: Document, offset: int) -> Section | None:
 
 def _label(s: Section) -> str:
     return f"{s.number} {s.title}" if s.number else s.title
+
+
+FALLBACK_PARAGRAPHS = 40
+FALLBACK_CHARS = 8000
 
 
 def select_input(doc: Document, max_chars: int = MAX_INPUT_CHARS) -> InputText:
@@ -104,6 +109,9 @@ def select_input(doc: Document, max_chars: int = MAX_INPUT_CHARS) -> InputText:
         if tail:
             groups.append(_paras_in(doc, tail[-1].start, tail[-1].end)[-2:])
     groups.append(of_role("introduction"))
+    fallback = not any(groups)
+    if fallback:  # no recognised section: the opening body text (before references and appendices)
+        groups.append([p for p in doc.paragraphs if p.end <= body_end][:FALLBACK_PARAGRAPHS])
 
     chosen: dict[int, Paragraph] = {}
     used = 0
@@ -118,6 +126,8 @@ def select_input(doc: Document, max_chars: int = MAX_INPUT_CHARS) -> InputText:
                 continue
             chosen[p.start] = p
             used += n
+        if fallback and used >= FALLBACK_CHARS:
+            break
 
     paras = [chosen[k] for k in sorted(chosen)]
     parts: list[str] = []
@@ -133,7 +143,7 @@ def select_input(doc: Document, max_chars: int = MAX_INPUT_CHARS) -> InputText:
         parts.append(normalise(doc.text[p.start : p.end]))
     regions = [(p.start, p.end) for p in paras]
     return InputText(text="\n\n".join(parts), paragraphs=paras, regions=regions, sections=labels,
-                     truncated=truncated)
+                     truncated=truncated, fallback=fallback and bool(paras))
 
 
 # ---------------------------------------------------------------- model output
@@ -326,6 +336,9 @@ async def extract_claims(doc: Document, llm=None, *, run_index: int = 0, lexicon
             warnings.append(f"extract_claims failed: {str(e)[:200]}")
     else:
         warnings.append("no abstract, introduction or conclusion text to extract claims from")
+    if inp.fallback:
+        warnings.append("no abstract, introduction or conclusion found: claims were taken from the opening body "
+                        "text")
     stats["llm_items"] = len(items)
 
     drafts: list[DraftClaim] = []

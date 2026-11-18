@@ -75,10 +75,29 @@ def _unit(u: str | None) -> str | None:
     return "fold"
 
 
+# "96.81 ± 0.42%", "0.81±0.02", "12.3 +/- 1.1 pp": the spread after ± is not a claimed value of its own, and a
+# unit written after the spread belongs to the mean as well
+_SPREAD_AFTER = re.compile(
+    r"\s*(?:±|\+/-|\+-|\\pm)\s*(?:\d+(?:\.\d+)?|\.\d+)"
+    r"(?:\s*(?P<unit>%|percent(?:age)?[\s-]+points?|percent|pp\b|p\.p\.|-?points?\b))?",
+    re.IGNORECASE)
+
+
+def _after_plus_minus(text: str, start: int) -> bool:
+    head = text[max(0, start - 6) : start]
+    return bool(re.search(r"(?:±|\+/-|\+-|\\pm)\s*$", head))
+
+
 def extract_numbers(text: str) -> list[Mention]:
     out: list[Mention] = []
     for m in _NUMBER.finditer(text):
         raw, unit = m.group("num"), _unit(m.group("unit"))
+        if _after_plus_minus(text, m.start()):
+            continue  # a spread, not a value
+        if unit is None:
+            sp = _SPREAD_AFTER.match(text, m.end())
+            if sp is not None and sp.group("unit"):
+                unit = _unit(sp.group("unit"))
         if unit is None and "." not in raw:
             continue  # bare integers: counts, years, settings
         if _SKIP_BEFORE.search(text[max(0, m.start() - 14) : m.start()]):

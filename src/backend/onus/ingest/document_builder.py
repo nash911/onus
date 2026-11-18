@@ -23,7 +23,7 @@ from onus.ingest import refs as refs_mod
 from onus.ingest import sections as sec_mod
 from onus.ingest import tables as tab_mod
 from onus.ingest.pdf import BBox, extract_pages, pdf_metadata_title, sha256_file
-from onus.schemas.document import Document, Line, Paragraph
+from onus.schemas.document import Document, Line, Paragraph, Section
 
 _INNER_CAPTION = re.compile(r"(?<= )(?:Figure|Fig\.|Table)\s*\d{1,3}[a-z]?\s*:")
 _EQ_TAG = re.compile(r"\((\d{1,3})\)\s*$")
@@ -33,15 +33,46 @@ def safe_id(paper_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]", "_", paper_id)
 
 
+_TITLE_LABEL = re.compile(r"^(?:chapter|part|volume|vol\.|paper|article)\s+[\w.-]{1,6}$", re.IGNORECASE)
+
+
 def _mark_title(rows: list[L.Row], layout: L.Layout, page_height: float) -> None:
-    """Page-1 rows set clearly larger than body text, above the first heading, are the title."""
+    """Page-1 rows set clearly larger than body text, above the first heading, are the title. A running label
+    above the title ("CHAPTER X") is not the title; the rows after it may be set a little smaller."""
+    big = layout.body_size + 3
     for r in rows:
         if r.kind == "heading":
             break
-        if r.size >= layout.body_size + 3 and r.y0 < 0.45 * page_height:
+        if r.size >= big and r.y0 < 0.45 * page_height:
+            if not any(x.kind == "title" for x in rows) and _TITLE_LABEL.match(r.text.strip()):
+                big = layout.body_size + 1.5
+                continue
             r.kind = "title"
-        elif any(x.kind == "title" for x in rows) and r.size < layout.body_size + 3:
+        elif any(x.kind == "title" for x in rows) and r.size < big:
             break
+
+
+_INLINE_ABSTRACT = re.compile(r"^\s*abstract\s*[—–:.-]\s*\S", re.IGNORECASE)
+_ABSTRACT_MIN_CHARS = 300
+_ABSTRACT_MAX_CHARS = 2500
+
+
+def _abstract_without_heading(text: str, paragraphs: list, sections: list) -> tuple[int, int, str] | None:
+    """(start, end, how) of an abstract that has no heading row: an inline "Abstract— ..." paragraph (IEEE),
+    else the first run of long paragraphs on pages 1-2 before the first section heading."""
+    first = min((s.start for s in sections), default=len(text))
+    before = [p for p in paragraphs if p.start < first and p.page <= 2 and not tab_mod.caption_of(text[p.start:p.end])]
+    for p in before:
+        if _INLINE_ABSTRACT.match(text[p.start : p.end]):
+            return p.start, p.end, "inline"
+    run: list = []
+    for p in before:
+        long_ = p.end - p.start >= _ABSTRACT_MIN_CHARS
+        if long_ and sum(q.end - q.start for q in run) + (p.end - p.start) <= _ABSTRACT_MAX_CHARS:
+            run.append(p)
+        elif run:
+            break
+    return (run[0].start, run[-1].end, "unlabelled") if run else None
 
 
 def _detect_headings(pages_rows: list[list[L.Row]], layout: L.Layout) -> None:
@@ -104,6 +135,13 @@ def build_document(pdf_path: Path, *, paper_id: str, source: str, code_dir: Path
 
     headings = [(h.row.heading, h.start) for h in built.headings]
     sections = sec_mod.build_sections(headings, len(text))  # type: ignore[arg-type]
+    inferred_abstract = None
+    if not any(sc.role == "abstract" for sc in sections):
+        inferred_abstract = _abstract_without_heading(text, built.paragraphs, sections)
+        if inferred_abstract is not None:
+            a0, a1, _ = inferred_abstract
+            sections.insert(0, Section(id="sec:abstract", title="Abstract", number=None, role="abstract",
+                                       start=a0, end=a1, level=1))
 
     # captions: a caption paragraph stops at the first row inside a located table grid
     captions: list[tab_mod.Caption] = []
@@ -148,7 +186,11 @@ def build_document(pdf_path: Path, *, paper_id: str, source: str, code_dir: Path
     warnings += cw
 
     roles = {s.role for s in sections}
-    if "abstract" not in roles:
+    if inferred_abstract is not None:
+        how = "an inline 'Abstract' paragraph" if inferred_abstract[2] == "inline" else \
+            "the opening paragraph(s) before the first section"
+        warnings.append(f"no Abstract heading found; the abstract was taken from {how}")
+    elif "abstract" not in roles:
         warnings.append("no Abstract heading found")
     if "references" not in roles:
         warnings.append("no References heading found")

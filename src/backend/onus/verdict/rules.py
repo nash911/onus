@@ -4,7 +4,7 @@
 | 1 | any check `fail` with severity `contradicts` | contradicted |
 | 2 | no evidence with relation supports or partial, or a dangling reference inside the claim itself | untraced |
 | 3 | any check with severity `overstates` (a `fail`, or the number check's pp-vs-% caveat on a `pass`) | overstated |
-| 4 | evidence only `partial`, and no applicable check passed | not_checkable |
+| 4 | evidence only `partial`, and no content check passed (strength and scope check wording only) | not_checkable |
 | 5 | otherwise | supported |
 
 Checklist claims take their verdict from the checklist audit: backed -> supported, unbacked -> untraced,
@@ -52,6 +52,9 @@ def _names(ev: list[Evidence], k: int = 3) -> str:
     return out + (f" and {len(labels) - k} more" if len(labels) > k else "")
 
 
+WORDING_CHECKS = ("strength", "scope")
+
+
 def rule_verdict(evidence: list[Evidence], checks: list[CheckResult], own_dangling: list[str]) -> RuleVerdict:
     """Verdict for a non-checklist claim. `checks` includes the link check; `own_dangling` lists objects the
     claim's own sentence cites that are not in the paper."""
@@ -71,7 +74,9 @@ def rule_verdict(evidence: list[Evidence], checks: list[CheckResult], own_dangli
         return RuleVerdict("overstated", 3, _sentences(over[0].detail))
     applicable = [c for c in checks if c.check != "link" and c.outcome != "not_run"]
     passed = [c for c in applicable if c.outcome == "pass"]
-    if not sup and not passed:
+    # strength and scope confirm the wording, not the content: only a content check lifts partial-only evidence
+    confirmed = [c for c in passed if c.check not in WORDING_CHECKS]
+    if not sup and not confirmed:
         return RuleVerdict("not_checkable", 4, f"Only partial evidence was found ({_names(par)}), and no check "
                                                "could confirm the claim as stated.")
     reason = f"Supported by {_names(sup or par)}."

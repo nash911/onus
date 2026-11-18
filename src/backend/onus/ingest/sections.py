@@ -18,6 +18,10 @@ from onus.schemas.document import Section
 
 _NUMBERED = re.compile(r"^(?P<num>\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+(?P<title>[A-Z][^\n]{1,118})$")
 _LETTERED = re.compile(r"^(?P<num>[A-Z](?:\.\d{1,2}){0,3})\.?\s+(?P<title>[A-Z][^\n]{1,118})$")
+# IEEE style: "IV. EXPERIMENTAL RESULTS", set in small capitals at body size (no bold, no larger font)
+_ROMAN = re.compile(r"^(?P<num>(?:X{0,2})(?:IX|IV|V?I{0,3}))\.\s+(?P<title>[A-Z][^\n]{1,80})$")
+_SENTENCE = re.compile(r"[.!?]\s+\S")
+_NUMBER_PREFIX = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,3}|[IVX]{1,5}|[A-Z](?:\.\d{1,2}){0,3})\.\s+")
 _APPENDIX_HEAD = re.compile(r"^(?:Appendix|Appendices)\b(?:\s+(?P<num>[A-Z](?:\.\d+)*))?[:.]?\s*(?P<title>.*)$", re.IGNORECASE)
 
 _KNOWN = {
@@ -69,6 +73,7 @@ class HeadingInfo:
     title: str
     level: int
     known_role: str | None = None
+    roman: bool = False  # an IEEE Roman section number (not an appendix letter)
 
 
 def _clean_title(t: str) -> str:
@@ -81,9 +86,15 @@ def detect_heading(row: Row, layout: Layout, *, after_references: bool) -> Headi
         return None
     emphasised = row.bold or row.size >= layout.body_size + 0.8
     if not emphasised:
+        return _roman_heading(text, after_references)
+    # a sentence, not a heading (the section number's own dot, as in "1. Introduction", does not count)
+    if text.endswith((",", ";")) or _SENTENCE.search(_NUMBER_PREFIX.sub("", text, count=1)):
         return None
-    if text.endswith((",", ";")) or re.search(r"[.!?]\s+\S", text):  # a sentence, not a heading
+    if _NUMBER_PREFIX.match(text) and text.endswith("."):  # "1. A list item that ends like a sentence."
         return None
+    roman = _roman_heading(text, after_references)
+    if roman is not None:
+        return roman
     key = _clean_title(text).lower()
     if key in _KNOWN:
         return HeadingInfo(number=None, title=_clean_title(text), level=1, known_role=_KNOWN[key])
@@ -106,6 +117,22 @@ def detect_heading(row: Row, layout: Layout, *, after_references: bool) -> Headi
             return HeadingInfo(number=num, title=_clean_title(m.group("title")), level=1 + num.count("."),
                                known_role="appendix" if "." not in num else None)
     return None
+
+
+def _roman_heading(text: str, after_references: bool) -> HeadingInfo | None:
+    """An IEEE section heading: a Roman number and an all-capitals title ("III. EXPERIMENTAL RESULTS"). These are
+    set in small capitals at body size, so they are accepted without bold or a larger font."""
+    if after_references:
+        return None
+    m = _ROMAN.match(text)
+    if not m or not m.group("num"):
+        return None
+    title = _clean_title(m.group("title"))
+    letters = [c for c in title if c.isalpha()]
+    if len(letters) < 3 or any(c.islower() for c in letters) or _SENTENCE.search(title):
+        return None
+    key = title.lower()
+    return HeadingInfo(number=m.group("num"), title=title, level=1, known_role=_KNOWN.get(key), roman=True)
 
 
 def role_for(title: str) -> str | None:
@@ -137,7 +164,7 @@ def build_sections(headings: list[tuple[HeadingInfo, int]], text_len: int) -> li
             stack.pop()
         parent = stack[-1] if stack else None
         role = h.known_role or role_for(h.title)
-        if h.known_role == "appendix" or (h.number and h.number[0].isalpha()):
+        if h.known_role == "appendix" or (h.number and h.number[0].isalpha() and not h.roman):
             in_appendix = True
         if in_appendix and role not in ("checklist", "ai_checklist", "appendix", "references", "limitations"):
             role = "appendix" if h.level == 1 else (parent.role if parent else "appendix")
