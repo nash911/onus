@@ -71,11 +71,12 @@ def read_bundle(path: Path) -> list[dict]:
 class FakePipeline:
     """Async analyzer: emits the stages, optionally waits on a gate, returns a canned live RunResult."""
 
-    def __init__(self, fail: bool = False):
+    def __init__(self, fail: bool = False, empty: bool = False):
         self.calls: list[tuple[str, str]] = []
         self.gate = threading.Event()
         self.gate.set()
         self.fail = fail
+        self.empty = empty  # finish "done" with no claims (e.g. a PDF whose text could not be read)
 
     async def __call__(self, pdf_path: Path, paper_id: str, source: str, progress) -> dict:
         import asyncio
@@ -92,7 +93,18 @@ class FakePipeline:
         r = make_result(paper_id, verdicts=("contradicted", "supported"), mode="live", sha=sha,
                         title="Live paper", code=False)
         r["paper"]["source"] = source
+        if self.empty:
+            empty_result(r)
         return r
+
+
+def empty_result(r: dict) -> dict:
+    """A done result with no claims, as the pipeline returns when it finds nothing to check."""
+    r["claims"] = []
+    r["summary"].update(counts={v: 0 for v in r["summary"]["counts"]}, flagged_share=0.0, n_claims=0)
+    r["warnings"] = ["No sections were detected; claims could not be extracted."]
+    RunResult.model_validate(r)
+    return r
 
 
 @pytest.fixture
@@ -302,6 +314,73 @@ def test_in_flight_dedupe_and_failure_retry(env):
         assert wait_done(c, aid)["status"] == "done"
 
 
+def test_done_with_no_claims_is_rerun_not_cached(env):
+    fake = FakePipeline(empty=True)
+    with client_for(env, fake) as c:
+        pdf = PDF + b"unreadable"
+        aid = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")}).json()["analysis_id"]
+        assert wait_done(c, aid)["status"] == "done"
+        res = c.get(f"/api/analyses/{aid}").json()
+        assert res["claims"] == [] and res["warnings"]  # the empty report itself is still served
+        # asking again re-runs it on the same row instead of serving the empty result
+        fake.empty = False
+        again = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")})
+        assert again.status_code == 202, again.text
+        assert again.json() == {"analysis_id": aid, "status": "queued", "cached": False}
+        assert wait_done(c, aid)["status"] == "done"
+        assert len(fake.calls) == 2
+        assert len(c.get(f"/api/analyses/{aid}").json()["claims"]) == 2
+        # a done result with claims is served from the cache: no third job
+        third = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")})
+        assert third.status_code == 200 and third.json() == {"analysis_id": aid, "status": "done", "cached": True}
+        assert len(fake.calls) == 2
+
+
+def test_empty_corpus_result_is_not_a_cache_hit(env):
+    """An imported (batch) result with no claims is not served for a live request of the same PDF."""
+    pdf = PDF + b"empty corpus paper"
+    rows = read_bundle(env["import_dir"] / "bundle_dev.jsonl.gz")
+    rows.append(empty_result(make_result("PaperDDDD04", sha=hashlib.sha256(pdf).hexdigest(), title="Delta")))
+    write_bundle(env["import_dir"] / "bundle_dev.jsonl.gz", rows)
+    fake = FakePipeline()
+    with client_for(env, fake) as c:
+        r = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")})
+        assert r.status_code == 202 and r.json()["cached"] is False
+        assert wait_done(c, r.json()["analysis_id"])["status"] == "done"
+        assert len(fake.calls) == 1
+        # a corpus result with claims is still a cache hit
+        assert c.post("/api/analyses", files={"file": ("p.pdf", PDF, "application/pdf")}).json()["cached"] is True
+        assert len(fake.calls) == 1
+
+
+def test_rerun_of_empty_result_respects_limits(env):
+    fake = FakePipeline(empty=True)
+    with client_for(env, fake) as c:
+        pdf = PDF + b"empty"
+        aid = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")}).json()["analysis_id"]
+        assert wait_done(c, aid)["status"] == "done"
+        for i in range(2):  # the per-IP limit is 3 per hour
+            r = c.post("/api/analyses", files={"file": ("p.pdf", PDF + bytes([i]) * 4, "application/pdf")})
+            assert r.status_code == 202
+            wait_done(c, r.json()["analysis_id"])
+        r = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")})
+        assert r.status_code == 429 and "per hour" in r.json()["detail"]
+        assert len(fake.calls) == 3
+        # refused: the row keeps its finished (empty) result
+        assert c.get(f"/api/analyses/{aid}/status").json()["status"] == "done"
+    env["settings"].live_max_per_ip_per_hour = 100
+    with client_for(env, fake) as c:
+        ctx = c.app.state.ctx
+        from onus.api.limits import today
+        from onus.db import repo
+        from onus.db.session import session_scope
+
+        with session_scope(ctx.factory) as s:
+            repo.add_live_usage(s, today(), cost_eur=ctx.settings.live_max_cost_eur_per_day)
+        r = c.post("/api/analyses", files={"file": ("p.pdf", pdf, "application/pdf")})
+        assert r.status_code == 429 and "budget" in r.json()["detail"]
+
+
 def test_rate_limit_per_ip(env):
     with client_for(env) as c:
         for i in range(3):
@@ -424,3 +503,34 @@ def test_spa_fallback(env):
         assert c.get("/api/unknown").status_code == 404
         assert c.get("/../pyproject.toml").status_code in (200, 404)
         assert "[project]" not in c.get("/%2e%2e/%2e%2e/pyproject.toml").text
+
+
+def test_live_follows_the_configured_provider(env):
+    """With ONUS_LLM_PROVIDER=gemini, live analysis needs the Gemini key, not the Berget one."""
+    from onus.api.context import llm_key
+
+    st = env["settings"]
+    if "onus_llm_provider" not in type(st).model_fields:
+        pytest.skip("this configuration has no provider setting")
+    secret = type(st.berget_api_key)
+    st.onus_llm_provider = "gemini"
+    st.berget_api_key, st.gemini_api_key = secret("berget-key-not-real"), secret("")
+    assert llm_key(st) == ""
+    with client_for(env) as c:
+        assert c.get("/api/meta").json()["live"]["enabled"] is False
+    st.berget_api_key, st.gemini_api_key = secret(""), secret("gemini-key-not-real")
+    assert llm_key(st) == "gemini-key-not-real"
+    with client_for(env) as c:
+        meta = c.get("/api/meta").json()
+        assert meta["live"]["enabled"] is True
+        assert meta["models"] == st.models_config  # whatever the server runs, nothing hard-coded
+
+
+def test_gemini_key_is_masked(env):
+    from onus.api.code_stage import secret_values
+
+    st = env["settings"]
+    if "gemini_api_key" not in type(st).model_fields:
+        pytest.skip("this configuration has no Gemini key setting")
+    st.gemini_api_key = type(st.berget_api_key)("gemini-key-not-real")
+    assert "gemini-key-not-real" in secret_values(st)

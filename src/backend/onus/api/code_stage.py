@@ -292,11 +292,13 @@ def discard_upload(path: Path | None) -> None:
 
 
 def secret_values(settings: Settings) -> list[str]:
-    """Every secret value this server holds (Berget, Modal, SANDBOX_*, HF_TOKEN...). Never printed."""
-    vals = [settings.berget_api_key, settings.modal_token_id, settings.modal_token_secret,
-            settings.sandbox_openai_api_key, settings.sandbox_anthropic_api_key, settings.sandbox_gemini_api_key]
-    out = [v.get_secret_value() for v in vals if v.get_secret_value()]
-    for name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "BERGET_API_KEY", "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET",
+    """Every secret value this server holds (Berget, Gemini, Modal, SANDBOX_*, HF_TOKEN...). Never printed."""
+    vals = [settings.berget_api_key, getattr(settings, "gemini_api_key", None), settings.modal_token_id,
+            settings.modal_token_secret, settings.sandbox_openai_api_key, settings.sandbox_anthropic_api_key,
+            settings.sandbox_gemini_api_key]
+    out = [v.get_secret_value() for v in vals if v is not None and v.get_secret_value()]
+    for name in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN", "BERGET_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+                 "MODAL_TOKEN_ID", "MODAL_TOKEN_SECRET",
                  "SANDBOX_OPENAI_API_KEY", "SANDBOX_ANTHROPIC_API_KEY", "SANDBOX_GEMINI_API_KEY"):
         if os.environ.get(name):
             out.append(os.environ[name])

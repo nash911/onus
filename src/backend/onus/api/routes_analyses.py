@@ -5,7 +5,8 @@ form with either a PDF (field `file`) or a reference (field `ref`), plus an opti
 used only when live code checks are on). A finished analysis of the same PDF (sha256) at the current
 fingerprint, or of the same arXiv/OpenReview id, is returned at once (`cached: true`) and costs nothing; an
 analysis of the same paper that is still queued or running is returned instead of starting a second one. Only
-new jobs are counted against the live limits.
+new jobs are counted against the live limits. A finished result with no claims is never served from the cache:
+a new request re-runs it (as for a failed attempt, reusing the live row), under the same limits.
 
 Uploaded code is part of the cache key: the paper row of an analysis with code is `<id>+code-<sha12>` (sha256 of
 the .zip), so an analysis with code is never served from the cache of the same paper without code, or the other
@@ -70,12 +71,18 @@ def get_status(analysis_id: str, ctx: Ctx) -> dict[str, Any]:
 # ---------------------------------------------------------------- start a live analysis
 
 
+def _servable(a: Analysis | None) -> bool:
+    """A finished analysis that may be served from the cache: done, with at least one claim. A done result with
+    no claims (e.g. a PDF whose text could not be read) is treated like a failed one and re-run on request."""
+    return a is not None and a.status == "done" and bool((a.result or {}).get("claims"))
+
+
 def _sha_hit(s, sha: str, fp: str, with_code: bool) -> Analysis | None:
     """A finished analysis of this PDF: only of a paper without uploaded code (with code: exact match only)."""
     if with_code:
         return None
     for a, p in repo.done_analyses_for_sha(s, sha, fp):
-        if CODE_KEY not in (p.external_id or ""):
+        if CODE_KEY not in (p.external_id or "") and _servable(a):
             return a
     return None
 
@@ -95,7 +102,7 @@ def _create(ctx: AppContext, *, source: str, external_id: str | None, data: byte
         if paper is not None:
             for mode in ("batch", "live"):
                 a = repo.find_analysis(s, paper_id=paper.id, fingerprint=fp, mode=mode)
-                if a is not None and a.status == "done":
+                if _servable(a):
                     hit = a
                     break
         if hit is None and (sha or (paper.pdf_sha256 if paper is not None else None)):
@@ -118,7 +125,7 @@ def _create(ctx: AppContext, *, source: str, external_id: str | None, data: byte
 
             pdf_path, _ = store_upload(data, ctx.settings.var_dir)
         paper = repo.upsert_paper(s, source=source, external_id=key, pdf_sha256=sha)
-        if existing is not None:  # a failed earlier attempt: reuse its (paper, fingerprint, mode) row
+        if existing is not None:  # a failed or empty earlier attempt: reuse its (paper, fingerprint, mode) row
             a = repo.reset_analysis(s, existing)
         else:
             a = repo.create_analysis(s, paper_id=paper.id, onus_version=ctx.onus_version, fingerprint=fp,

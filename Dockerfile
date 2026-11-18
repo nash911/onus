@@ -18,14 +18,14 @@ COPY src/frontend/ ./
 RUN npm run build
 
 # ---------------------------------------------------------------- 2. optional inputs
-# deploy_data/ (author-only, filled at R5), frozen.json (after the freeze) and var/berget_capabilities.json (the
+# deploy_data/ (author-only, filled at R5), frozen.json (after the freeze) and var/<provider>_capabilities.json (the
 # probed model capabilities; var/ is git-ignored, so it must be force-added) may be absent. Copying the
 # filtered build context here lets the runtime stage take them when present and an empty folder otherwise.
 FROM python:3.12-slim AS inputs
 COPY . /ctx
 RUN mkdir -p /ctx/deploy_data /ctx/optional/var \
  && (cp /ctx/frozen.json /ctx/optional/ 2>/dev/null || true) \
- && (cp /ctx/var/berget_capabilities.json /ctx/optional/var/ 2>/dev/null || true)
+ && (cp /ctx/var/*_capabilities.json /ctx/optional/var/ 2>/dev/null || true)
 
 # ---------------------------------------------------------------- 3. python dependencies
 FROM python:3.12-slim AS deps
@@ -52,7 +52,7 @@ COPY --from=deps /opt/venv /opt/venv
 WORKDIR /app
 # pyproject.toml marks the repo root (onus.config.repo_root); prompts, rubrics and the backend source are hashed
 # into the pipeline fingerprint, so they are copied exactly as in the repo. frozen.json and
-# var/berget_capabilities.json come along when present; the app copies the latter into $ONUS_VAR_DIR at startup.
+# var/*_capabilities.json come along when present; the app copies those into $ONUS_VAR_DIR at startup.
 COPY pyproject.toml ./
 COPY --from=inputs /ctx/optional/ ./
 COPY src/backend/ src/backend/

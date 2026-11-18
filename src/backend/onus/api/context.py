@@ -19,6 +19,14 @@ if TYPE_CHECKING:
     from onus.api.analytics import AnalyticsSink
 
 
+def llm_key(settings: Settings) -> str:
+    """The API key of the provider every model role runs on (a value, never to be printed). Read defensively, so
+    a configuration without a provider setting behaves as Berget did in v1.0."""
+    provider = getattr(settings, "onus_llm_provider", "berget") or "berget"
+    key = getattr(settings, f"{provider}_api_key", None)
+    return key.get_secret_value() if key is not None else ""
+
+
 @dataclass
 class AppContext:
     settings: Settings
@@ -40,11 +48,12 @@ class AppContext:
 
     @property
     def live_enabled(self) -> bool:
-        return bool(self.settings.berget_api_key.get_secret_value())
+        """On when the key of the configured LLM provider (ONUS_LLM_PROVIDER: berget or gemini) is set."""
+        return bool(llm_key(self.settings))
 
     @property
     def code_checks_enabled(self) -> bool:
-        """LIVE_CODE_CHECKS=1, the Modal tokens set, and live analysis on (the static check needs Berget)."""
+        """LIVE_CODE_CHECKS=1, the Modal tokens set, and live analysis on (the static check needs the LLM)."""
         return self.live_enabled and self.code is not None and self.code.enabled
 
     def data_file(self, name: str) -> Path | None:

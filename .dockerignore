@@ -18,6 +18,7 @@
 data/
 var/*
 !var/berget_capabilities.json
+!var/gemini_capabilities.json
 temp/
 evals/
 tests/

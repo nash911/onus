@@ -44,15 +44,16 @@ from onus.db.session import init_db, make_engine, make_sessionmaker
 log = logging.getLogger("onus.api")
 
 
-def seed_capabilities(var_dir: Path, seed: Path | None = None) -> bool:
-    """Copy the probed `berget_capabilities.json` shipped with the app into `$ONUS_VAR_DIR` when it is missing or
+def seed_capabilities(var_dir: Path, seed: Path | None = None, provider: str = "berget") -> bool:
+    """Copy the probed `<provider>_capabilities.json` shipped with the app into `$ONUS_VAR_DIR` when it is missing or
     differs. Without it the LLM client falls back to safe defaults (no judge reasoning parameter, json_object
     instead of json_schema), so a deployed live analysis would not run the way the evaluated version ran."""
     from onus.config import repo_root
-    from onus.llm.capabilities import CAPS_FILE
+    from onus.llm.capabilities import caps_file
 
-    seed = seed or repo_root() / "var" / CAPS_FILE
-    target = var_dir / CAPS_FILE
+    name = caps_file(provider)
+    seed = seed or repo_root() / "var" / name
+    target = var_dir / name
     try:
         if not seed.is_file() or seed.resolve() == target.resolve():
             return False
@@ -65,7 +66,7 @@ def seed_capabilities(var_dir: Path, seed: Path | None = None) -> bool:
         tmp.replace(target)
         return True
     except OSError as e:
-        log.warning("could not seed %s: %s", CAPS_FILE, e)
+        log.warning("could not seed %s: %s", name, e)
         return False
 
 
@@ -115,13 +116,15 @@ def create_app(settings: Settings | None = None, *, analyzer: Analyzer | None = 
         from onus.version import fingerprint as compute_fingerprint
 
         fp = fingerprint or compute_fingerprint(settings=settings)
-        if seed_capabilities(settings.var_dir):
-            log.info("seeded LLM capabilities into %s", settings.var_dir)
-        from onus.llm.capabilities import Capabilities
+        from onus.llm.capabilities import PROVIDER_REASONING_STYLES, Capabilities, caps_file
 
-        probed_at = Capabilities.load(settings.var_dir).probed_at
+        for prov in PROVIDER_REASONING_STYLES:  # every shipped provider file, so switching provider needs no redeploy
+            if seed_capabilities(settings.var_dir, provider=prov):
+                log.info("seeded %s into %s", caps_file(prov), settings.var_dir)
+        provider = settings.onus_llm_provider
+        probed_at = Capabilities.load(settings.var_dir, provider).probed_at
         if not probed_at:
-            log.warning("no berget_capabilities.json in %s: live analyses use the client's safe defaults",
+            log.warning("no %s in %s: live analyses use the client's safe defaults", caps_file(provider),
                         settings.var_dir)
         engine = make_engine(settings.database_url)
         init_db(engine)

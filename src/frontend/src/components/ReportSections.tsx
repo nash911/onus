@@ -1,4 +1,5 @@
-/** The report's secondary tabs: Checklist, Code and Not checked. */
+/** The report's secondary tabs: Checklist, Code and Not checked, and the Claims tab's empty state. */
+import { Link } from "react-router-dom";
 import type { AnalysisResponse } from "../api/types";
 import { factLabel, rerunView, type RerunView } from "../lib/codecheck";
 import { codeSourceText, codeStageLine, codeStagePending, type CodeStage } from "../lib/codeStage";
@@ -7,6 +8,38 @@ import type { ChecklistAudit, Evidence1, RunResult } from "../types/result";
 import { isCodeEvidence, type EvidencePlace } from "./ClaimPanel";
 import { IconSpinner } from "./Icons";
 import { AuditBadge } from "./Verdict";
+
+/** A finished analysis that found no claims: say why (the result's warnings, verbatim), that nothing was judged, and
+ * what the reader can try instead. Not the filter case; that keeps "No claim matches these filters". */
+export function NoClaims({ r }: { r: AnalysisResponse }) {
+  const warnings = r.warnings ?? [];
+  const checklist = (r.checklist ?? []).length;
+  return (
+    <div className="my-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700" role="status">
+      <h2 className="font-sans text-base font-semibold text-slate-900">No claims were found in this paper</h2>
+      <p className="mt-1">Nothing was judged, so this report has no verdicts.</p>
+      <h3 className="mt-3 font-semibold text-slate-900">What happened</h3>
+      {warnings.length ? (
+        <ul className="mt-1 list-disc pl-5">
+          {warnings.map((w, i) => (
+            <li key={i} className="break-anywhere">{w}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1">The analysis finished without claims and gave no further reason.</p>
+      )}
+      <h3 className="mt-3 font-semibold text-slate-900">What you can do</h3>
+      <ul className="mt-1 list-disc pl-5">
+        <li>Upload the PDF itself, or try another source for the same paper (its arXiv or OpenReview page).</li>
+        {r.mode === "live" && <li>Starting the same paper again runs a fresh analysis instead of showing this one.</li>}
+        {checklist > 0 && <li>The paper checklist was still audited: see the Checklist tab.</li>}
+      </ul>
+      <p className="mt-3">
+        <Link to="/" className="font-medium text-blue-900 underline">Start a new analysis</Link>
+      </p>
+    </div>
+  );
+}
 
 export function CodeStageNote({ stage }: { stage: CodeStage | null | undefined }) {
   const line = codeStageLine(stage);

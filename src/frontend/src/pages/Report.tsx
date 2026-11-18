@@ -16,7 +16,7 @@ import { IconExternal, IconSpinner } from "../components/Icons";
 import { OlderVersionBadge, VersionBadge, useMeta } from "../components/Layout";
 import type { PdfHighlight, PdfMark, ScrollRequest } from "../components/PdfViewer";
 import { ProgressStages } from "../components/ProgressStages";
-import { ChecklistSection, CodeSection, CodeStageNote, NotCheckedSection } from "../components/ReportSections";
+import { ChecklistSection, CodeSection, CodeStageNote, NoClaims, NotCheckedSection } from "../components/ReportSections";
 import { ErrorBox, Loading } from "../components/States";
 import { TabPanel, Tabs } from "../components/Tabs";
 import { VerdictBadge } from "../components/Verdict";
@@ -467,6 +467,10 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
         />
       </div>
       <TabPanel idPrefix="report" id="claims" active={sel.tab}>
+        {claims.length === 0 ? (
+          <NoClaims r={r} />
+        ) : (
+        <>
         <p className="mb-2 text-xs text-slate-600" role="status">
           {shown.length} of {claims.length} claims, in paper order. <span className="hidden lg:inline">Keys: j / k to move, Enter to open, Esc to close.</span>
         </p>
@@ -526,6 +530,8 @@ function ReportView({ r, anchors, noPdf, wide, onProblem, problem }: {
           })}
         </ul>
         {!shown.length && <p className="py-4 text-sm text-slate-600">No claim matches these filters.</p>}
+        </>
+        )}
       </TabPanel>
       <TabPanel idPrefix="report" id="checklist" active={sel.tab}>
         <ChecklistSection
@@ -589,6 +595,8 @@ function ReportHeader({ r, claims, filter, setFilter }: {
       </div>
       <CodeStageNote stage={r.code_stage} />
 
+      {claims.length > 0 && (
+      <>
       <fieldset className="mt-3">
         <legend className="sr-only">Show verdicts</legend>
         <div className="flex flex-wrap gap-1.5">
@@ -640,6 +648,8 @@ function ReportHeader({ r, claims, filter, setFilter }: {
           Main claims only
         </label>
       </div>
+      </>
+      )}
       <p className="mt-2 text-xs text-slate-500">Flags mark evidence gaps in the paper, not misconduct. There is no overall score.</p>
     </header>
   );

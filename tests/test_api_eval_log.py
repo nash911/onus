@@ -73,3 +73,15 @@ def test_seed_capabilities(tmp_path: Path):
     assert seed_capabilities(var, seed) is True  # the shipped file wins
     assert seed_capabilities(var, tmp_path / "missing.json") is False
     assert seed_capabilities(seed.parent, seed) is False  # var dir is the repo's own var/
+
+
+def test_seed_capabilities_per_provider(tmp_path: Path):
+    from onus.api.main import seed_capabilities
+
+    seed = tmp_path / "repo" / "gemini_capabilities.json"
+    seed.parent.mkdir()
+    seed.write_text('{"roles": {}}')
+    var = tmp_path / "data" / "var"
+    assert seed_capabilities(var, seed, provider="gemini") is True
+    assert (var / "gemini_capabilities.json").is_file()
+    assert not (var / "berget_capabilities.json").exists()  # the Berget file is not touched
