@@ -36,6 +36,7 @@ class ClaimEvidence(BaseModel):
     evidence: list[Evidence] = Field(default_factory=list)
     explicit: list[str] = Field(default_factory=list)  # resolved labels the claim (±1 sentence) cites
     dangling: list[str] = Field(default_factory=list)  # cited labels that resolve to nothing in the paper
+    external: list[str] = Field(default_factory=list)  # what the claim ±1 sentence points to outside the PDF
     candidates: list[str] = Field(default_factory=list)  # candidate keys shown to the selection prompt
     notes: dict[str, str] = Field(default_factory=dict)  # evidence id -> the model's note
     select_failed: bool = False

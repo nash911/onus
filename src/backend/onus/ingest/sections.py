@@ -20,6 +20,9 @@ _NUMBERED = re.compile(r"^(?P<num>\d{1,2}(?:\.\d{1,2}){0,3})\.?\s+(?P<title>[A-Z
 _LETTERED = re.compile(r"^(?P<num>[A-Z](?:\.\d{1,2}){0,3})\.?\s+(?P<title>[A-Z][^\n]{1,118})$")
 # IEEE style: "IV. EXPERIMENTAL RESULTS", set in small capitals at body size (no bold, no larger font)
 _ROMAN = re.compile(r"^(?P<num>(?:X{0,2})(?:IX|IV|V?I{0,3}))\.\s+(?P<title>[A-Z][^\n]{1,80})$")
+# IEEE subsection under a Roman section: "A. Gait Features" (italic, body size)
+_IEEE_SUB = re.compile(r"^(?P<num>[A-Z])\.\s+(?P<title>[A-Z][^\n]{1,70})$")
+IEEE_SUB_MAX_WORDS = 8
 _SENTENCE = re.compile(r"[.!?]\s+\S")
 _NUMBER_PREFIX = re.compile(r"^(?:\d{1,2}(?:\.\d{1,2}){0,3}|[IVX]{1,5}|[A-Z](?:\.\d{1,2}){0,3})\.\s+")
 _APPENDIX_HEAD = re.compile(r"^(?:Appendix|Appendices)\b(?:\s+(?P<num>[A-Z](?:\.\d+)*))?[:.]?\s*(?P<title>.*)$", re.IGNORECASE)
@@ -133,6 +136,22 @@ def _roman_heading(text: str, after_references: bool) -> HeadingInfo | None:
         return None
     key = title.lower()
     return HeadingInfo(number=m.group("num"), title=title, level=1, known_role=_KNOWN.get(key), roman=True)
+
+
+def ieee_subheading(text: str, expected: str, parent: str) -> HeadingInfo | None:
+    """An IEEE lettered subsection ("A. Gait Features") under the Roman section `parent`. Accepted only with the
+    next letter in sequence (A, then B, ... under each Roman section), a short title of at most 8 words that does
+    not end or read like a sentence; the document builder calls it only before the references, inside a Roman
+    section. Numbered "III.A", so it is never taken for an appendix letter."""
+    text = text.strip()
+    m = _IEEE_SUB.match(text)
+    if not m or m.group("num") != expected or text.endswith((".", ",", ";", ":")):
+        return None
+    title = _clean_title(m.group("title"))
+    if (len(title.split()) > IEEE_SUB_MAX_WORDS or _SENTENCE.search(title) or not re.search(r"[A-Za-z]{2}", title)
+            or re.search(r"\d{2,}", title)):
+        return None
+    return HeadingInfo(number=f"{parent}.{expected}", title=title, level=2, roman=True)
 
 
 def role_for(title: str) -> str | None:

@@ -33,7 +33,7 @@ from onus.llm.client import CallMeta, LLMError
 from onus.schemas.document import Document
 from onus.schemas.result import CheckResult, Evidence, LedgerEntry
 
-from .explicit import ObjectIndex, explicit_refs
+from .explicit import ObjectIndex, explicit_refs, external_pointers
 from .models import Candidate, ClaimEvidence, EvidenceSet
 from .retrieve import CandidatePool, embed_queries
 
@@ -69,12 +69,15 @@ def _norm_relation(r: str) -> str | None:
     return r if r in RELATIONS else None
 
 
-def _link_check(ev: list[Evidence], dangling: list[str], n_cands: int, failed: bool) -> CheckResult:
+def _link_check(ev: list[Evidence], dangling: list[str], n_cands: int, failed: bool,
+                external: list[str] | None = None) -> CheckResult:
     sup = [e for e in ev if e.relation == "supports"]
     par = [e for e in ev if e.relation == "partial"]
     con = [e for e in ev if e.relation == "contradicts"]
     data = {"supports": len(sup), "partial": len(par), "contradicts": len(con), "candidates": n_cands,
             "dangling": dangling}
+    if external:
+        data["external"] = list(external)
     ids = [e.id for e in sup + par + con]
     if failed:
         return CheckResult(check="link", outcome="inconclusive", detail="Evidence selection failed; candidates "
@@ -86,6 +89,10 @@ def _link_check(ev: list[Evidence], dangling: list[str], n_cands: int, failed: b
     if dangling:
         return CheckResult(check="link", outcome="fail", detail=f"Cites {', '.join(dangling)}, which is not in "
                            "the paper; no other evidence located.", data=data, evidence_ids=ids)
+    if external:
+        return CheckResult(check="link", outcome="inconclusive", detail=f"Points to {' and '.join(external[:2])} "
+                           "outside the paper; nothing in the paper itself shows it.", data=data,
+                           evidence_ids=ids)
     if con:
         return CheckResult(check="link", outcome="fail", detail="Only contradicting evidence located: "
                            + ", ".join(e.label for e in con[:3]) + ".", data=data, evidence_ids=ids)
@@ -149,6 +156,7 @@ async def _link_one(claim: DraftClaim, index: ObjectIndex, pool: CandidatePool, 
     picked = capped
     evidence = [c.evidence("", method, rel) for c, method, rel, _ in picked]
     ce = ClaimEvidence(claim_id=claim.id, explicit=[c.label for c in explicit], dangling=dangling,
+                       external=external_pointers(index, start, end),
                        candidates=[c.key for c in cands], select_failed=failed,
                        link=CheckResult(check="link", outcome="not_run", detail=""))
     ce.notes = {str(i): note for i, (_, _, _, note) in enumerate(picked) if note}  # re-keyed after ids
@@ -245,7 +253,7 @@ async def link_evidence(doc: Document, claims: ClaimSet, llm=None, *, run_index:
             relations[av.relation or "none"] += 1
             ce.evidence = [av, *ce.evidence]
     for ce in out:
-        ce.link = _link_check(ce.evidence, ce.dangling, len(ce.candidates), ce.select_failed)
+        ce.link = _link_check(ce.evidence, ce.dangling, len(ce.candidates), ce.select_failed, ce.external)
     if stats["select_failed"]:
         warnings.append(f"select_evidence failed on {stats['select_failed']} claim(s); kept unjudged candidates")
 

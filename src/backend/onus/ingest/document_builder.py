@@ -78,13 +78,23 @@ def _abstract_without_heading(text: str, paragraphs: list, sections: list) -> tu
 def _detect_headings(pages_rows: list[list[L.Row]], layout: L.Layout) -> None:
     after_refs = False
     in_checklist = False
+    roman: str | None = None  # the current IEEE Roman section, for its lettered subsections (v1.1)
+    letter = "A"
     for rows in pages_rows:
         for r in rows:
             if r.kind != "text":
                 continue
             h = sec_mod.detect_heading(r, layout, after_references=after_refs)
+            if h is None and roman is not None and not after_refs:
+                h = sec_mod.ieee_subheading(r.text, letter, roman)
+                if h is not None:
+                    letter = chr(ord(letter) + 1)
             if h is None:
                 continue
+            if h.roman and h.level == 1:
+                roman, letter = h.number, "A"
+            elif h.level == 1 and not h.roman:
+                roman = None
             role = h.known_role or sec_mod.role_for(h.title)
             if in_checklist and h.known_role is None:
                 continue  # numbered checklist items are not sections

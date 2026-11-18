@@ -3,6 +3,7 @@
 | Order | Condition | Verdict |
 | 1 | any check `fail` with severity `contradicts` | contradicted |
 | 2 | no evidence with relation supports or partial, or a dangling reference inside the claim itself | untraced |
+| 2b | as row 2 without a dangling reference, but the claim points only outside the PDF (video, URL, supplement) | not_checkable |
 | 3 | any check with severity `overstates` (a `fail`, or the number check's pp-vs-% caveat on a `pass`) | overstated |
 | 4 | evidence only `partial`, and no content check passed (strength and scope check wording only) | not_checkable |
 | 5 | otherwise | supported |
@@ -68,6 +69,8 @@ def rule_verdict(evidence: list[Evidence], checks: list[CheckResult], own_dangli
     if not sup and not par:
         link = next((c for c in checks if c.check == "link"), None)
         why = link.detail if link and link.detail else "No supporting evidence located in the paper."
+        if link is not None and link.data.get("external") and not link.data.get("dangling"):
+            return RuleVerdict("not_checkable", 2, _sentences(why))  # row 2b: the support is outside the PDF
         return RuleVerdict("untraced", 2, _sentences(why))
     over = [c for c in checks if c.severity == "overstates" and c.outcome in ("fail", "pass")]
     if over:

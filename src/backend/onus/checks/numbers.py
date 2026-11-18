@@ -15,6 +15,9 @@
 6. If the claim has no linked table, or the model says none of its numbers come from the linked tables, the
    mapping is retried once over the paper's other parsed tables (`ClaimContext.fallback_tables`, ranked by word
    overlap with numbers ignored). A result found this way is recorded with `data["fallback_tables"]`.
+7. (v1.1) Where no table comparison ran, the claim's quantities (number + unit, bare integers included: "4 hours",
+   "24 CPU cores") are compared with the text passages that evidence selection marked `contradicts`
+   (`text_values.py`). A code-found mismatch is "fail" / "contradicts", with `data["text_values"]`.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ from .models import not_run
 from .rubrics import Tolerances, default_tolerances
 from .tables import TableView, find_table
 from .tables import fmt as _f
+from .text_values import compare_text_values
 
 KINDS = ("value", "abs_diff", "rel_change", "ratio", "mean", "max", "min", "not_in_tables")
 MAX_NUMBERS = 8
@@ -284,8 +288,27 @@ def _detail(r: dict) -> str:
     return f"{r['text']}: {r.get('why', 'not resolved')}."
 
 
+def text_value_check(ctx: ClaimContext, fallback: CheckResult) -> CheckResult:
+    """The v1.1 text-value comparison where no table comparison ran; `fallback` (a not_run) otherwise."""
+    mism = compare_text_values(ctx.claim.quote, ctx.linked)
+    if not mism:
+        return fallback
+    parts = [f"Claimed {m.claimed.text}; {m.evidence.label} states {', '.join(v.text for v in m.found[:3])}."
+             for m in mism]
+    data = {"text_values": [{"claimed": m.claimed.text, "found": [v.text for v in m.found], "evidence": m.evidence.id}
+                            for m in mism], "table_check": fallback.data.get("reason", fallback.detail)}
+    return CheckResult(check="number", outcome="fail", severity="contradicts", detail=" ".join(parts), data=data,
+                       evidence_ids=list(dict.fromkeys(m.evidence.id for m in mism)))
+
+
 async def check_numbers(ctx: ClaimContext, llm, *, run_index: int, paper_id: str, metas: list[CallMeta],
                         tol: Tolerances | None = None) -> CheckResult:
+    r = await _check_numbers(ctx, llm, run_index=run_index, paper_id=paper_id, metas=metas, tol=tol)
+    return text_value_check(ctx, r) if r.outcome == "not_run" else r
+
+
+async def _check_numbers(ctx: ClaimContext, llm, *, run_index: int, paper_id: str, metas: list[CallMeta],
+                         tol: Tolerances | None = None) -> CheckResult:
     tol = tol or default_tolerances()
     mentions = extract_numbers(ctx.claim.quote)
     if not mentions:

@@ -3,6 +3,12 @@
 Code resolves "Table 2", "Fig. 3", "Section 4.1", "Appendix B" and "Eq. (5)" through the ingest mention index;
 the model is not involved. A mention that resolves to nothing in the paper is a **dangling reference**,
 which feeds `untraced` in the verdict rules.
+
+**External pointers** (v1.1): wording in the claim ±1 sentence that sends the reader outside the PDF (a video, a
+project page or URL, supplementary material or a supplementary table/figure, an extended version, data "available
+on request"). When that is all a claim has, the claim cannot be checked from the paper: the verdict rules make it
+`not_checkable` instead of `untraced`. Supplementary material counts as outside only when the paper has no section
+of that name (an appendix titled "Supplementary Material" is inside the PDF).
 """
 
 from __future__ import annotations
@@ -119,6 +125,41 @@ class ObjectIndex:
         lo = self.sentences[max(i - k, 0)][0]
         hi = self.sentences[min(j + k, len(self.sentences) - 1)][1]
         return min(lo, start), max(hi, end)
+
+
+_SUPPLEMENT = r"(?:supplementary|supplemental)"
+# (label, pattern, needs no in-paper supplement section)
+EXTERNAL_POINTERS: tuple[tuple[str, re.Pattern[str], bool], ...] = (
+    ("a video", re.compile(r"\b(?:see|watch|in|shown in|available (?:in|at|on)|provided (?:in|at)|included in) "
+                           r"(?:the |our |a |an )?(?:accompanying |supplementary |supplemental |demo |demonstration |"
+                           r"attached )?videos?\b|\b(?:accompanying|supplementary|supplemental|demo|demonstration|"
+                           r"attached) videos?\b|\bvideos? (?:is|are) (?:available|provided|included|attached)\b|"
+                           r"\b(?:youtube|vimeo)\b", re.IGNORECASE), False),
+    ("a project page", re.compile(r"\bproject (?:page|website|site)\b", re.IGNORECASE), False),
+    ("a web link", re.compile(r"(?:https?://|\bwww\.)\S+", re.IGNORECASE), False),
+    ("an extended version", re.compile(r"\b(?:extended|full|longer|journal) version of (?:this|the|our) "
+                                       r"(?:paper|work|article)\b", re.IGNORECASE), False),
+    ("material available on request", re.compile(r"\b(?:available|provided|shared) (?:up)?on (?:reasonable )?"
+                                                 r"request\b", re.IGNORECASE), False),
+    ("supplementary material", re.compile(_SUPPLEMENT + r" (?:materials?|files?|information|data|documents?|"
+                                          r"results|archive|zip)\b|\b(?:table|figure|fig\.) S\d+", re.IGNORECASE),
+     True),
+)
+_SUPPLEMENT_SECTION = re.compile(r"\b" + _SUPPLEMENT + r"\b|\bsupplement\b", re.IGNORECASE)
+
+
+def external_pointers(index: ObjectIndex, start: int, end: int) -> list[str]:
+    """What the claim ±1 sentence points to outside the PDF, as short labels (empty when nothing)."""
+    lo, hi = index.context_span(start, end)
+    text = index.doc.text[lo:hi]
+    has_supplement = any(_SUPPLEMENT_SECTION.search(s.title) for s in index.doc.sections)
+    out: list[str] = []
+    for label, pat, needs_no_section in EXTERNAL_POINTERS:
+        if needs_no_section and has_supplement:
+            continue
+        if pat.search(text) and label not in out:
+            out.append(label)
+    return out
 
 
 def explicit_refs(index: ObjectIndex, start: int, end: int) -> tuple[list[Candidate], list[str]]:

@@ -76,6 +76,9 @@ def code_parse_problems(checks: list[CheckResult]) -> list[str]:
             for r in c.data.get("numbers", []):
                 if r.get("status") == "fail":
                     out += r.get("parse_flags", [])
+            # v1.1 text values are paired by unit only: the passage may state another quantity with that unit
+            out += [f"{t['claimed']} was compared by unit only with {', '.join(t['found'])}"
+                    for t in c.data.get("text_values", [])]
         elif c.check == "dominance":
             out += [f"missing cell {x}" for x in c.data.get("missing_cells", [])]
     return out
