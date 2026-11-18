@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { api } from "../api/client";
 import { installTracking, referrerHost, screenBucket, track } from "../lib/track";
 import { isOlderVersion } from "../lib/versions";
+import { AUTHOR_URL, CONTRIBUTE_URL, REPO_URL, StarIcon } from "./Links";
 import { Logo } from "./Logo";
 
 export function useMeta() {
@@ -43,8 +44,6 @@ export function OlderVersionBadge({ fingerprint, version }: { fingerprint?: stri
   );
 }
 
-const PAPER_URL = "https://github.com/nash911/onus/blob/main/paper/onus.pdf";
-const CODE_URL = "https://github.com/nash911/onus";
 
 export function Layout() {
   const meta = useMeta();
@@ -52,6 +51,8 @@ export function Layout() {
   const main = useRef<HTMLElement>(null);
   // the report fills the viewport: two panes that scroll on their own
   const full = !!useMatch("/analyses/:id");
+  // the landing page draws its own full-width bands
+  const home = !!useMatch("/");
 
   // Analytics: one page_view per route (the referrer only on the first page of the visit)
   const firstView = useRef(true);
@@ -77,6 +78,7 @@ export function Layout() {
     window.scrollTo(0, 0);
   }, [loc.pathname]);
 
+  const wrap = full ? "px-4" : "mx-auto w-full max-w-[1120px] px-4 sm:px-6";
   return (
     <div className={`flex flex-col ${full ? "h-dvh overflow-hidden" : "min-h-screen"}`}>
       <a
@@ -86,29 +88,69 @@ export function Layout() {
         Skip to content
       </a>
       <header className="shrink-0 border-b border-slate-200 bg-paper">
-        <div className={`flex items-center px-4 py-2 ${full ? "" : "mx-auto max-w-5xl"}`}>
+        <div className={`flex flex-wrap items-center justify-between gap-3 ${full ? "py-1.5" : "py-3"} ${wrap}`}>
           <Link to="/" aria-label="Onus, home" className="rounded">
-            <Logo size={26} />
+            <Logo size={full ? 24 : 26} />
           </Link>
+          <nav aria-label="Site" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm font-medium">
+            {home && (
+              <>
+                <a href="#how" className="hidden text-slate-700 hover:text-slate-900 sm:inline">How it works</a>
+                <a href="#verdicts" className="hidden text-slate-700 hover:text-slate-900 sm:inline">Verdicts</a>
+                <a href="#examples" className="hidden text-slate-700 hover:text-slate-900 sm:inline">Examples</a>
+              </>
+            )}
+            <a
+              href={REPO_URL}
+              onClick={() => track("outbound_click", { target: "github_header" })}
+              className={`inline-flex items-center gap-1.5 rounded-md border border-slate-300 bg-white px-3 font-semibold text-slate-900 hover:bg-slate-50 ${full ? "h-8" : "h-9"}`}
+            >
+              <StarIcon className="h-3.5 w-3.5" />
+              Star on GitHub
+            </a>
+          </nav>
         </div>
       </header>
       <main
         id="main"
         ref={main}
         tabIndex={-1}
-        className={full ? "min-h-0 w-full flex-1 focus:outline-none" : "mx-auto w-full max-w-5xl flex-1 px-4 py-8 focus:outline-none"}
+        className={
+          full
+            ? "min-h-0 w-full flex-1 focus:outline-none"
+            : home
+              ? "w-full flex-1 focus:outline-none"
+              : "mx-auto w-full max-w-[1120px] flex-1 px-4 py-8 focus:outline-none sm:px-6"
+        }
       >
         <Outlet />
       </main>
       <footer className="shrink-0 border-t border-slate-200">
-        <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-1.5 text-xs text-slate-600 ${full ? "" : "mx-auto max-w-5xl"}`}>
-          <VersionBadge version={meta.data?.onus_version} fingerprint={meta.data?.fingerprint} />
-          <a href={PAPER_URL} className="hover:text-slate-900 hover:underline">Paper</a>
-          <a href={CODE_URL} className="hover:text-slate-900 hover:underline">Code</a>
-          <a href="https://avinashranganath.com" className="hover:text-slate-900 hover:underline">Made by Avinash Ranganath</a>
-          <span className="text-slate-500" title="Anonymous usage counts (pages, clicks, time on page) to improve Onus. No cookies; turned off when your browser sends Do Not Track or Global Privacy Control.">
-            No cookies; anonymous usage stats
-          </span>
+        <div className={`flex flex-wrap items-center justify-between gap-x-6 gap-y-2 text-slate-600 ${full ? "py-1.5 text-xs" : "py-6 text-[13px]"} ${wrap}`}>
+          <div className="flex flex-wrap items-center gap-3">
+            {!full && (
+              <Link to="/" aria-label="Onus, home" className="rounded">
+                <Logo size={17} />
+              </Link>
+            )}
+            <VersionBadge version={meta.data?.onus_version} fingerprint={meta.data?.fingerprint} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <a href={REPO_URL} onClick={() => track("outbound_click", { target: "github_footer" })} className="text-slate-700 hover:text-slate-900 hover:underline">
+              GitHub
+            </a>
+            <span aria-hidden="true">·</span>
+            <a href={CONTRIBUTE_URL} onClick={() => track("outbound_click", { target: "contribute_footer" })} className="text-slate-700 hover:text-slate-900 hover:underline">
+              Contribute
+            </a>
+            <span aria-hidden="true">·</span>
+            <span>
+              Built by{" "}
+              <a href={AUTHOR_URL} className="text-slate-700 hover:text-slate-900 hover:underline">
+                Avinash Ranganath
+              </a>
+            </span>
+          </div>
         </div>
       </footer>
     </div>

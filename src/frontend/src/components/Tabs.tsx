@@ -31,7 +31,9 @@ export function Tabs({
     <div
       role="tablist"
       aria-label="Report sections"
-      className="flex flex-wrap gap-x-1 border-b border-slate-200"
+      // One line at every width: the row scrolls sideways if it ever has to. The bottom rule is an inset shadow,
+      // not a border, so the active tab's underline is not clipped by the scroll box.
+      className="flex gap-x-0 overflow-x-auto sm:gap-x-1 overflow-y-hidden shadow-[inset_0_-1px_0_var(--color-slate-200)] [scrollbar-width:thin]"
     >
       {tabs.map((t, i) => {
         const selected = t.id === active;
@@ -55,7 +57,7 @@ export function Tabs({
               else return;
               e.preventDefault();
             }}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm ${
+            className={`shrink-0 whitespace-nowrap border-b-2 px-1.5 py-2 text-[13px] sm:px-3 sm:text-sm ${
               selected
                 ? "border-slate-900 font-medium text-slate-900"
                 : "border-transparent text-slate-600 hover:text-slate-900"
