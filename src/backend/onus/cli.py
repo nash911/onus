@@ -115,21 +115,23 @@ def db_export_pg() -> None:
 
 @llm_app.command("probe")
 def llm_probe() -> None:
-    """Probe each role's model on Berget (live; costs under €0.05)."""
-    from onus.llm.capabilities import probe, write_probe_outputs
+    """Probe each role's model on the configured provider (ONUS_LLM_PROVIDER; live; costs under €0.05)."""
+    from onus.llm.capabilities import PROVIDER_TITLES, caps_file, probe, write_probe_outputs
     from onus.llm.client import get_client
 
     s = get_settings()
-    if not s.berget_api_key.get_secret_value():
-        console.print("[red]BERGET_API_KEY is not set[/red]")
+    provider = s.onus_llm_provider
+    key = s.gemini_api_key if provider == "gemini" else s.berget_api_key
+    if not key.get_secret_value():
+        console.print(f"[red]{'GEMINI_API_KEY' if provider == 'gemini' else 'BERGET_API_KEY'} is not set[/red]")
         raise typer.Exit(code=1)
     client = get_client()
     before = client.ledger.total_eur
     caps, rows = asyncio.run(probe(s, client))
     spent = client.ledger.total_eur - before
-    write_probe_outputs(caps, rows, s.var_dir, repo_root() / "docs", spent)
+    write_probe_outputs(caps, rows, s.var_dir, repo_root() / "docs", spent, provider)
 
-    t = Table(title="Berget capabilities")
+    t = Table(title=f"{PROVIDER_TITLES.get(provider, provider)} capabilities")
     for col in ("role", "model", "chat", "json_schema", "json_object", "tools", "cached tokens", "reasoning"):
         t.add_column(col)
     yn = {True: "yes", False: "no", None: "—"}
@@ -143,8 +145,8 @@ def llm_probe() -> None:
     failed = [r for r in rows if r["ok"] is False]
     for r in failed:
         console.print(f"  [yellow]{r['role']} {r['test']}[/yellow]: {r['note']}")
-    console.print(f"Probe spend: €{spent:.4f}. Wrote {s.var_dir / 'berget_capabilities.json'} and "
-                  f"docs/berget_capabilities.md")
+    console.print(f"Probe spend: €{spent:.4f}. Wrote {s.var_dir / caps_file(provider)} and "
+                  f"docs/{provider}_capabilities.md")
 
 
 @llm_app.command("spend")

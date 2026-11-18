@@ -1,8 +1,12 @@
-"""What each Berget model supports, as found by `onus llm probe`, and how the client uses it.
+"""What each role's model supports, as found by `onus llm probe`, and how the client uses it.
 
-The probe writes `$ONUS_VAR_DIR/berget_capabilities.json` (read at runtime) and
-`docs/berget_capabilities.md` (for the author). Without a probe file the client uses safe defaults:
-`json_object` responses with the schema in the system message, and no reasoning parameter.
+One file per provider (`ONUS_LLM_PROVIDER`): the probe writes `$ONUS_VAR_DIR/<provider>_capabilities.json`
+(read at runtime) and `docs/<provider>_capabilities.md` (for the author). Without a probe file the client uses
+safe defaults: `json_object` responses with the schema in the system message, and no reasoning parameter.
+
+Reasoning: Berget's judge takes one of three parameter styles (found by the probe). Gemini models think by
+default; LiteLLM maps `reasoning_effort` (low / medium / high) onto Gemini's thinking setting (thinking level
+on Gemini 3 and later, a thinking budget on 2.5), so the judge's ONUS_JUDGE_REASONING goes there.
 """
 
 from __future__ import annotations
@@ -17,9 +21,20 @@ from pydantic import BaseModel, Field
 
 from onus.config import CHAT_ROLES, Settings, get_settings
 
-CAPS_FILE = "berget_capabilities.json"
+CAPS_FILE = "berget_capabilities.json"  # the Berget file keeps its v1.0 name
 
 REASONING_STYLES = ("reasoning_effort", "extra_body.reasoning_effort", "extra_body.reasoning")
+PROVIDER_REASONING_STYLES = {"berget": REASONING_STYLES, "gemini": ("reasoning_effort",)}
+PROVIDER_TITLES = {"berget": "Berget", "gemini": "Gemini"}
+
+
+def caps_file(provider: str = "berget") -> str:
+    return f"{provider}_capabilities.json"
+
+
+def reasoning_level(provider: str, level: str) -> str:
+    """ONUS_JUDGE_REASONING for the provider: Gemini's thinking levels stop at high, so "max" maps to high."""
+    return "high" if provider == "gemini" and level == "max" else level
 
 
 def reasoning_kwargs(style: str | None, level: str) -> dict[str, Any]:
@@ -57,8 +72,8 @@ class Capabilities(BaseModel):
         return caps
 
     @classmethod
-    def load(cls, var_dir: Path) -> Capabilities:
-        p = var_dir / CAPS_FILE
+    def load(cls, var_dir: Path, provider: str = "berget") -> Capabilities:
+        p = var_dir / caps_file(provider)
         if p.is_file():
             return cls.model_validate_json(p.read_text())
         return cls()
@@ -114,6 +129,7 @@ async def probe(settings: Settings | None = None, client: Any = None) -> tuple[C
 
     s = settings or get_settings()
     c = client or get_client()
+    provider = s.onus_llm_provider
     rows: list[dict] = []
     caps = Capabilities(probed_at=datetime.now(UTC).isoformat())
 
@@ -138,9 +154,9 @@ async def probe(settings: Settings | None = None, client: Any = None) -> tuple[C
         rc = RoleCaps(model=model)
         # Reasoning models may spend output tokens thinking before they answer; give them room so a
         # capability is not misreported as missing because the reply was cut off.
-        room = 600 if role == "judge" else 160
+        room = 1000 if provider == "gemini" else (600 if role == "judge" else 160)
         if caps.models_listed and model not in caps.models_listed:
-            rc.notes.append("model id not in GET /v1/models")
+            rc.notes.append("model id not in the provider's model list")
 
         async def call(test: str, role: str = role, **kw: Any) -> dict | None:
             if c.ledger.total_eur - start_eur > PROBE_MAX_EUR:
@@ -197,7 +213,7 @@ async def probe(settings: Settings | None = None, client: Any = None) -> tuple[C
         #    unknown parameter, so try every style and prefer one whose reasoning is visible in the reply.
         if role == "judge":
             accepted: list[tuple[str, bool]] = []
-            for style in REASONING_STYLES:
+            for style in PROVIDER_REASONING_STYLES[provider]:
                 r = await call(
                     f"reasoning:{style}",
                     messages=[{"role": "user", "content": "Is 17 prime? Answer yes or no."}],
@@ -233,7 +249,9 @@ async def probe(settings: Settings | None = None, client: Any = None) -> tuple[C
     rc = RoleCaps(model=model, chat=False, json_object=False)
     t0 = time.monotonic()
     try:
-        vecs = await c.raw_embed(["query: probe", "passage: probe"], prompt_id="probe:embed")
+        vecs = await c.raw_embed([c.embed_input("probe", "query"), c.embed_input("probe", "document")]
+                                 if hasattr(c, "embed_input") else ["query: probe", "passage: probe"],
+                                 prompt_id="probe:embed")
         rc.embedding, rc.embedding_dim = True, len(vecs[0])
         record("embed", "embedding", True, f"dim {rc.embedding_dim}", t0)
     except LLMCallError as e:
@@ -253,23 +271,25 @@ def _usage_note(r: dict) -> str:
     return note
 
 
-def write_probe_outputs(caps: Capabilities, rows: list[dict], var_dir: Path, docs_dir: Path, eur: float) -> None:
+def write_probe_outputs(caps: Capabilities, rows: list[dict], var_dir: Path, docs_dir: Path, eur: float,
+                        provider: str = "berget") -> None:
     var_dir.mkdir(parents=True, exist_ok=True)
-    (var_dir / CAPS_FILE).write_text(caps.model_dump_json(indent=2) + "\n")
+    (var_dir / caps_file(provider)).write_text(caps.model_dump_json(indent=2) + "\n")
     docs_dir.mkdir(parents=True, exist_ok=True)
-    (docs_dir / "berget_capabilities.md").write_text(render_markdown(caps, rows, eur))
+    (docs_dir / f"{provider}_capabilities.md").write_text(render_markdown(caps, rows, eur, provider))
 
 
 def _yn(v: bool | None) -> str:
     return "—" if v is None else ("yes" if v else "no")
 
 
-def render_markdown(caps: Capabilities, rows: list[dict], eur: float) -> str:
+def render_markdown(caps: Capabilities, rows: list[dict], eur: float, provider: str = "berget") -> str:
+    listing = "GET /v1/models" if provider == "berget" else "the provider's model list"
     out = [
-        "# Berget capabilities",
+        f"# {PROVIDER_TITLES.get(provider, provider)} capabilities",
         "",
         f"Probed {caps.probed_at} by `onus llm probe`. Probe cost: €{eur:.4f}.",
-        "Runtime copy: `$ONUS_VAR_DIR/berget_capabilities.json`.",
+        f"Runtime copy: `$ONUS_VAR_DIR/{caps_file(provider)}`.",
         "",
         "## Summary",
         "",
@@ -297,7 +317,7 @@ def render_markdown(caps: Capabilities, rows: list[dict], eur: float) -> str:
     if notes:
         out += ["", "## Notes", ""] + [f"- {r}: {n}" for r, n in notes]
     if caps.models_listed:
-        out += ["", "## Models listed by GET /v1/models", ""] + [f"- `{m}`" for m in caps.models_listed]
+        out += ["", f"## Models listed by {listing}", ""] + [f"- `{m}`" for m in caps.models_listed]
     out += ["", "## Test log", "", "| Role | Test | OK | Time | Note |", "| --- | --- | --- | --- | --- |"]
     for r in rows:
         out.append(f"| {r['role']} | {r['test']} | {_yn(r['ok'])} | {r.get('time', '')} | {r['note']} |")

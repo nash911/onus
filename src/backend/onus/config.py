@@ -15,6 +15,8 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Role = Literal["extract", "judge", "fast", "embed"]
+Provider = Literal["berget", "gemini"]
+PROVIDERS: tuple[Provider, ...] = ("berget", "gemini")
 ROLES: tuple[Role, ...] = ("extract", "judge", "fast", "embed")
 CHAT_ROLES: tuple[Role, ...] = ("extract", "judge", "fast")
 
@@ -38,6 +40,32 @@ PRICES_EUR_PER_M: dict[str, tuple[float, float | None, float]] = {
     "intfloat/multilingual-e5-large-instruct": (0.03, None, 0.02),
 }
 
+# Gemini (ONUS_LLM_PROVIDER=gemini), from Google's Gemini API price list (paid tier, standard, not batch), read
+# 18 Nov 2026 at https://aistudio.google.com/docs/pricing. USD per million tokens: (input, cached input, output;
+# output includes thinking tokens). None of these four models lists a long-context (>200k) tier; a model that
+# does goes in GEMINI_LONG_CONTEXT_USD_PER_M. gemini-4-carbon's list price doubles on 1 Dec 2026 (to 4.00 /
+# 0.20 / 20.00); re-check before a run after that date.
+USD_TO_EUR = 0.891  # 1 / 1.1224, the ECB EUR/USD reference rate of 5 Nov 2026 (latest found on 18 Nov 2026)
+GEMINI_PRICES_USD_PER_M: dict[str, tuple[float, float | None, float]] = {
+    "gemini-4-carbon": (2.00, 0.10, 10.00),
+    "gemini-3.8-flash": (0.75, 0.075, 3.75),
+    "gemini-3.5-flash-lite": (0.30, 0.03, 2.50),
+    "gemini-embedding-2": (0.20, None, 0.0),
+}
+# model -> (threshold in prompt tokens, (input, cached input, output) above it), USD per million tokens
+GEMINI_LONG_CONTEXT_USD_PER_M: dict[str, tuple[int, tuple[float, float | None, float]]] = {}
+
+
+def _eur(t: tuple[float, float | None, float]) -> tuple[float, float | None, float]:
+    return (round(t[0] * USD_TO_EUR, 6), None if t[1] is None else round(t[1] * USD_TO_EUR, 6),
+            round(t[2] * USD_TO_EUR, 6))
+
+
+PRICES_EUR_PER_M.update({m: _eur(p) for m, p in GEMINI_PRICES_USD_PER_M.items()})
+LONG_CONTEXT_EUR_PER_M: dict[str, tuple[int, tuple[float, float | None, float]]] = {
+    m: (n, _eur(p)) for m, (n, p) in GEMINI_LONG_CONTEXT_USD_PER_M.items()
+}
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -48,12 +76,33 @@ class Settings(BaseSettings):
     berget_api_key: SecretStr = SecretStr("")
     berget_api_base: str = "https://api.berget.ai/v1"
 
-    # Model roles
+    # Provider for every model role: berget (v1.0.x, the default) or gemini (v1.1)
+    onus_llm_provider: Provider = "berget"
+    gemini_api_key: SecretStr = SecretStr("")  # Onus's own key; never SANDBOX_GEMINI_API_KEY
+
+    # Model roles (Berget)
     onus_model_extract: str = "zai-org/GLM-5.3-Flash"
     onus_model_judge: str = "moonshotai/Kimi-K3.1-Pro"
     onus_model_fast: str = "google/gemma-4-31B-it"
     onus_model_embed: str = "intfloat/multilingual-e5-large-instruct"
     onus_judge_reasoning: Literal["low", "high", "max"] = "high"
+
+    # Model roles (Gemini): pinned, generally available ids (docs/gemini_capabilities.md says why)
+    onus_gemini_model_extract: str = "gemini-3.8-flash"
+    onus_gemini_model_judge: str = "gemini-4-carbon"
+    onus_gemini_model_fast: str = "gemini-3.5-flash-lite"
+    onus_gemini_model_embed: str = "gemini-embedding-2"
+    # Gemini's judge thinks until max_tokens at "high" on real prompts (empty replies, ~5k thinking tokens per
+    # adjudication on dev), so the Gemini judge has its own level; "medium" is its default.
+    onus_gemini_judge_reasoning: Literal["low", "medium", "high"] = "medium"
+    # Structured output on Gemini: "json_object" sends the schema in the system message (as for Berget models
+    # without json_schema). Gemini's schema-constrained mode dropped optional fields (is_main) and pushed the number
+    # mapper to "not_in_tables" on dev, so json_object is the default.
+    onus_gemini_structured_output: Literal["json_object", "json_schema"] = "json_object"
+    # Gemini counts thinking against max_tokens. When a judge call spends all of it thinking and returns no answer
+    # (finish_reason "length", empty content), the call is retried once at this thinking level ("off": no retry).
+    # On dev, 5 of 18 scope_conflict calls at "medium" ended that way.
+    onus_gemini_judge_fallback: Literal["off", "low"] = "low"
 
     # Spend guards (EUR)
     onus_dev_budget_eur: float = 25.0
@@ -85,6 +134,13 @@ class Settings(BaseSettings):
 
     # ---- derived ----
     def model_for(self, role: Role) -> str:
+        if self.onus_llm_provider == "gemini":
+            return {
+                "extract": self.onus_gemini_model_extract,
+                "judge": self.onus_gemini_model_judge,
+                "fast": self.onus_gemini_model_fast,
+                "embed": self.onus_gemini_model_embed,
+            }[role]
         return {
             "extract": self.onus_model_extract,
             "judge": self.onus_model_judge,
@@ -98,8 +154,19 @@ class Settings(BaseSettings):
 
     @property
     def models_config(self) -> dict[str, str]:
-        """Everything about the models that changes outputs; part of the fingerprint."""
-        return {**self.models, "judge_reasoning": self.onus_judge_reasoning}
+        """Everything about the models that changes outputs; part of the fingerprint.
+
+        Berget keeps the v1.0 shape (no provider key), so a Berget configuration hashes as it did before."""
+        if self.onus_llm_provider == "berget":
+            return {**self.models, "judge_reasoning": self.onus_judge_reasoning}
+        return {"provider": self.onus_llm_provider, **self.models, "judge_reasoning": self.judge_reasoning,
+                "structured_output": self.onus_gemini_structured_output,
+                "judge_fallback": self.onus_gemini_judge_fallback}
+
+    @property
+    def judge_reasoning(self) -> str:
+        """The judge's reasoning level for the configured provider."""
+        return self.onus_gemini_judge_reasoning if self.onus_llm_provider == "gemini" else self.onus_judge_reasoning
 
     @property
     def featured_paper_ids(self) -> list[str]:

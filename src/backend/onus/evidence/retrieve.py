@@ -6,8 +6,9 @@ checklists), plus one candidate per table (caption + rendering with row/column l
 (caption). Paragraphs that are themselves captions are covered by their table/figure, and paragraphs
 overlapping the claim are skipped (a claim cannot be its own evidence).
 
-Embeddings use e5-instruct: documents plain, queries with the instruction prefix. They are cached per text
-by the LLM layer, so each paper is embedded once across claims and runs.
+Embeddings: the LLM layer adds the provider's retrieval prefixes (e5-instruct: documents plain, queries with an
+instruction; Gemini: its documented query and document prefixes). They are cached per text, so each paper is
+embedded once across claims and runs.
 """
 
 from __future__ import annotations
@@ -29,7 +30,6 @@ MAX_CANDIDATES = 12
 MIN_PARAGRAPH_CHARS = 60
 EMBED_CHARS = 800  # the embedding model takes 512 tokens; dense tables tokenise at ~2 chars/token
 EMBED_CHARS_RETRY = 350
-QUERY_PREFIX = "Instruct: Retrieve evidence that supports or refutes this scientific claim\nQuery: "
 
 POOL_ROLES = {"method", "experiments", "results", "discussion", "appendix", "other"}
 _CAPTION = re.compile(r"^(?:Table|Figure|Fig\.)\s*[A-Z]?\d+[a-z]?\s*[:.|]", re.IGNORECASE)
@@ -129,6 +129,6 @@ async def embed_queries(llm, quotes: list[str], paper_id: str) -> tuple[list[lis
     if not quotes:
         return [], None
     try:
-        return await llm.embed([QUERY_PREFIX + q for q in quotes], paper_id=paper_id), None
+        return await llm.embed(quotes, paper_id=paper_id, task="query"), None
     except LLMError as e:
         return None, str(e)[:200]

@@ -96,7 +96,12 @@ class FakeLLM:
         out = self._next(prompt_id, {"messages": messages}, run_index)
         return {"content": None, "tool_calls": [], **out}, self._meta(prompt_id, role)
 
-    async def embed(self, texts: list[str], *, paper_id: str | None = None) -> list[list[float]]:
+    async def embed(self, texts: list[str], *, paper_id: str | None = None, task: str = "document"
+                    ) -> list[list[float]]:
+        if task == "query":  # the e5 query instruction, as the real Berget client sends it
+            from onus.llm.client import E5_QUERY_PREFIX
+
+            texts = [E5_QUERY_PREFIX + t for t in texts]
         return [hashed_embedding(t, self.embed_dim) for t in texts]
 
 

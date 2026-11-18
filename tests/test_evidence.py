@@ -12,7 +12,7 @@ from onus.claims.extract import extract_claims
 from onus.claims.quotes import QuoteVerifier
 from onus.config import get_settings
 from onus.evidence.explicit import ObjectIndex, explicit_refs
-from onus.evidence.retrieve import QUERY_PREFIX, CandidatePool, tokens
+from onus.evidence.retrieve import CandidatePool, tokens
 from onus.evidence.select import link_evidence, load_evidence, render_candidates
 from onus.ingest.document_builder import build_document
 from onus.llm.client import LLMCallError, LLMOutputError
@@ -179,7 +179,7 @@ async def test_embedding_failure_falls_back_to_bm25(doc):
     cs = await _claims(doc)
     fake = FakeLLM({"select_evidence": _selector}, prompts=PromptRegistry())
 
-    async def broken(texts, *, paper_id=None):
+    async def broken(texts, *, paper_id=None, task="document"):
         raise LLMCallError("ServiceUnavailableError")
 
     fake.embed = broken  # type: ignore[method-assign]
@@ -188,20 +188,20 @@ async def test_embedding_failure_falls_back_to_bm25(doc):
     assert all(c.candidates for c in es.claims)
 
 
-async def test_queries_use_the_e5_instruction_prefix(doc):
+async def test_claim_quotes_are_embedded_as_queries_and_candidates_as_documents(doc):
     cs = await _claims(doc)
     fake = FakeLLM({"select_evidence": {"items": []}}, prompts=PromptRegistry())
-    seen: list[str] = []
+    seen: list[tuple[str, str]] = []
     orig = fake.embed
 
-    async def spy(texts, *, paper_id=None):
-        seen.extend(texts)
-        return await orig(texts, paper_id=paper_id)
+    async def spy(texts, *, paper_id=None, task="document"):
+        seen.extend((task, t) for t in texts)
+        return await orig(texts, paper_id=paper_id, task=task)
 
     fake.embed = spy  # type: ignore[method-assign]
     await link_evidence(doc, cs, fake, fingerprint=FP)
-    queries = [t for t in seen if t.startswith(QUERY_PREFIX)]
-    assert len(queries) == 2 and not any(t.startswith("Instruct") for t in seen if t not in queries)
+    queries = [t for task, t in seen if task == "query"]
+    assert len(queries) == 2 and not any(t.startswith("Instruct") for _, t in seen)
 
 
 def test_render_candidates_marks_cited(doc, index):
@@ -265,11 +265,11 @@ async def test_embedding_retries_shorter_on_context_errors(doc):
     orig = fake.embed
     lengths: list[int] = []
 
-    async def picky(texts, *, paper_id=None):
+    async def picky(texts, *, paper_id=None, task="document"):
         lengths.append(max(len(t) for t in texts))
-        if max(len(t) for t in texts) > rt.EMBED_CHARS_RETRY and not texts[0].startswith("Instruct"):
+        if max(len(t) for t in texts) > rt.EMBED_CHARS_RETRY and task == "document":
             raise LLMCallError("ContextWindowExceededError")
-        return await orig(texts, paper_id=paper_id)
+        return await orig(texts, paper_id=paper_id, task=task)
 
     fake.embed = picky  # type: ignore[method-assign]
     es = await link_evidence(doc, cs, fake, fingerprint=FP)

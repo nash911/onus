@@ -1,7 +1,9 @@
-"""The only way Onus talks to Berget AI.
+"""The only way Onus talks to its model provider (Berget AI or Gemini, `ONUS_LLM_PROVIDER`).
 
-Every chat and embedding call goes through `LLMClient`: LiteLLM's generic OpenAI provider pointed at
-Berget, a response cache, the cost ledger and the budget guard, and a per-process concurrency limit.
+Every chat and embedding call goes through `LLMClient`: LiteLLM (its generic OpenAI provider pointed at Berget,
+or its `gemini/` provider with GEMINI_API_KEY), a response cache, the cost ledger and the budget guard, and a
+per-process concurrency limit. Berget requests and cache keys are exactly those of v1.0; a Gemini cache key
+carries the provider, so a cached answer from one provider is never served for the other.
 
 - `complete_json(prompt_id, variables, schema)`: structured output, parsed with Pydantic; one repair call
   on failure, then `LLMOutputError`. Callers catch `LLMError`, mark their check `inconclusive` and log it:
@@ -28,7 +30,7 @@ from pydantic import BaseModel, ValidationError
 
 from onus.config import Role, Settings, get_settings
 from onus.llm.cache import LLMCache, cache_key
-from onus.llm.capabilities import Capabilities, reasoning_kwargs
+from onus.llm.capabilities import Capabilities, reasoning_kwargs, reasoning_level
 from onus.llm.costs import BudgetExceeded, BudgetGuard, CostLedger, LedgerEntry, cost_eur
 from onus.llm.prompts import PromptRegistry
 
@@ -46,6 +48,11 @@ TRANSIENT_ERRORS = ("RateLimitError", "ServiceUnavailableError", "APIConnectionE
                     "Timeout")
 TRANSIENT_BACKOFF_S = (5.0, 20.0, 60.0)
 EMBED_BATCH = 64
+# Retrieval embeddings. e5-instruct (Berget): documents plain, queries with an instruction prefix (v1.0).
+# gemini-embedding-2 takes no task_type; its documented retrieval prefixes are used instead.
+E5_QUERY_PREFIX = "Instruct: Retrieve evidence that supports or refutes this scientific claim\nQuery: "
+GEMINI_QUERY_PREFIX = "task: fact checking | query: "
+GEMINI_DOCUMENT_PREFIX = "title: none | text: "
 
 REPAIR_INSTRUCTION = (
     "Your previous reply could not be parsed against the required JSON schema.\n"
@@ -114,6 +121,20 @@ def _litellm() -> Any:
     litellm.suppress_debug_info = True
     litellm.drop_params = False  # an unsupported parameter must fail loudly, not vanish
     return litellm
+
+
+SAMPLING_PARAMS = ("temperature", "top_p", "top_k")
+
+
+def gemini_takes_sampling_params(model: str) -> bool:
+    """False for Gemini models that ignore temperature / top_p (LiteLLM's model map, `supports_sampling_params`);
+    LiteLLM refuses to send them there, so the client leaves them out of the request (not out of the cache key)."""
+    try:
+        from litellm.llms.vertex_ai.gemini.vertex_and_google_ai_studio_gemini import VertexGeminiConfig
+    except ImportError:  # pragma: no cover - older LiteLLM: forward as before
+        return True
+    _litellm()
+    return bool(VertexGeminiConfig.supports_sampling_params(f"gemini/{model}"))
 
 
 def _get(obj: Any, name: str, default: Any = None) -> Any:
@@ -186,7 +207,7 @@ class LLMClient:
             dev_budget_eur=self.settings.onus_dev_budget_eur if mode == "batch" else None,
             max_eur_per_paper=self.settings.onus_max_eur_per_paper,
         )
-        self.caps = Capabilities.load(self.var_dir)
+        self.caps = Capabilities.load(self.var_dir, self.settings.onus_llm_provider)
         self.prompts = prompts or PromptRegistry()
         self.mode = mode
         self._concurrency = concurrency
@@ -216,7 +237,28 @@ class LLMClient:
                     raise
                 await asyncio.sleep(wait * (1 + 0.25 * i))
 
+    @property
+    def provider(self) -> str:
+        return self.settings.onus_llm_provider
+
+    def _route(self, model: str) -> str:
+        """The LiteLLM model string for a role's model id."""
+        return f"gemini/{model}" if self.provider == "gemini" else f"openai/{model}"
+
+    def _key_model(self, model: str) -> str:
+        """The model as the cache key sees it: v1.0's bare id for Berget, provider-qualified otherwise."""
+        return model if self.provider == "berget" else f"{self.provider}/{model}"
+
+    def _send_params(self, model: str, params: dict[str, Any]) -> dict[str, Any]:
+        """The parameters actually sent (the cache key always uses the full `params`)."""
+        if self.provider == "gemini" and not gemini_takes_sampling_params(model):
+            return {k: v for k, v in params.items() if k not in SAMPLING_PARAMS}
+        return params
+
     def _common(self) -> dict[str, Any]:
+        if self.provider == "gemini":
+            return {"api_key": self.settings.gemini_api_key.get_secret_value(), "timeout": TIMEOUT_S,
+                    "num_retries": NUM_RETRIES}
         return {
             "api_base": self.settings.berget_api_base,
             "api_key": self.settings.berget_api_key.get_secret_value(),
@@ -225,12 +267,15 @@ class LLMClient:
         }
 
     def _scrub(self, text: str) -> str:
-        key = self.settings.berget_api_key.get_secret_value()
-        return text.replace(key, "***") if key else text
+        for secret in (self.settings.berget_api_key, self.settings.gemini_api_key):
+            key = secret.get_secret_value()
+            if key:
+                text = text.replace(key, "***")
+        return text
 
     def judge_reasoning_kwargs(self) -> dict[str, Any]:
         caps = self.caps.for_role("judge", self.settings.model_for("judge"))
-        return reasoning_kwargs(caps.reasoning_style, self.settings.onus_judge_reasoning)
+        return reasoning_kwargs(caps.reasoning_style, reasoning_level(self.provider, self.settings.judge_reasoning))
 
     # ------------------------------------------------------------ core chat call
 
@@ -246,7 +291,7 @@ class LLMClient:
         use_cache: bool = True,
     ) -> dict:
         model = self.settings.model_for(role)
-        key = cache_key(model, messages, params, run_index)
+        key = cache_key(self._key_model(model), messages, params, run_index)
         if use_cache and (hit := self.cache.get(key)) is not None:
             self._log(role, model, meta.prompt_id, paper_id, hit["usage"], 0.0, True, 0.0)
             meta.add(hit["usage"], 0.0, True, 0.0)
@@ -256,8 +301,8 @@ class LLMClient:
         t0 = time.monotonic()
         try:
             async with self._sem():
-                resp = await self._with_backoff(self._acompletion, model=f"openai/{model}", messages=messages,
-                                                **params, **self._common())
+                resp = await self._with_backoff(self._acompletion, model=self._route(model), messages=messages,
+                                                **self._send_params(model, params), **self._common())
             out = normalize_response(resp)
         except BudgetExceeded:
             raise
@@ -283,6 +328,11 @@ class LLMClient:
             )
         )
 
+    def _thought_out(self, role: Role, out: dict) -> bool:
+        """A Gemini judge reply that hit max_tokens with no answer, when a thinking fallback is configured."""
+        return (self.provider == "gemini" and role == "judge" and self.settings.onus_gemini_judge_fallback != "off"
+                and out.get("finish_reason") == "length" and not (out.get("content") or "").strip())
+
     # ------------------------------------------------------------ public API
 
     async def complete_json(
@@ -301,7 +351,9 @@ class LLMClient:
         params: dict[str, Any] = {"temperature": prompt.temperature, "max_tokens": prompt.max_tokens}
         if role == "judge":
             params |= self.judge_reasoning_kwargs()
-        if caps.json_schema:
+        schema_mode = caps.json_schema and not (
+            self.provider == "gemini" and self.settings.onus_gemini_structured_output == "json_object")
+        if schema_mode:
             params["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {"name": schema.__name__, "schema": schema.model_json_schema(), "strict": False},
@@ -318,6 +370,12 @@ class LLMClient:
         meta = CallMeta(prompt_id=prompt_id, role=role, model=model, prompt_version=prompt.version)
         kw = {"run_index": run_index, "paper_id": paper_id}
         out = await self._chat(role, messages, params, meta, **kw)
+        if self._thought_out(role, out):
+            # Gemini spent the whole budget thinking and gave no answer: retry once at the fallback level
+            level = self.settings.onus_gemini_judge_fallback
+            meta.extra["thinking_fallback"] = level
+            params = params | reasoning_kwargs(caps.reasoning_style, level)
+            out = await self._chat(role, messages, params, meta, **kw)
         try:
             return parse_json_output(out["content"], schema), meta
         except (ValidationError, ValueError) as err:
@@ -355,10 +413,18 @@ class LLMClient:
         out = await self._chat(role, messages, params, meta, run_index=run_index, paper_id=paper_id)
         return out, meta
 
-    async def embed(self, texts: list[str], *, paper_id: str | None = None) -> list[list[float]]:
-        """Embed texts with the embed role, cached per text. Callers add any query prefix themselves."""
+    def embed_input(self, text: str, task: Literal["document", "query"]) -> str:
+        """The text the embedding model is sent for a retrieval document or query (provider-specific prefix)."""
+        if self.provider == "gemini":
+            return (GEMINI_QUERY_PREFIX if task == "query" else GEMINI_DOCUMENT_PREFIX) + text
+        return E5_QUERY_PREFIX + text if task == "query" else text
+
+    async def embed(self, texts: list[str], *, paper_id: str | None = None,
+                    task: Literal["document", "query"] = "document") -> list[list[float]]:
+        """Embed retrieval documents or queries with the embed role, cached per text."""
+        texts = [self.embed_input(t, task) for t in texts]
         model = self.settings.model_for("embed")
-        keys = [cache_key(model, [t], {}, 0) for t in texts]
+        keys = [cache_key(self._key_model(model), [t], {}, 0) for t in texts]
         result: list[list[float] | None] = [None] * len(texts)
         todo: list[int] = []
         for i, k in enumerate(keys):
@@ -380,7 +446,7 @@ class LLMClient:
         self.guard.check(paper_id)
         try:
             async with self._sem():
-                resp = await self._with_backoff(self._aembedding, model=f"openai/{model}", input=texts,
+                resp = await self._with_backoff(self._aembedding, model=self._route(model), input=texts,
                                                 **self._common())
         except BudgetExceeded:
             raise
@@ -410,6 +476,13 @@ class LLMClient:
     async def list_models(self) -> list[str]:
         import httpx
 
+        if self.provider == "gemini":
+            headers = {"x-goog-api-key": self.settings.gemini_api_key.get_secret_value()}
+            async with httpx.AsyncClient(timeout=30) as http:
+                r = await http.get("https://generativelanguage.googleapis.com/v1beta/models",
+                                   params={"pageSize": 1000}, headers=headers)
+                r.raise_for_status()
+                return sorted(m["name"].removeprefix("models/") for m in r.json().get("models", []))
         headers = {"Authorization": f"Bearer {self.settings.berget_api_key.get_secret_value()}"}
         async with httpx.AsyncClient(timeout=30) as http:
             r = await http.get(self.settings.berget_api_base.rstrip("/") + "/models", headers=headers)

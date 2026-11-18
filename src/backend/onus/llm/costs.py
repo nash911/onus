@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from onus.config import PRICES_EUR_PER_M
+from onus.config import LONG_CONTEXT_EUR_PER_M, PRICES_EUR_PER_M
 
 
 class BudgetExceeded(RuntimeError):
@@ -30,6 +30,10 @@ def cost_eur(model: str, tokens_in: int, tokens_out: int, cached_in: int = 0) ->
     if model not in PRICES_EUR_PER_M:
         raise UnknownModelPrice(f"No price for model {model!r}; add it to PRICES_EUR_PER_M in config.py")
     p_in, p_cached, p_out = PRICES_EUR_PER_M[model]
+    if model in LONG_CONTEXT_EUR_PER_M:  # the whole call is billed at the long-context rate past the threshold
+        threshold, long_prices = LONG_CONTEXT_EUR_PER_M[model]
+        if tokens_in > threshold:
+            p_in, p_cached, p_out = long_prices
     cached_in = max(0, min(cached_in, tokens_in))
     p_cached = p_in if p_cached is None else p_cached
     return ((tokens_in - cached_in) * p_in + cached_in * p_cached + tokens_out * p_out) / 1_000_000
