@@ -24,17 +24,22 @@ export function AuditBadge({ status }: { status: string }) {
 
 /** Compact per-verdict counts as small chips (dot + number), each with an accessible label; zero counts are omitted. */
 export function VerdictCounts({ counts }: { counts: Partial<Record<Verdict, number>> | undefined }) {
-  const items = VERDICT_ORDER.filter((v) => (counts?.[v] ?? 0) > 0);
-  if (!items.length) return <span className="text-slate-500">—</span>;
+  // All five verdicts, always in the same order, so cards line up and a zero reads as "none" rather than "missing".
+  if (!counts || !VERDICT_ORDER.some((v) => (counts[v] ?? 0) > 0)) return <span className="text-slate-500">—</span>;
   return (
     <ul className="flex flex-wrap gap-1.5 text-[13px]">
-      {items.map((v) => {
+      {VERDICT_ORDER.map((v) => {
         const { label, badge } = VERDICTS[v];
+        const n = counts[v] ?? 0;
         return (
-          <li key={v} className={`inline-flex items-center gap-1 rounded border px-1.5 font-semibold leading-5 tabular-nums ${badge}`} title={label}>
+          <li
+            key={v}
+            className={`inline-flex items-center gap-1 rounded border px-1.5 font-semibold leading-5 tabular-nums ${badge} ${n ? "" : "opacity-45"}`}
+            title={`${label}: ${n}`}
+          >
             <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />
             <span className="sr-only">{label}: </span>
-            {counts?.[v]}
+            {n}
           </li>
         );
       })}
