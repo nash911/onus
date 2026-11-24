@@ -6,6 +6,10 @@ with those in such passages: a number followed by a unit (%, hours, GPUs, cores,
 unit that both the claim and the passage state, the claim's value must appear in the passage (rounded to the
 claim's precision). If the passage states that unit only with other values, code has found a mismatch.
 
+Percentages are parsed but not compared: a paper reports many different quantities in %, so a passage that states
+other percentages is usually about another quantity, not a different value for the claimed one. Units such as
+hours, GPUs or epochs name what is measured closely enough for the comparison to hold.
+
 Used by the number check (`numbers.check_numbers`) only where the table comparison did not run (no number for the
 tables, no linked table, or numbers not from the linked tables). A value that appears in any linked passage that
 supports, partly supports or contradicts the claim clears the unit, so a passage about another quantity with the
@@ -39,6 +43,8 @@ _QTY = re.compile(
     r"runs?\b|seeds?\b|trials?\b|layers?\b|steps?\b)",
     re.IGNORECASE,
 )
+# units too generic to say two values measure the same thing (see the module docstring)
+_NOT_COMPARED = frozenset({"%"})
 # "Table 3 %", "Section 4 hours" never occur, but references and years should not be read as quantities
 _REF_BEFORE = re.compile(r"(?:table|fig\.?|figure|section|sec\.|eq\.|equation|appendix|line|page|step)\s*$",
                          re.IGNORECASE)
@@ -79,7 +85,7 @@ class TextMismatch:
 
 def compare_text_values(claim: str, linked: list[tuple[Evidence, str]]) -> list[TextMismatch]:
     """Code-found mismatches between the claim's quantities and its contradicting text passages."""
-    cq = quantities(claim)
+    cq = [q for q in quantities(claim) if q.unit not in _NOT_COMPARED]
     if not cq:
         return []
     passages = [(e, t) for e, t in linked if e.kind == "text" and e.relation in ("supports", "partial", "contradicts")]

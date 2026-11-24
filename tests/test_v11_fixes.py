@@ -105,7 +105,7 @@ def test_no_mismatch_when_the_value_is_printed_or_the_passage_only_points():
     # a contradicting passage that states no value in that unit
     assert compare_text_values(claim, [(_ev("E1", "contradicts"), "Training was slow.")]) == []
     # rounding to the claim's precision
-    assert compare_text_values("Accuracy is 81%.", [(_ev("E1", "contradicts"), "Accuracy reached 81.3%.")]) == []
+    assert compare_text_values("Training took 4 hours.", [(_ev("E1", "contradicts"), "Training took 4.3 hours.")]) == []
 
 
 async def test_number_check_uses_text_values_only_where_no_table_comparison_ran():
@@ -124,3 +124,11 @@ async def test_number_check_uses_text_values_only_where_no_table_comparison_ran(
     assert rule_verdict([_ev("E1", "contradicts")], [link, r], []).verdict == "contradicted"
     # the judge may downgrade a unit-only pairing to not_checkable (a code-recorded parse problem), never clear it
     assert code_parse_problems([r]) and "by unit only" in code_parse_problems([r])[0]
+
+
+def test_text_values_do_not_compare_percentages():
+    # a contradicting passage about another percentage is not evidence that the claimed percentage is wrong
+    claim = "The method prevents 78% of errors and runs in 3 hours."
+    assert compare_text_values(claim, [(_ev("E1", "contradicts"), "It is correct with 92% accuracy on 5% increases.")]) == []
+    hours = compare_text_values(claim, [(_ev("E1", "contradicts"), "Training took 6 hours.")])
+    assert [(m.claimed.text, [v.text for v in m.found]) for m in hours] == [("3 hours", ["6 hours"])]
