@@ -52,10 +52,13 @@ class LedgerEntry:
     cache_hit: bool
     ts: str = ""
     latency_s: float = 0.0  # wall time of the provider call (0 for cache hits)
+    error: str | None = None  # the error type when the call failed (no usage known; the provider may bill it)
 
     def to_json(self) -> str:
         d = self.__dict__.copy()
         d["ts"] = d["ts"] or datetime.now(UTC).isoformat()
+        if d["error"] is None:  # successful calls keep v1.0's row shape
+            del d["error"]
         return json.dumps(d, ensure_ascii=False)
 
 

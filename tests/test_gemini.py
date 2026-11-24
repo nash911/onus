@@ -60,7 +60,7 @@ def test_gemini_settings_map_every_role_to_a_pinned_model(gsettings):
                       "embed": "gemini-embedding-2"}
     assert not any("latest" in m or "preview" in m for m in models.values())
     assert gsettings.models_config["provider"] == "gemini"
-    assert gsettings.models_config["judge_reasoning"] == "medium"  # ONUS_GEMINI_JUDGE_REASONING default
+    assert gsettings.models_config["judge_reasoning"] == "high"  # ONUS_GEMINI_JUDGE_REASONING default
 
 
 def test_provider_moves_the_pipeline_fingerprint(settings, gsettings):
@@ -187,45 +187,92 @@ async def test_embed_prefixes_depend_on_the_provider(settings, gsettings, monkey
                     [GEMINI_QUERY_PREFIX + "claim"], [GEMINI_DOCUMENT_PREFIX + "paragraph"]]
 
 
-def _length_reply(tout: int = 8000) -> dict:
-    r = reply(None, tout=tout)
-    r["choices"][0]["finish_reason"] = "length"
-    return r
-
 
 _JUDGE_CAPS = Capabilities(roles={"judge": RoleCaps(model="gemini-4-carbon", json_schema=True,
                                                     reasoning_style="reasoning_effort")})
 
 
-async def test_judge_that_thinks_out_its_budget_is_retried_at_low(gsettings, prompts_tmp, monkeypatch):
-    c, t = _client(gsettings, prompts_tmp, monkeypatch, _length_reply(), reply('{"city": "Paris", "country": "France"}'),
+async def test_gemini_judge_thinks_high_with_four_times_the_tokens(gsettings, prompts_tmp, monkeypatch):
+    c, t = _client(gsettings, prompts_tmp, monkeypatch, reply('{"city": "Paris", "country": "France"}'),
+                   reply('{"city": "Paris", "country": "France"}'), caps=_JUDGE_CAPS)
+    await c.complete_json("judge_city", {"country": "France"}, City)
+    await c.complete_json("city", {"country": "France"}, City)
+    assert t.calls[0]["reasoning_effort"] == "high" and t.calls[0]["max_tokens"] == 4 * 256  # judge
+    assert t.calls[1]["max_tokens"] == 256  # extract keeps the prompt's limit
+    assert gsettings.models_config["judge_token_factor"] == "4"  # part of the fingerprint
+
+
+async def test_gemini_judge_with_no_answer_goes_to_the_repair_path(gsettings, prompts_tmp, monkeypatch):
+    empty = reply(None, tout=1024)
+    empty["choices"][0]["finish_reason"] = "length"
+    c, t = _client(gsettings, prompts_tmp, monkeypatch, empty, reply('{"city": "Paris", "country": "France"}'),
                    caps=_JUDGE_CAPS)
     res, meta = await c.complete_json("judge_city", {"country": "France"}, City)
-    assert res.city == "Paris" and len(t.calls) == 2 and not meta.repaired
-    assert t.calls[0]["reasoning_effort"] == "medium" and t.calls[1]["reasoning_effort"] == "low"
-    assert meta.extra["thinking_fallback"] == "low"
-    assert gsettings.models_config["judge_fallback"] == "low"  # part of the fingerprint
+    assert res.city == "Paris" and meta.repaired  # no change of thinking level
+    assert t.calls[1]["reasoning_effort"] == "high" and t.calls[1]["max_tokens"] == 4 * 256
 
 
-async def test_thinking_fallback_off_or_not_judge_or_not_empty(gsettings, prompts_tmp, monkeypatch):
-    gsettings.onus_gemini_judge_fallback = "off"
-    c, t = _client(gsettings, prompts_tmp, monkeypatch, _length_reply(), reply('{"city": "Paris", "country": "France"}'),
-                   caps=_JUDGE_CAPS)
-    _, meta = await c.complete_json("judge_city", {"country": "France"}, City)
-    assert meta.repaired and "thinking_fallback" not in meta.extra  # the usual repair path, no level change
-    gsettings.onus_gemini_judge_fallback = "low"
-    truncated = reply('{"city": "Paris", "country": "France"}')
-    truncated["choices"][0]["finish_reason"] = "length"  # an answer came back: no retry
-    c, t = _client(gsettings, prompts_tmp, monkeypatch, truncated, caps=_JUDGE_CAPS)
-    _, meta = await c.complete_json("judge_city", {"country": "Spain"}, City)  # not the cached call above
-    assert len(t.calls) == 1 and "thinking_fallback" not in meta.extra
-
-
-async def test_berget_judge_never_gets_the_thinking_fallback(settings, prompts_tmp, monkeypatch):
+async def test_berget_judge_keeps_the_prompt_token_limit(settings, prompts_tmp, monkeypatch):
     write_prompt(prompts_tmp, "judge_city", "Capital of {{country}}?", role="judge")
     c = LLMClient(settings, prompts=PromptRegistry(prompts_tmp))
-    t = Transport(_length_reply(), reply('{"city": "Paris", "country": "France"}'))
+    t = Transport(reply('{"city": "Paris", "country": "France"}'))
     monkeypatch.setattr(c, "_acompletion", t)
-    _, meta = await c.complete_json("judge_city", {"country": "France"}, City)
-    assert meta.repaired and "thinking_fallback" not in meta.extra
-    assert "judge_fallback" not in settings.models_config  # Berget's v1.0 shape is unchanged
+    await c.complete_json("judge_city", {"country": "France"}, City)
+    assert t.calls[0]["max_tokens"] == 256
+    assert "judge_token_factor" not in settings.models_config  # Berget's v1.0 shape is unchanged
+
+
+class Timeout(Exception):
+    """Named like LiteLLM's timeout error, which the client classifies by type name."""
+
+
+async def test_gemini_judge_gets_a_long_timeout_and_no_timeout_retries(gsettings, prompts_tmp, monkeypatch):
+    import json
+
+    import onus.llm.client as client_mod
+    from onus.llm.client import LLMCallError
+
+    async def no_sleep(_s):
+        return None
+
+    monkeypatch.setattr(client_mod.asyncio, "sleep", no_sleep)
+    c, t = _client(gsettings, prompts_tmp, monkeypatch, Timeout("judge ran out of time"), caps=_JUDGE_CAPS)
+    with pytest.raises(LLMCallError):
+        await c.complete_json("judge_city", {"country": "France"}, City)
+    assert len(t.calls) == 1  # not retried
+    assert t.calls[0]["timeout"] == 4 * 300 and t.calls[0]["num_retries"] == 0
+    rows = [json.loads(x) for x in (gsettings.var_dir / "cost_ledger.jsonl").read_text().splitlines()]
+    assert rows[-1]["error"] == "Timeout" and rows[-1]["prompt_id"] == "judge_city"  # failed calls are ledgered
+    # other Gemini roles keep the short timeout and retry a timeout as before
+    c, t = _client(gsettings, prompts_tmp, monkeypatch, Timeout("slow"), reply('{"city": "Paris", "country": "France"}'))
+    await c.complete_json("city", {"country": "Spain"}, City)
+    assert len(t.calls) == 2 and t.calls[0]["timeout"] == 180 and t.calls[0]["num_retries"] == 3
+
+
+def test_llm_concurrency_is_a_setting_outside_the_fingerprint(gsettings):
+    gsettings.onus_llm_concurrency = 24
+    c = LLMClient(gsettings)
+    assert c._concurrency == 24
+    assert "concurrency" not in str(gsettings.models_config)
+
+
+async def test_scope_conflict_thinks_at_medium_other_judge_prompts_at_high(gsettings, prompts_tmp, monkeypatch):
+    write_prompt(prompts_tmp, "scope_conflict", "Scope of {{country}}?", role="judge")
+    c, t = _client(gsettings, prompts_tmp, monkeypatch, reply('{"city": "Paris", "country": "France"}'),
+                   reply('{"city": "Paris", "country": "France"}'), caps=_JUDGE_CAPS)
+    await c.complete_json("scope_conflict", {"country": "France"}, City)
+    await c.complete_json("judge_city", {"country": "France"}, City)
+    assert t.calls[0]["reasoning_effort"] == "medium" and t.calls[0]["max_tokens"] == 4 * 256
+    assert t.calls[1]["reasoning_effort"] == "high"
+    assert gsettings.models_config["judge_reasoning_overrides"] == (
+        "baseline_support:medium,impl_match:medium,scope_conflict:medium")  # in the fingerprint, sorted
+
+
+def test_reasoning_overrides_are_parsed_and_checked(gsettings, settings):
+    gsettings.onus_gemini_judge_reasoning_overrides = "scope_conflict:medium, adjudicate:low"
+    assert gsettings.gemini_judge_reasoning_overrides == {"scope_conflict": "medium", "adjudicate": "low"}
+    assert gsettings.judge_reasoning_for("adjudicate") == "low" and gsettings.judge_reasoning_for("x") == "high"
+    gsettings.onus_gemini_judge_reasoning_overrides = "scope_conflict:max"
+    with pytest.raises(ValueError):
+        _ = gsettings.gemini_judge_reasoning_overrides
+    assert settings.judge_reasoning_for("scope_conflict") == settings.onus_judge_reasoning  # Berget: no overrides

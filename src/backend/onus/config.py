@@ -92,17 +92,22 @@ class Settings(BaseSettings):
     onus_gemini_model_judge: str = "gemini-4-carbon"
     onus_gemini_model_fast: str = "gemini-3.5-flash-lite"
     onus_gemini_model_embed: str = "gemini-embedding-2"
-    # Gemini's judge thinks until max_tokens at "high" on real prompts (empty replies, ~5k thinking tokens per
-    # adjudication on dev), so the Gemini judge has its own level; "medium" is its default.
-    onus_gemini_judge_reasoning: Literal["low", "medium", "high"] = "medium"
+    # The Gemini judge's thinking level. Gemini counts thinking tokens against max_tokens, so judge calls on Gemini
+    # get ONUS_GEMINI_JUDGE_TOKEN_FACTOR times the prompt's max_tokens (at 1x, 113 judge calls on dev ran out of
+    # tokens while thinking: adjudicate, scope_conflict, baseline_support, impl_match).
+    onus_gemini_judge_reasoning: Literal["low", "medium", "high"] = "high"
+    onus_gemini_judge_token_factor: int = 4
+    # Per-prompt thinking levels for the Gemini judge, "prompt:level,prompt:level". At "high" with the 4x budget these
+    # prompts thought until their limit or the timeout on dev: scope_conflict used all 32,000 tokens on 8 of 15 calls,
+    # baseline_support passed 20 minutes on 16 of 16, impl_match used all 24,000 tokens on 2 of 8. They run at "medium".
+    onus_gemini_judge_reasoning_overrides: str = "scope_conflict:medium,baseline_support:medium,impl_match:medium"
     # Structured output on Gemini: "json_object" sends the schema in the system message (as for Berget models
     # without json_schema). Gemini's schema-constrained mode dropped optional fields (is_main) and pushed the number
     # mapper to "not_in_tables" on dev, so json_object is the default.
     onus_gemini_structured_output: Literal["json_object", "json_schema"] = "json_object"
-    # Gemini counts thinking against max_tokens. When a judge call spends all of it thinking and returns no answer
-    # (finish_reason "length", empty content), the call is retried once at this thinking level ("off": no retry).
-    # On dev, 5 of 18 scope_conflict calls at "medium" ended that way.
-    onus_gemini_judge_fallback: Literal["off", "low"] = "low"
+
+    # Model calls in flight at once per process (does not change outputs, so not in the fingerprint)
+    onus_llm_concurrency: int = 8
 
     # Spend guards (EUR)
     onus_dev_budget_eur: float = 25.0
@@ -161,7 +166,28 @@ class Settings(BaseSettings):
             return {**self.models, "judge_reasoning": self.onus_judge_reasoning}
         return {"provider": self.onus_llm_provider, **self.models, "judge_reasoning": self.judge_reasoning,
                 "structured_output": self.onus_gemini_structured_output,
-                "judge_fallback": self.onus_gemini_judge_fallback}
+                "judge_token_factor": str(self.onus_gemini_judge_token_factor),
+                "judge_reasoning_overrides": ",".join(f"{k}:{v}" for k, v in
+                                                      sorted(self.gemini_judge_reasoning_overrides.items()))}
+
+    @property
+    def gemini_judge_reasoning_overrides(self) -> dict[str, str]:
+        """ONUS_GEMINI_JUDGE_REASONING_OVERRIDES as {prompt_id: level}; levels must be low, medium or high."""
+        out: dict[str, str] = {}
+        for item in self.onus_gemini_judge_reasoning_overrides.split(","):
+            if not item.strip():
+                continue
+            prompt, sep, level = item.partition(":")
+            if not sep or level.strip() not in ("low", "medium", "high") or not prompt.strip():
+                raise ValueError(f"ONUS_GEMINI_JUDGE_REASONING_OVERRIDES: bad entry {item!r} (want prompt:low|medium|high)")
+            out[prompt.strip()] = level.strip()
+        return out
+
+    def judge_reasoning_for(self, prompt_id: str | None = None) -> str:
+        """The judge's reasoning level for one prompt: a Gemini per-prompt override, else the provider's level."""
+        if self.onus_llm_provider == "gemini" and prompt_id:
+            return self.gemini_judge_reasoning_overrides.get(prompt_id, self.judge_reasoning)
+        return self.judge_reasoning
 
     @property
     def judge_reasoning(self) -> str:

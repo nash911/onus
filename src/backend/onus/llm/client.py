@@ -42,6 +42,10 @@ T = TypeVar("T", bound=BaseModel)
 
 DEFAULT_CONCURRENCY = 8
 TIMEOUT_S = 180
+# A Gemini judge call thinks at length (thinking counts against its max_tokens, which ONUS_GEMINI_JUDGE_TOKEN_FACTOR
+# raises), so it gets this many seconds per unit of the factor (4x -> 20 minutes), and a timeout is not retried:
+# a call that ran out of time would most likely run out again, and each attempt is billed.
+GEMINI_JUDGE_TIMEOUT_S_PER_FACTOR = 300
 NUM_RETRIES = 3
 # provider throttling / outages: retried here with backoff (LiteLLM's own retries are immediate)
 TRANSIENT_ERRORS = ("RateLimitError", "ServiceUnavailableError", "APIConnectionError", "InternalServerError",
@@ -196,7 +200,7 @@ class LLMClient:
         var_dir: Path | None = None,
         prompts: PromptRegistry | None = None,
         mode: Literal["batch", "live"] = "batch",
-        concurrency: int = DEFAULT_CONCURRENCY,
+        concurrency: int | None = None,
     ):
         self.settings = settings or get_settings()
         self.var_dir = var_dir or self.settings.var_dir
@@ -210,7 +214,7 @@ class LLMClient:
         self.caps = Capabilities.load(self.var_dir, self.settings.onus_llm_provider)
         self.prompts = prompts or PromptRegistry()
         self.mode = mode
-        self._concurrency = concurrency
+        self._concurrency = concurrency or self.settings.onus_llm_concurrency or DEFAULT_CONCURRENCY
         self._sems: dict[int, asyncio.Semaphore] = {}
 
     # ------------------------------------------------------------ transport (patched in tests)
@@ -227,13 +231,16 @@ class LLMClient:
             self._sems[loop_id] = asyncio.Semaphore(self._concurrency)
         return self._sems[loop_id]
 
-    async def _with_backoff(self, fn, **kwargs: Any) -> Any:
-        """Retry throttling and transient provider errors with backoff; other errors propagate at once."""
+    async def _with_backoff(self, fn, *, retry_timeouts: bool = True, **kwargs: Any) -> Any:
+        """Retry throttling and transient provider errors with backoff; other errors propagate at once.
+        With retry_timeouts=False a timeout propagates at once too."""
         for i, wait in enumerate((*TRANSIENT_BACKOFF_S, None)):
             try:
                 return await fn(**kwargs)
             except Exception as e:
-                if wait is None or not any(t in type(e).__name__ for t in TRANSIENT_ERRORS):
+                name = type(e).__name__
+                if wait is None or not any(t in name for t in TRANSIENT_ERRORS) or (
+                        not retry_timeouts and "Timeout" in name):
                     raise
                 await asyncio.sleep(wait * (1 + 0.25 * i))
 
@@ -255,7 +262,15 @@ class LLMClient:
             return {k: v for k, v in params.items() if k not in SAMPLING_PARAMS}
         return params
 
-    def _common(self) -> dict[str, Any]:
+    def _long_judge(self, role: Role) -> bool:
+        """A Gemini judge call: long timeout, no retry on timeout (see GEMINI_JUDGE_TIMEOUT_S_PER_FACTOR)."""
+        return self.provider == "gemini" and role == "judge"
+
+    def _common(self, role: Role | None = None) -> dict[str, Any]:
+        if role is not None and self._long_judge(role):
+            return {"api_key": self.settings.gemini_api_key.get_secret_value(),
+                    "timeout": GEMINI_JUDGE_TIMEOUT_S_PER_FACTOR * max(1, self.settings.onus_gemini_judge_token_factor),
+                    "num_retries": 0}
         if self.provider == "gemini":
             return {"api_key": self.settings.gemini_api_key.get_secret_value(), "timeout": TIMEOUT_S,
                     "num_retries": NUM_RETRIES}
@@ -273,9 +288,10 @@ class LLMClient:
                 text = text.replace(key, "***")
         return text
 
-    def judge_reasoning_kwargs(self) -> dict[str, Any]:
+    def judge_reasoning_kwargs(self, prompt_id: str | None = None) -> dict[str, Any]:
         caps = self.caps.for_role("judge", self.settings.model_for("judge"))
-        return reasoning_kwargs(caps.reasoning_style, reasoning_level(self.provider, self.settings.judge_reasoning))
+        level = self.settings.judge_reasoning_for(prompt_id)
+        return reasoning_kwargs(caps.reasoning_style, reasoning_level(self.provider, level))
 
     # ------------------------------------------------------------ core chat call
 
@@ -301,12 +317,16 @@ class LLMClient:
         t0 = time.monotonic()
         try:
             async with self._sem():
-                resp = await self._with_backoff(self._acompletion, model=self._route(model), messages=messages,
-                                                **self._send_params(model, params), **self._common())
+                resp = await self._with_backoff(self._acompletion, retry_timeouts=not self._long_judge(role),
+                                                model=self._route(model), messages=messages,
+                                                **self._send_params(model, params), **self._common(role))
             out = normalize_response(resp)
         except BudgetExceeded:
             raise
         except Exception as e:  # noqa: BLE001 - every transport/provider error becomes LLMCallError
+            # failed calls are ledgered too (no usage is known; the provider may still bill them)
+            self._log(role, model, meta.prompt_id, paper_id, {}, 0.0, False, time.monotonic() - t0,
+                      error=type(e).__name__)
             raise LLMCallError(self._scrub(f"{type(e).__name__}: {e}")) from None
         latency = time.monotonic() - t0
         u = out["usage"]
@@ -318,20 +338,22 @@ class LLMClient:
         return out
 
     def _log(self, role: str, model: str, prompt_id: str, paper_id: str | None, usage: dict, eur: float, hit: bool,
-             latency: float = 0.0):
+             latency: float = 0.0, error: str | None = None):
         self.ledger.append(
             LedgerEntry(
                 role=role, model=model, prompt_id=prompt_id, paper_id=paper_id,
                 tokens_in=int(usage.get("prompt_tokens", 0)), tokens_out=int(usage.get("completion_tokens", 0)),
                 cached_in=int(usage.get("cached_tokens", 0)), eur=round(eur, 8), cache_hit=hit,
-                latency_s=round(latency, 2),
+                latency_s=round(latency, 2), error=error,
             )
         )
 
-    def _thought_out(self, role: Role, out: dict) -> bool:
-        """A Gemini judge reply that hit max_tokens with no answer, when a thinking fallback is configured."""
-        return (self.provider == "gemini" and role == "judge" and self.settings.onus_gemini_judge_fallback != "off"
-                and out.get("finish_reason") == "length" and not (out.get("content") or "").strip())
+    def _judge_max_tokens(self, role: Role, max_tokens: int) -> int:
+        """Gemini counts thinking against max_tokens, so its judge gets ONUS_GEMINI_JUDGE_TOKEN_FACTOR times the
+        prompt's limit. Berget requests are unchanged."""
+        if self.provider == "gemini" and role == "judge":
+            return max_tokens * self.settings.onus_gemini_judge_token_factor
+        return max_tokens
 
     # ------------------------------------------------------------ public API
 
@@ -348,9 +370,10 @@ class LLMClient:
         model = self.settings.model_for(role)
         caps = self.caps.for_role(role, model)
         messages = prompt.render(variables)
-        params: dict[str, Any] = {"temperature": prompt.temperature, "max_tokens": prompt.max_tokens}
+        params: dict[str, Any] = {"temperature": prompt.temperature,
+                                  "max_tokens": self._judge_max_tokens(role, prompt.max_tokens)}
         if role == "judge":
-            params |= self.judge_reasoning_kwargs()
+            params |= self.judge_reasoning_kwargs(prompt_id)
         schema_mode = caps.json_schema and not (
             self.provider == "gemini" and self.settings.onus_gemini_structured_output == "json_object")
         if schema_mode:
@@ -370,12 +393,6 @@ class LLMClient:
         meta = CallMeta(prompt_id=prompt_id, role=role, model=model, prompt_version=prompt.version)
         kw = {"run_index": run_index, "paper_id": paper_id}
         out = await self._chat(role, messages, params, meta, **kw)
-        if self._thought_out(role, out):
-            # Gemini spent the whole budget thinking and gave no answer: retry once at the fallback level
-            level = self.settings.onus_gemini_judge_fallback
-            meta.extra["thinking_fallback"] = level
-            params = params | reasoning_kwargs(caps.reasoning_style, level)
-            out = await self._chat(role, messages, params, meta, **kw)
         try:
             return parse_json_output(out["content"], schema), meta
         except (ValidationError, ValueError) as err:
@@ -405,10 +422,10 @@ class LLMClient:
         """One assistant turn with tools. Returns {content, tool_calls: [{id, name, arguments}], ...}."""
         model = self.settings.model_for(role)
         params: dict[str, Any] = {
-            "temperature": temperature, "max_tokens": max_tokens, "tools": tools, "tool_choice": "auto",
+            "temperature": temperature, "max_tokens": self._judge_max_tokens(role, max_tokens), "tools": tools, "tool_choice": "auto",
         }
         if role == "judge":
-            params |= self.judge_reasoning_kwargs()
+            params |= self.judge_reasoning_kwargs(prompt_id)
         meta = CallMeta(prompt_id=prompt_id, role=role, model=model)
         out = await self._chat(role, messages, params, meta, run_index=run_index, paper_id=paper_id)
         return out, meta
