@@ -17,6 +17,7 @@ failed or no_code, with the code source).
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -158,8 +159,24 @@ def _parse_ref(body: RefIn) -> tuple[str, str]:
     try:
         r = parse_ref(text)
     except ValueError as e:
-        raise HTTPException(422, "That does not look like an arXiv or OpenReview id.") from e
+        raise HTTPException(422, ref_error_text(body.ref or body.id or "")) from e
     return r.source, r.external_id
+
+
+_ACCEPTED = ("Use an arXiv id such as 2401.01234, an arxiv.org link, or an OpenReview forum link or id.")
+
+
+def ref_error_text(raw: str) -> str:
+    """Plain-language reason a paper reference was refused, with what to do instead."""
+    s = raw.strip()
+    upload = "To check this paper, download its PDF and upload it below."
+    if re.match(r"^(?:(?:https?://)?(?:dx\.)?doi\.org/|doi:\s*)?10\.\d{4,9}/", s, re.IGNORECASE):
+        return f"Onus can only fetch papers from arXiv and OpenReview, not by DOI. {upload}"
+    m = re.match(r"^https?://(?:www\.)?([^/?#\s:]+)", s, re.IGNORECASE)
+    host = m.group(1).lower() if m else None
+    if host and not host.endswith(("arxiv.org", "openreview.net")):
+        return f"Onus can only fetch papers from arXiv and OpenReview, not {host}. {upload}"
+    return f"That does not look like an arXiv or OpenReview paper. {_ACCEPTED}"
 
 
 async def _read_field(f: Any, limit: int) -> bytes:

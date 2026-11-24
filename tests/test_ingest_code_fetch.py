@@ -109,6 +109,13 @@ def test_build_code_index_absent(tmp_path: Path) -> None:
     [("arxiv:2401.01234", "arxiv", "2401.01234"), ("2401.01234v2", "arxiv", "2401.01234v2"),
      ("https://arxiv.org/abs/2401.01234", "arxiv", "2401.01234"),
      ("https://arxiv.org/pdf/2401.01234v1.pdf", "arxiv", "2401.01234v1"),
+     ("https://arxiv.org/html/2609.03377v1", "arxiv", "2609.03377v1"),
+     ("https://arxiv.org/html/2609.03377v1/", "arxiv", "2609.03377v1"),
+     ("https://arxiv.org/html/2609.03377v1#S3", "arxiv", "2609.03377v1"),
+     ("arxiv.org/abs/2401.01234?context=cs", "arxiv", "2401.01234"),
+     ("https://export.arxiv.org/abs/hep-th/9901001", "arxiv", "hep-th/9901001"),
+     ("https://doi.org/10.48550/arXiv.2401.01234", "arxiv", "2401.01234"),
+     ("10.48550/arXiv.2401.01234", "arxiv", "2401.01234"),
      ("openreview:AbCdEf1234", "openreview", "AbCdEf1234"),
      ("https://openreview.net/forum?id=AbCdEf1234", "openreview", "AbCdEf1234")],
 )

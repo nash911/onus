@@ -44,10 +44,14 @@ class PaperRef:
 
 
 def parse_ref(s: str) -> PaperRef:
-    """Accepts "arxiv:2401.01234", "2401.01234v2", arXiv abs/pdf URLs, "openreview:<id>", OpenReview
-    forum/pdf URLs. Raises ValueError on anything else."""
+    """Accepts "arxiv:2401.01234", "2401.01234v2", arXiv abs/pdf/html URLs, arXiv DOIs (10.48550/arXiv.<id>,
+    bare or as a doi.org URL), "openreview:<id>", OpenReview forum/pdf URLs. Raises ValueError on anything else."""
     s = s.strip()
-    m = re.match(r"^https?://(?:www\.)?arxiv\.org/(?:abs|pdf)/(?P<id>[^?#\s]+?)(?:\.pdf)?/?$", s, re.IGNORECASE)
+    m = re.match(r"^(?:https?://)?(?:www\.|export\.)?arxiv\.org/(?:abs|pdf|html)/(?P<id>[^?#\s]+?)(?:\.pdf)?/?(?:[?#]\S*)?$",
+                 s, re.IGNORECASE)
+    if m:
+        s = "arxiv:" + m.group("id")
+    m = re.match(r"^(?:(?:https?://)?(?:dx\.)?doi\.org/|doi:\s*)?10\.48550/arxiv\.(?P<id>\S+?)/?$", s, re.IGNORECASE)
     if m:
         s = "arxiv:" + m.group("id")
     m = re.match(r"^https?://(?:www\.)?openreview\.net/(?:forum|pdf)\?(?:.*&)?id=(?P<id>[A-Za-z0-9_\-]+)", s, re.IGNORECASE)

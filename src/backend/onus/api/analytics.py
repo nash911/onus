@@ -50,7 +50,7 @@ EVENT_TYPES: dict[str, dict[str, type]] = {
     "page_view": {"route": _S, "referrer": _S, "screen": _S, "returning": _B},
     "submit": {"kind": _S, "source": _S, "ref": _S, "has_code": _B, "pdf_kb": _I},
     "submit_result": {"status": _S, "cached": _B, "http": _I},
-    "example_click": {"ref": _S},
+    "example_click": {"ref": _S, "where": _S},
     "progress_view": {"stage": _S},
     "report_open": {"status": _S, "mode": _S, "n_claims": _I, "flagged": _I, "has_code": _B},
     "claim_open": {"claim_id": _S, "verdict": _S, "is_main": _B, "via": _S},

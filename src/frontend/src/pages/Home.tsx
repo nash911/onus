@@ -368,7 +368,7 @@ function ExampleCard({ p }: { p: PaperRow & { analysis_id: string } }) {
       </div>
       <Link
         to={`/analyses/${encodeURIComponent(p.analysis_id)}`}
-        onClick={() => track("example_click", { ref: p.ref })}
+        onClick={() => track("example_click", { ref: p.ref, where: "examples" })}
         className="mt-auto text-sm font-semibold text-blue-900 hover:underline"
       >
         Open report →<span className="sr-only">: {p.title ?? p.ref}</span>
@@ -380,6 +380,7 @@ function ExampleCard({ p }: { p: PaperRow & { analysis_id: string } }) {
 export default function Home() {
   const meta = useMeta();
   const examples = (meta.data?.featured ?? []).filter((p): p is PaperRow & { analysis_id: string } => !!p.analysis_id);
+  const lead = examples[0];
 
   return (
     <div>
@@ -394,10 +395,26 @@ export default function Home() {
           <div className="mt-2">
             <StartForm />
           </div>
+          {lead && (
+            // The first curated example (FEATURED_PAPERS order), one click from the hero: no form, no waiting.
+            <Link
+              to={`/analyses/${encodeURIComponent(lead.analysis_id)}`}
+              onClick={() => track("example_click", { ref: lead.ref, where: "hero" })}
+              className="flex min-w-0 flex-col gap-1 rounded-[10px] border border-blue-200 bg-blue-50 px-4 py-3 hover:border-blue-300 hover:bg-blue-100/60"
+            >
+              <span className="text-[13px] font-semibold text-blue-900">No paper to hand? Open a finished report, instantly</span>
+              <span className="font-serif text-[17px] font-semibold leading-snug text-slate-900 break-anywhere line-clamp-2">
+                {lead.title ?? lead.ref}
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                <VerdictCounts counts={lead.summary?.counts} />
+              </span>
+            </Link>
+          )}
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-[15px] font-medium">
-            {examples.length > 0 && (
+            {examples.length > 1 && (
               <a href="#examples" className="text-blue-900 hover:underline">
-                Or open an example report →
+                More example reports →
               </a>
             )}
             <a href={REPO_URL} onClick={() => track("outbound_click", { target: "github_hero" })} className="text-slate-700 hover:underline">

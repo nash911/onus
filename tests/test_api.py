@@ -293,6 +293,18 @@ def test_live_arxiv_fetch_and_cache(env):
         assert p["source_url"] == "https://arxiv.org/abs/2401.01234"
         assert c.post("/api/analyses", json={"source": "arxiv", "id": "not an id"}).status_code == 422
         assert c.post("/api/analyses", json={"source": "zenodo", "id": "1"}).status_code == 422
+        # refused references say why and what to do instead
+        r = c.post("/api/analyses", json={"ref": "https://www.science.org/doi/10.1126/sciadv.adr7338"})
+        assert r.status_code == 422 and "not science.org" in r.json()["detail"] and "upload" in r.json()["detail"]
+        r = c.post("/api/analyses", json={"source": "arxiv", "id": "10.1126/sciadv.adr7338"})
+        assert r.status_code == 422 and "not by DOI" in r.json()["detail"]
+        r = c.post("/api/analyses", json={"ref": "https://doi.org/10.1126/sciadv.adr7338"})
+        assert "not by DOI" in r.json()["detail"]
+        r = c.post("/api/analyses", json={"source": "arxiv", "id": "not an id"})
+        assert "2401.01234" in r.json()["detail"]
+        # an arXiv HTML link is the same paper as its abs link
+        r3 = c.post("/api/analyses", json={"ref": "https://arxiv.org/html/2401.01234"})
+        assert r3.json() == {"analysis_id": aid, "status": "done", "cached": True}
 
 
 def test_in_flight_dedupe_and_failure_retry(env):
