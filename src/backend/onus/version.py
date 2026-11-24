@@ -28,7 +28,7 @@ from pathlib import Path
 
 from onus.config import Settings, get_settings, prompts_dir, repo_root, rubrics_dir
 
-ONUS_VERSION = "1.1.0.dev0"
+ONUS_VERSION = "1.1.0"
 CODE_VERSION: str | None = None
 
 FINGERPRINT_LEN = 12
